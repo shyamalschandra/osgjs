@@ -3,7 +3,7 @@
  *  Tuan.kuranes <tuan.kuranes@gmail.com> Jerome Etienne <Jerome.etienne@gmail.com>
  */
 
-
+var osg = osg || {  };
  /*
  * Keep reference of object that can be reused across frame
  * Targeting ZERO new/delete and Javascript Garbage collector stuttering 
@@ -11,7 +11,7 @@
  *  TODO: Debug Mode: check if not putting object twice, etc.
  *  USAGE: osg.memoryPools.stateGraph = new OsgObjectMemoryPool(osg.StateGraph).grow(50);
  */
-var OsgObjectMemoryPool = function(pooledObjectClassName) {
+osg.ObjectMemoryPool = function(pooledObjectClassName) {
         return {
             _memPool: [],
             reset: function() {
@@ -44,7 +44,7 @@ var OsgObjectMemoryPool = function(pooledObjectClassName) {
  *  // do use matrix, etc..
  *  osg.memoryPools.arrayPool.put(mymatrix);
  */
- var OsgArrayMemoryPool = function(){
+ osg.ArrayMemoryPool = function(){
         return {
             _mempoolofPools: [],
             reset: function() {

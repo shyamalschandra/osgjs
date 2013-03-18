@@ -13,7 +13,7 @@
 		},
 		watch: {
 			files: project.scripts,
-			tasks: ['jsvalidate',  'jshint:beforeconcat']
+			tasks: ['jsvalidate', 'jshint:beforeconcat']
 		},
 		jshint: {
 			options: {
@@ -69,7 +69,7 @@
 			afterconcat: 'build/<%= pkg.name %>-debug.js'
 		},
 		jsvalidate: {
-			options : {
+			options: {
 				tolerant: true
 			},
 			main: {
@@ -217,6 +217,21 @@
 					//extension:  'js'//'assume a file extension for all inputs'
 				}
 			}
+		},
+		wrap: { // wrap my modules with define
+			main: {
+				files: ['build/<%= pkg.name %>.min.js'],
+				dest: 'build',
+				pathSep: '/',
+				prefix: 'amd.',
+				wrapper: ['define(["osg"], function () {\n', '\nreturn osg;});']
+				// wrapper can also be a function, like so:
+				//
+				// wrapper: function(filepath, options) {
+				//   // ...
+				//   return ['define(function (require, exports, module) {\n', '\n});'];
+				// }
+			}
 		}
 	});
 
@@ -230,12 +245,23 @@
 
 	grunt.loadNpmTasks('grunt-contrib-compress'); // get idea of compressed server size in gz
 	grunt.loadNpmTasks('grunt-contrib-copy'); // copy file builds
-	grunt.loadNpmTasks('grunt-jsvalidate'); // check basic syntax error
 	grunt.loadNpmTasks('grunt-strip'); // remove console.log, etc
 	grunt.loadNpmTasks('grunt-qunit-cov'); // jscoverage
 
+	// watch
+	//grunt.loadNpmTasks('grunt-jsvalidate'); // check basic syntax error
+
+	//
+	//
+	grunt.loadTasks('tasks');
+
+	// convert to amd (requirejs like) module
+	// patched version
+	//grunt.loadNpmTasks('grunt-wrap');
+
 	//shaders
-	grunt.loadNpmTasks('grunt-dir2json');
+	//grunt.loadNpmTasks('grunt-dir2json');
+	//
 	//grunt.loadNpmTasks('grunt-glslvalidator'); // GL shader validator sublime plugin ?
 	//grunt.loadNpmTasks('grunt-glsloptimizer'); // @aras_p  glsl optimizer
 	//grunt.loadNpmTasks('grunt-glslmin'); // just min
@@ -250,7 +276,7 @@
 
 	grunt.registerTask('release', ['jshint:beforeconcat', 'concat', 'jshint:afterconcat', 'strip', 'uglify', 'compress', 'copy']);
 	grunt.registerTask('verify', ['jsvalidate', 'release']);
-	grunt.registerTask('default', ['concat', 'strip', 'uglify', 'compress', 'copy']);
+	grunt.registerTask('default', ['concat', 'strip', 'uglify', 'compress', 'copy', 'wrap', 'dir2json']);
 
 
 };
