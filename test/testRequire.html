@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<title>QUnit Test Suite</title>
+	<link rel="stylesheet" href="qunit/qunit/qunit.css" type="text/css" media="screen">
+
+        <!-- data-main attribute tells require.js to load
+             scripts/main.js after require.js loads. -->
+	<script data-main="amd_module" type="text/javascript" src="require/require.js"></script>
+
+	<script type="text/javascript" src="qunit/qunit/qunit.js"></script>
+	<script type="text/javascript" src="qunit/addons/close-enough/qunit-close-enough.js"></script>
+	<script type="text/javascript" src="qunit/addons/canvas/qunit-canvas.js"></script>
+
+	<script type="text/javascript">
+		QUnit.config.autostart = false;
+		window.addEventListener("load", function onLoad() {
+                        // Without this setTimeout, the specs don't always get execute in webKit browsers
+
+			setTimeout(function () {
+
+		      	require.config({baseUrl:"../build"});
+				require(['../build/amd.osg.min.js'], function (osg) {
+					console.log(osg);
+					module("amd modules osg");
+					test("amd modules osg", function() {
+							osg.memoryPools.stateGraph = new osg.ObjectMemoryPool(osg.StateGraph).grow(50);
+
+							ok(osg.memoryPools.stateGraph._memPool.length == 50, "osg loaded and running");
+
+					});
+          			QUnit.start();
+				});
+			}, 10);
+			window.removeEventListener("load", onLoad, true);
+		}, true);
+	</script>
+</head>
+<body>
+	<h1 id="qunit-header">QUnit Test Suite</h1>
+	<h2 id="qunit-banner"></h2>
+	<div id="qunit-testrunner-toolbar"></div>
+	<h2 id="qunit-userAgent"></h2>
+	<ol id="qunit-tests"></ol>
+
+	<div id="qunit">
+	</div>
+</body>
+</html>
