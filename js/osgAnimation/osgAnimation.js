@@ -19,7 +19,7 @@
  */
 
 
-var osgAnimation = {};
+var osgAnimation = osgAnimation || {};
 
 osgAnimation.EaseOutQuad = function(t) { return - (t* (t-2.0)); };
 osgAnimation.EaseInQuad = function(t) { return (t*t); };

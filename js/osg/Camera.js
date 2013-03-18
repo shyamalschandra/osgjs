@@ -1,4 +1,4 @@
-/** 
+/**
  * Camera - is a subclass of Transform which represents encapsulates the settings of a Camera.
  * @class Camera
  * @inherits osg.Transform osg.CullSettings
@@ -12,6 +12,7 @@ osg.Camera = function () {
     this.setClearDepth(1.0);
     this.setClearMask(osg.Camera.COLOR_BUFFER_BIT | osg.Camera.DEPTH_BUFFER_BIT);
     this.setViewMatrix(osg.Matrix.makeIdentity([]));
+    this.setPureViewMatrix(osg.Matrix.makeIdentity([]));
     this.setProjectionMatrix(osg.Matrix.makeIdentity([]));
     this.renderOrder = osg.Camera.NESTED_RENDER;
     this.renderOrderNum = 0;
@@ -27,23 +28,30 @@ osg.Camera.STENCIL_BUFFER_BIT = 0x00000400;
 
 /** @lends osg.Camera.prototype */
 osg.Camera.prototype = osg.objectLibraryClass( osg.objectInehrit(
-    osg.CullSettings.prototype, 
+    osg.CullSettings.prototype,
     osg.objectInehrit(osg.Transform.prototype, {
 
-        setClearDepth: function(depth) { this.clearDepth = depth;}, 
+        setClearDepth: function(depth) { this.clearDepth = depth;},
         getClearDepth: function() { return this.clearDepth;},
 
-        setClearMask: function(mask) { this.clearMask = mask;}, 
+        setClearMask: function(mask) { this.clearMask = mask;},
         getClearMask: function() { return this.clearMask;},
 
         setClearColor: function(color) { this.clearColor = color;},
         getClearColor: function() { return this.clearColor;},
 
-        setViewport: function(vp) { 
+        setTraversalMask: function(traversalMask) { this.traversalMask = traversalMask;},
+        getTraversalMask: function() { return this.traversalMask;},
+
+        setViewport: function(vp) {
             this.viewport = vp;
             this.getOrCreateStateSet().setAttributeAndMode(vp);
         },
         getViewport: function() { return this.viewport; },
+
+        setPureViewMatrix: function(matrix) {
+            this.pureViewMatrix = matrix;
+        },
 
 
         setViewMatrix: function(matrix) {
@@ -62,11 +70,12 @@ osg.Camera.prototype = osg.objectLibraryClass( osg.objectInehrit(
         },
 
         getViewMatrix: function() { return this.modelviewMatrix; },
+        getPureViewMatrix: function() { return this.pureViewMatrix; },
         getProjectionMatrix: function() { return this.projectionMatrix; },
         getRenderOrder: function() { return this.renderOrder; },
         setRenderOrder: function(order, orderNum) {
             this.renderOrder = order;
-            this.renderOrderNum = orderNum; 
+            this.renderOrderNum = orderNum;
         },
 
         attachTexture: function(bufferComponent, texture, level) {
@@ -79,6 +88,10 @@ osg.Camera.prototype = osg.objectLibraryClass( osg.objectInehrit(
             if (this.attachments === undefined) {
                 this.attachments = {};
             }
+            if (bufferComponent == osg.FrameBufferObject.COLOR_ATTACHMENT0){
+                osgUtil.ressourcesCache.frameBufferObjectTarget.push(texture);
+            }
+
             this.attachments[bufferComponent] = { 'texture' : texture , 'level' : level };
         },
 

@@ -18,7 +18,7 @@
  *
  */
 
-var main = function() {
+var startFog = function() {
     var canvas = document.getElementById("3DView");
     var w = window.innerWidth;
     var h = window.innerHeight;
@@ -117,7 +117,7 @@ function createScene() {
     ground.getOrCreateStateSet().setAttributeAndMode(materialGround);
     ground.getOrCreateStateSet().setAttributeAndMode(getShader());
 
-    density = osg.Uniform.createFloat1(0.0, 'density');
+    density = osg.Uniform.createFloat1(0.5, 'density');
     ground.getOrCreateStateSet().addUniform(density);
 
     group.addChild(ground);
@@ -131,5 +131,14 @@ function createScene() {
 }
 
 
-
-window.addEventListener("load", main ,true);
+if (!window.multidemo) {
+    window.addEventListener("load", function() {
+        if (window.location.href.indexOf("debug") !== -1) {
+            loadOSGJSON("../../", "project.json", startFog);
+        } else if (window.location.href.indexOf("concat") !== -1) {
+            loadOSGJS("../../", "build/osg.debug.js", startFog);
+        } else {
+            loadOSGJS("../../", "build/osg.min.js", startFog);
+        }
+    }, true);
+}

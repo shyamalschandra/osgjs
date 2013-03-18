@@ -541,7 +541,7 @@ test("NodeVisitor", function() {
 
     var v = new FindItemAnchor("c");
     v.apply(root);
-    ok(v.result[0] === c, "Should find item named 'c' " + v.result[0].name);
+    ok(v.result[0] === c, "Should find item named 'c' " + v.result[0].getName());
 
     c.setNodeMask(0x0);
     v = new FindItemAnchor("c");
@@ -1345,6 +1345,24 @@ test("Depth", function() {
     n.apply(state);
     
     n = new osg.Depth(osg.Depth.DISABLE);
+    n.apply(state);
+
+});
+
+test("ColorMask", function() {
+
+    var n = new osg.ColorMask();
+    ok(n._colorMask[0] === true, "Check red");
+    ok(n._colorMask[1] === true, "Check green");
+    ok(n._colorMask[2] === true, "Check blue");
+    ok(n._colorMask[3] === true, "Check alpha");
+
+    var state = new osg.State();
+    state.setGraphicContext(createFakeRenderer());
+    
+    n.apply(state);
+    
+    n = new osg.ColorMask([false, false, false, false]);
     n.apply(state);
 
 });

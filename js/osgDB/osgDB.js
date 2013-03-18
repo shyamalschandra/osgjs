@@ -18,7 +18,7 @@
  *
  */
 
-var osgDB = {};
+var osgDB = osgDB || {};
 
 osgDB.ObjectWrapper = {};
 osgDB.ObjectWrapper.serializers = {};

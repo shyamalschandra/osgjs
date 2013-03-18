@@ -5,6 +5,8 @@
 
 
  /*
+ * Keep reference of object that can be reused across frame
+ * Targeting ZERO new/delete and Javascript Garbage collector stuttering 
  *  TODO: Add stats & reports for developper per application  finer calibration (max, min, average)
  *  TODO: Debug Mode: check if not putting object twice, etc.
  *  USAGE: osg.memoryPools.stateGraph = new OsgObjectMemoryPool(osg.StateGraph).grow(50);

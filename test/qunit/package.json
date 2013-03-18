@@ -2,13 +2,16 @@
   "name": "qunitjs",
   "title": "QUnit",
   "description": "An easy-to-use JavaScript Unit Testing framework.",
-  "version": "1.9.0pre",
-  "author": "The jQuery Project",
+  "version": "1.12.0pre",
+  "author": {
+    "name": "jQuery Foundation and other contributors",
+    "url": "https://github.com/jquery/qunit/blob/master/AUTHORS.txt"
+  },
   "contributors": [
     "John Resig <jeresig@gmail.com> (http://ejohn.org/)",
-    "Jörn Zaefferer <joern.zaefferer@googlemail.com> (http://bassistance.de/)"
+    "Jörn Zaefferer <joern.zaefferer@gmail.com> (http://bassistance.de/)"
   ],
-  "homepage": "http://docs.jquery.com/QUnit",
+  "homepage": "http://qunitjs.com",
   "repository": {
     "type": "git",
     "url": "git://github.com/jquery/qunit.git"
@@ -26,8 +29,14 @@
     "jquery"
   ],
   "main": "qunit/qunit.js",
+  "scripts": {
+    "test": "grunt"
+  },
   "devDependencies": {
-    "grunt": "0.3.x",
-    "testswarm": "0.2.2"
+    "grunt": "~0.4.0",
+    "grunt-contrib-jshint": "~0.2.0",
+    "grunt-contrib-qunit": "~0.2.0",
+    "grunt-git-authors": "~1.1.0",
+    "testswarm": "~1.0.1"
   }
 }

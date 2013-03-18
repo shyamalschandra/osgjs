@@ -20,7 +20,7 @@
 
 
 
-var main = function() {
+var startClouds = function() {
     var canvas = document.getElementById("3DView");
     var w = window.innerWidth;
     var h = window.innerHeight;
@@ -289,15 +289,14 @@ var generateTexture = function(size) {
     return generator;
 };
 
-
-var NodeVolume = function() {
-    osg.Node.call(this);
-};
-
-NodeVolume.prototype = osg.objectInehrit(osg.Node.prototype, {
-});
-
 function createScene() {
+    var NodeVolume = function() {
+        osg.Node.call(this);
+    };
+    
+    NodeVolume.prototype = osg.objectInehrit(osg.Node.prototype, {
+    });
+
     var root = new osg.Node();
     var group = new osg.MatrixTransform();
 
@@ -384,7 +383,7 @@ function createScene() {
     group.getOrCreateStateSet().setAttributeAndMode(new osg.CullFace('DISABLE'));
     group.getOrCreateStateSet().setAttributeAndMode(new osg.BlendFunc('SRC_ALPHA', 'ONE_MINUS_SRC_ALPHA'));
 
-    var visitor = new osgUtil.ShaderParameterVisitor();
+    var visitor = new osgUtil.ParameterVisitor();
     visitor.setTargetHTML(document.getElementById("Parameters"));
 
     root.getOrCreateStateSet().addUniform(osg.Uniform.createFloat3([0,0,0], "offset"));
@@ -393,7 +392,7 @@ function createScene() {
     root.getOrCreateStateSet().addUniform(osg.Uniform.createFloat1([0], "discardLimit"));
     root.getOrCreateStateSet().addUniform(osg.Uniform.createFloat1([1], "density"));
     root.getOrCreateStateSet().addUniform(osg.Uniform.createFloat1([2], "turbulenceExponent"));
-
+/*
     visitor.types.vec3.params['scale'] = {
         min: 0.1,
         max: 5.0,
@@ -413,7 +412,7 @@ function createScene() {
         max: 5.0,
         step: 0.001,
         value: function() { return [0.002]; }
-    };
+    };*/
 
     group.accept(visitor);
     group.setMatrix(osg.Matrix.makeScale(1,2,1, [] ));
@@ -437,6 +436,14 @@ function createScene() {
     return root;
 }
 
-
-
-window.addEventListener("load", main ,true);
+if (!window.multidemo) {
+    window.addEventListener("load", function() {
+        if (window.location.href.indexOf("debug") !== -1) {
+            loadOSGJSON("../../", "project.json", startClouds);
+        } else if (window.location.href.indexOf("concat") !== -1) {
+            loadOSGJS("../../", "build/osg.debug.js", startClouds);
+        } else {
+            loadOSGJS("../../", "build/osg.min.js", startClouds);
+        }
+    }, true);
+}

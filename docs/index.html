@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<!-- saved from url=(0017)http://osgjs.org/ -->
+<html style="">
+<head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <title>OSG.JS by cedricpinson</title>
+    <link rel="stylesheet" href="styles.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+  </head>
+  <body>
+      <div id="header">
+        <nav>
+          <li class="fork"><a href="https://github.com/cedricpinson/osgjs">View On GitHub</a></li>
+          <li class="Documentation"><a href="docco/osg.html">Documentation</a></li>
+          <li class="Samples"><a href="../examples/">Samples</a></li>
+          <li class="Playground"><a href="../sandbox/scene">Playground</a></li>
+          <li class="Test"><a href="../test/">Tests</a></li>
+          <li class="Analysis"><a href="../docs/analysis/">Analysis</a></li>
+          <li class="title">OSGJS</li>
+        </nav>
+      </div><!-- end header -->
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>OSG.JS</h1>
+          <p>Javascript Implementation of OpenSceneGraph</p>
+          <hr>
+          <span class="credits left">Project maintained by <a href="https://github.com/cedricpinson">cedricpinson</a></span>
+          <span class="credits right">Hosted on GitHub Pages — Theme by <a href="http://twitter.com/#!/michigangraham">mattgraham</a></span>
+        </div>
+
+        <h3>OSG.JS WebGL framework</h3>
+
+<p>OSGJS is a WebGL framework based on OpenSceneGraph concepts. It allows an individual to use an “OpenSceneGraph-like” toolbox to interact with WebGL via JavaScript, and provides facilities for exporting various assets to the osgjs format. The API is kept as similar to OpenSceneGraph as possible, providing a familiar environment to veterans of the library and introducing newcomers to a popular and heavily-scrutinzed set of interfaces</p>
+
+<div>
+
+<select style='float:left;'class="combobox" name="scenetype" onChange="iframeChange(this.options[this.selectedIndex].value, 'scene');"  >
+       <option>camera</option>
+       <option>camera-gallery</option>
+       <option>clouds</option>
+       <option>cubemap</option>
+       <option>cubemotion</option>
+       <option>fog</option>
+       <option>hdr</option>
+       <option>materials</option>
+       <option>performance</option>
+       <option>pointcloud</option>
+       <option>pokerscene</option>
+       <option>postprocess</option>
+       <option>setup</option>
+       <option>shadow</option>
+       <option>ssao</option>
+</select>
+<select class="combobox" name="debugtype" onChange="iframeChange(this.options[this.selectedIndex].value,'debug');"  >
+       <option>vanilla</option>
+       <option>stats</option>
+       <option>debug</option>
+       <option>debug+stats</option>
+       <option>debug+DebugPromise</option>
+       <option>debug+stats+DebugPromise</option>
+</select>
+
+<select class="combobox" name="modeltype" onChange="iframeChange(this.options[this.selectedIndex].value, 'model');"  >
+       <option>raceship</option>
+       <option>monkey</option>
+       <option>ogre</option>
+       <option>pokerscene</option>
+</select>
+
+<script>
+var paramCurrent = {};
+var iframeChange = function(option, type) {
+  var myIframe = document.getElementById('iframedemo');
+  var url = myIframe.src; 
+  var param = '';
+  if (url.indexOf('?') !== -1) {
+      //todo: handle models and debug option
+    param = '?';
+    url = url.split('?')[0];
+  }
+  else {
+    param = '?';
+  }
+ 
+  switch (type){
+  case 'scene':
+      url = "../examples/" + option ;
+      break;
+  case 'debug':
+      if (option.indexOf('debug') !== -1)
+        param += "&debug=1";
+      if (option.indexOf('stats') !== -1)
+        param += "&stats=1";
+      if (option.indexOf('DebugPromise') !== -1)
+        param += "&DebugPromise=1";
+      break;
+  case 'model':
+      param += "&model=" + option ;
+      break;
+  }
+  console.log(url+param);
+  myIframe.src = url + param;
+};
+</script>
+<iframe id='iframedemo' width="100%" height="640px" src='../examples/hdr'>
+</iframe>
+ </div>
+
+<p>The mailing list is available here: <a href="http://groups.google.com/group/osgjs">http://groups.google.com/group/osgjs</a></p>
+
+<p>If you are interested in contributing, contact us on the IRC channels #webgl on Freenode, or by e-mail at <a href="mailto:contact@osgjs.org">contact@osgjs.org</a>. Follow @trigrou on twitter to get news and update</p>
+
+<h3>OpenSceneGraph osgjs plugin</h3>
+
+<p>There is a plugin on my openscengraph branch <a href="https://github.com/cedricpinson/osg">https://github.com/cedricpinson/osg</a>. This plugin will help you to export data from osg to osgjs. osgconv </p>
+
+<pre><code>extensions : .osgjs                            OpenSceneGraph Javascript implementation format
+options    : disableMergeTriStrip              disable the merge of all tristrip into one
+options    : disableTriStrip                   disable generation of tristrip
+options    : enableWireframe                   create a wireframe geometry for each triangles geometry
+options    : generateTangentSpace              Build tangent space to each geometry
+options    : mergeAllBinaryFiles               merge all binary files into one to avoid multi request on a server
+options    : tangentSpaceTextureUnit=&lt;unit&gt;    Specify on wich texture unit normal map is
+options    : triStripCacheSize=&lt;int&gt;           set the cache size when doing tristrip
+options    : useDrawArray                      prefer drawArray instead of drawelement with split of geometry
+options    : useExternalBinaryArray            create binary files for vertex arrays
+</code></pre>
+
+<h3>Examples</h3>
+<p><a href="https://github.com/cedricpinson/osgjs/tree/master/examples">browse examples source code to learn more</a></p>
+      </section>
+
+    </div>
+
+</body></html>

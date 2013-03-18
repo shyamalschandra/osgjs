@@ -5,12 +5,12 @@
  *  @class LightSource
  */
 osg.LightSource = function() {
-    osg.Node.call(this);
+    osg.MatrixTransform.call(this);
     this._light = undefined;
 };
 
 /** @lends osg.LightSource.prototype */
-osg.LightSource.prototype = osg.objectLibraryClass( osg.objectInehrit(osg.Node.prototype, {
+osg.LightSource.prototype = osg.objectLibraryClass( osg.objectInehrit(osg.MatrixTransform.prototype, {
     getLight: function() { return this._light; },
     setLight: function(light) { this._light = light; }
 }), "osg","LightSource");

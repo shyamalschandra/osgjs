@@ -2,6 +2,7 @@ osg.State = function () {
     this._graphicContext = undefined;
 
     this.currentVBO = null;
+    this.currentVAO = null;
     this.vertexAttribList = [];
     this.programs = osg.Stack.create();
     this.stateSets = osg.Stack.create();

@@ -20,7 +20,7 @@
 
 
 
-var main = function() {
+var startCubeMotion = function() {
     var canvas = document.getElementById("3DView");
     var w = window.innerWidth;
     var h = window.innerHeight;
@@ -216,5 +216,14 @@ function createScene() {
 }
 
 
-
-window.addEventListener("load", main ,true);
+if (!window.multidemo) {
+    window.addEventListener("load", function() {
+        if (window.location.href.indexOf("debug") !== -1) {
+            loadOSGJSON("../../", "project.json", startCubeMotion);
+        } else if (window.location.href.indexOf("concat") !== -1) {
+            loadOSGJS("../../", "build/osg.debug.js", startCubeMotion);
+        } else {
+            loadOSGJS("../../", "build/osg.min.js", startCubeMotion);
+        }
+    }, true);
+}

@@ -1,6 +1,6 @@
 /** -*- compile-command: "jslint-cli Texture.js" -*- */
 
-/** 
+/**
  * Texture encapsulate webgl texture object
  * @class Texture
  * @inherits osg.StateAttribute
@@ -23,6 +23,7 @@ osg.Texture.NEAREST_MIPMAP_NEAREST = 0x2700;
 osg.Texture.LINEAR_MIPMAP_NEAREST = 0x2701;
 osg.Texture.NEAREST_MIPMAP_LINEAR = 0x2702;
 osg.Texture.LINEAR_MIPMAP_LINEAR = 0x2703;
+osg.Texture.ANISOTROPIC = 0x84FE;
 
 // wrap mode
 osg.Texture.CLAMP_TO_EDGE = 0x812F;
@@ -32,25 +33,33 @@ osg.Texture.MIRRORED_REPEAT = 0x8370;
 // target
 osg.Texture.TEXTURE_2D = 0x0DE1;
 osg.Texture.TEXTURE_CUBE_MAP = 0x8513;
-osg.Texture.TEXTURE_BINDING_CUBE_MAP       = 0x8514;
-osg.Texture.TEXTURE_CUBE_MAP_POSITIVE_X    = 0x8515;
-osg.Texture.TEXTURE_CUBE_MAP_NEGATIVE_X    = 0x8516;
-osg.Texture.TEXTURE_CUBE_MAP_POSITIVE_Y    = 0x8517;
-osg.Texture.TEXTURE_CUBE_MAP_NEGATIVE_Y    = 0x8518;
-osg.Texture.TEXTURE_CUBE_MAP_POSITIVE_Z    = 0x8519;
-osg.Texture.TEXTURE_CUBE_MAP_NEGATIVE_Z    = 0x851A;
-osg.Texture.MAX_CUBE_MAP_TEXTURE_SIZE      = 0x851C;
+osg.Texture.TEXTURE_BINDING_CUBE_MAP = 0x8514;
+osg.Texture.TEXTURE_CUBE_MAP_POSITIVE_X = 0x8515;
+osg.Texture.TEXTURE_CUBE_MAP_NEGATIVE_X = 0x8516;
+osg.Texture.TEXTURE_CUBE_MAP_POSITIVE_Y = 0x8517;
+osg.Texture.TEXTURE_CUBE_MAP_NEGATIVE_Y = 0x8518;
+osg.Texture.TEXTURE_CUBE_MAP_POSITIVE_Z = 0x8519;
+osg.Texture.TEXTURE_CUBE_MAP_NEGATIVE_Z = 0x851A;
+osg.Texture.MAX_CUBE_MAP_TEXTURE_SIZE = 0x851C;
 
 osg.Texture.UNSIGNED_BYTE = 0x1401;
 osg.Texture.FLOAT = 0x1406;
 
 
 /** @lends osg.Texture.prototype */
-osg.Texture.prototype = osg.objectLibraryClass( osg.objectInehrit(osg.StateAttribute.prototype, {
+osg.Texture.prototype = osg.objectLibraryClass(osg.objectInehrit(osg.StateAttribute.prototype, {
     attributeType: "Texture",
-    cloneType: function() { var t = new osg.Texture(); t.default_type = true; return t;},
-    getType: function() { return this.attributeType;},
-    getTypeMember: function() { return this.attributeType; },
+    cloneType: function() {
+        var t = new osg.Texture();
+        t.default_type = true;
+        return t;
+    },
+    getType: function() {
+        return this.attributeType;
+    },
+    getTypeMember: function() {
+        return this.attributeType;
+    },
     getOrCreateUniforms: function(unit) {
         if (osg.Texture.uniforms === undefined) {
             osg.Texture.uniforms = [];
@@ -68,6 +77,9 @@ osg.Texture.prototype = osg.objectLibraryClass( osg.objectInehrit(osg.StateAttri
     setDefaultParameters: function() {
         this._magFilter = osg.Texture.LINEAR;
         this._minFilter = osg.Texture.LINEAR;
+        this._minFilterMult = 1.0;
+        this._magFFilterMult = 1.0;
+        this._hasMipMap = false;
         this._wrapS = osg.Texture.CLAMP_TO_EDGE;
         this._wrapT = osg.Texture.CLAMP_TO_EDGE;
         this._textureWidth = 0;
@@ -77,9 +89,13 @@ osg.Texture.prototype = osg.objectLibraryClass( osg.objectInehrit(osg.StateAttri
         this._textureTarget = osg.Texture.TEXTURE_2D;
         this._type = osg.Texture.UNSIGNED_BYTE;
     },
-    getTextureTarget: function() { return this._textureTarget;},
-    getTextureObject: function() { return this._textureObject;},
-    setTextureSize: function(w,h) {
+    getTextureTarget: function() {
+        return this._textureTarget;
+    },
+    getTextureObject: function() {
+        return this._textureObject;
+    },
+    setTextureSize: function(w, h) {
         this._textureWidth = w;
         this._textureHeight = h;
     },
@@ -89,8 +105,12 @@ osg.Texture.prototype = osg.objectLibraryClass( osg.objectInehrit(osg.StateAttri
             this.dirty();
         }
     },
-    getWidth: function() { return this._textureWidth; },
-    getHeight: function() { return this._textureHeight; },
+    getWidth: function() {
+        return this._textureWidth;
+    },
+    getHeight: function() {
+        return this._textureHeight;
+    },
     releaseGLObjects: function(gl) {
         if (this._textureObject !== undefined && this._textureObject !== null) {
             gl.deleteTexture(this._textureObject);
@@ -102,35 +122,72 @@ osg.Texture.prototype = osg.objectLibraryClass( osg.objectInehrit(osg.StateAttri
         if (typeof(value) === "string") {
             this._wrapS = osg.Texture[value];
         } else {
-            this._wrapS = value; 
+            this._wrapS = value;
         }
     },
-    setWrapT: function(value) { 
+    setWrapT: function(value) {
         if (typeof(value) === "string") {
             this._wrapT = osg.Texture[value];
         } else {
-            this._wrapT = value; 
+            this._wrapT = value;
         }
     },
 
-    getWrapT: function() { return this._wrapT; },
-    getWrapS: function() { return this._wrapS; },
-    getMinFilter: function(value) { return this._minFilter; },
-    getMagFilter: function(value) { return this._magFilter; },
+    getWrapT: function() {
+        return this._wrapT;
+    },
+    getWrapS: function() {
+        return this._wrapS;
+    },
+    getMinFilter: function(value) {
+        return this._minFilter;
+    },
+    getMagFilter: function(value) {
+        return this._magFilter;
+    },
 
-    setMinFilter: function(value) {
+    isMipMapped: function(filter){
+
+return filter == osg.Texture.NEAREST_MIPMAP_NEAREST ||
+        filter == osg.Texture.LINEAR_MIPMAP_NEAREST   ||
+        filter == osg.Texture.NEAREST_MIPMAP_LINEAR  ||
+        filter == osg.Texture.LINEAR_MIPMAP_LINEAR;
+    },
+
+    setMinFilter: function(value, multiplier) {
         if (typeof(value) === "string") {
             this._minFilter = osg.Texture[value];
         } else {
-            this._minFilter = value; 
+            this._minFilter = value;
+        }
+        this._hasMipMap = this.isMipMapped(this._minFilter);
+
+        var anisoExt = osg.profile.extensions['EXT_texture_filter_anisotropic'];
+        if (anisoExt) {
+            var max = anisoExt.MAX_TEXTURE_MAX_ANISOTROPY_EXT;
+            if (multiplier > max)
+                this._minFilterMult = max;
+            else
+                this._minFilterMult = multiplier;
         }
     },
-    setMagFilter: function(value) { 
+    setMagFilter: function(value, multiplier) {
         if (typeof(value) === "string") {
             this._magFilter = osg.Texture[value];
         } else {
-            this._magFilter = value; 
+            this._magFilter = value;
         }
+        this._hasMipMap = this.isMipMapped(this._magFilter);
+
+        var anisoExt = osg.profile.extensions['EXT_texture_filter_anisotropic'];
+        if (anisoExt) {
+            var max = anisoExt.MAX_TEXTURE_MAX_ANISOTROPY_EXT;
+            if (multiplier > max)
+                this._magFilterMult = max;
+            else
+                this._magFilterMult = multiplier;
+        }
+
     },
 
     setImage: function(img, imageFormat) {
@@ -138,7 +195,9 @@ osg.Texture.prototype = osg.objectLibraryClass( osg.objectInehrit(osg.StateAttri
         this.setImageFormat(imageFormat);
         this.dirty();
     },
-    getImage: function() { return this._image; },
+    getImage: function() {
+        return this._image;
+    },
     setImageFormat: function(imageFormat) {
         if (imageFormat) {
             if (typeof(imageFormat) === "string") {
@@ -154,14 +213,18 @@ osg.Texture.prototype = osg.objectLibraryClass( osg.objectInehrit(osg.StateAttri
         if (typeof(value) === "string") {
             this._type = osg.Texture[value];
         } else {
-            this._type = value; 
+            this._type = value;
         }
     },
     setUnrefImageDataAfterApply: function(bool) {
         this._unrefImageDataAfterApply = bool;
     },
-    setInternalFormat: function(internalFormat) { this._internalFormat = internalFormat; },
-    getInternalFormat: function() { return this._internalFormat; },
+    setInternalFormat: function(internalFormat) {
+        this._internalFormat = internalFormat;
+    },
+    getInternalFormat: function() {
+        return this._internalFormat;
+    },
     setFromCanvas: function(canvas, format) {
         this.setImage(canvas, format);
     },
@@ -173,7 +236,7 @@ osg.Texture.prototype = osg.objectLibraryClass( osg.objectInehrit(osg.StateAttri
         if (image) {
             if (image instanceof Image) {
                 if (image.complete) {
-                    if (image.naturalWidth !== undefined &&  image.naturalWidth === 0) {
+                    if (image.naturalWidth !== undefined && image.naturalWidth === 0) {
                         return false;
                     }
                     return true;
@@ -197,81 +260,85 @@ osg.Texture.prototype = osg.objectLibraryClass( osg.objectInehrit(osg.StateAttri
             this.setWrapT(osg.Texture.CLAMP_TO_EDGE);
             this.setWrapS(osg.Texture.CLAMP_TO_EDGE);
 
-            if (this._minFilter === osg.Texture.LINEAR_MIPMAP_LINEAR ||
-                this._minFilter === osg.Texture.LINEAR_MIPMAP_NEAREST) {
+            if (this._hasMipMap) {
                 this.setMinFilter(osg.Texture.LINEAR);
+                this._hasMipMap = false;
             }
         }
 
-        gl.texParameteri(target, gl.TEXTURE_MAG_FILTER, this._magFilter);
+        if (this._magFilterMult > 1.0){
+                gl.texParameterf(gl.TEXTURE_2D, osg.profile.extensions['EXT_texture_filter_anisotropic'].TEXTURE_MAX_ANISOTROPY_EXT, this._magFilterMult);
+        }
+        if (this._minFilterMult > 1.0){
+                gl.texParameterf(gl.TEXTURE_2D, osg.profile.extensions['EXT_texture_filter_anisotropic'].TEXTURE_MAX_ANISOTROPY_EXT, this._minFilterMult);
+        }
         gl.texParameteri(target, gl.TEXTURE_MIN_FILTER, this._minFilter);
+
         gl.texParameteri(target, gl.TEXTURE_WRAP_S, this._wrapS);
         gl.texParameteri(target, gl.TEXTURE_WRAP_T, this._wrapT);
-    },
 
-    generateMipmap: function(gl, target) {
-        if (this._minFilter === gl.NEAREST_MIPMAP_NEAREST ||
-            this._minFilter === gl.LINEAR_MIPMAP_NEAREST ||
-            this._minFilter === gl.NEAREST_MIPMAP_LINEAR ||
-            this._minFilter === gl.LINEAR_MIPMAP_LINEAR) {
-            gl.generateMipmap(target);
-        }
-    },
+        },
 
-    apply: function(state) {
-        var gl = state.getGraphicContext();
-        if (this._textureObject !== undefined && !this.isDirty()) {
-            gl.bindTexture(this._textureTarget, this._textureObject);
-        } else if (this.default_type) {
-            gl.bindTexture(this._textureTarget, null);
-        } else {
-            var image = this._image;
-            if (image !== undefined) {
-                if (this.isImageReady(image)) {
+        generateMipmap: function(gl, target) {
+            if (this._minFilter === gl.NEAREST_MIPMAP_NEAREST || this._minFilter === gl.LINEAR_MIPMAP_NEAREST || this._minFilter === gl.NEAREST_MIPMAP_LINEAR || this._minFilter === gl.LINEAR_MIPMAP_LINEAR) {
+                gl.generateMipmap(target);
+            }
+        },
+
+        apply: function(state) {
+            var gl = state.getGraphicContext();
+            if (this._textureObject !== undefined && !this.isDirty()) {
+                gl.bindTexture(this._textureTarget, this._textureObject);
+            } else if (this.default_type) {
+                gl.bindTexture(this._textureTarget, null);
+            } else {
+                var image = this._image;
+                if (image !== undefined) {
+                    if (this.isImageReady(image)) {
+                        if (!this._textureObject) {
+                            this.init(gl);
+                        }
+
+                        this.setDirty(false);
+                        gl.bindTexture(this._textureTarget, this._textureObject);
+
+                        if (image instanceof Image) {
+                            this.setTextureSize(image.naturalWidth, image.naturalHeight);
+                            gl.texImage2D(this._textureTarget, 0, this._internalFormat, this._imageFormat, this._type, this._image);
+
+                        } else if (image instanceof HTMLCanvasElement) {
+                            this.setTextureSize(image.width, image.height);
+                            gl.texImage2D(this._textureTarget, 0, this._internalFormat, this._imageFormat, this._type, this._image);
+
+                        } else if (image instanceof Uint8Array) {
+                            gl.texImage2D(this._textureTarget, 0, this._internalFormat, this._textureWidth, this._textureHeight, 0, this._internalFormat, this._type, this._image);
+                        }
+
+                        this.applyFilterParameter(gl, this._textureTarget);
+                        this.generateMipmap(gl, this._textureTarget);
+
+                        if (this._unrefImageDataAfterApply) {
+                            this._image = undefined;
+                        }
+                    } else {
+                        gl.bindTexture(this._textureTarget, null);
+                    }
+
+                } else if (this._textureHeight !== 0 && this._textureWidth !== 0) {
                     if (!this._textureObject) {
                         this.init(gl);
                     }
-
-                    this.setDirty(false);
                     gl.bindTexture(this._textureTarget, this._textureObject);
-
-                    if (image instanceof Image) {
-                        this.setTextureSize(image.naturalWidth, image.naturalHeight);
-                        gl.texImage2D(this._textureTarget, 0, this._internalFormat, this._imageFormat, this._type, this._image);
-
-                    } else if (image instanceof HTMLCanvasElement) {
-                        this.setTextureSize(image.width, image.height);
-                        gl.texImage2D(this._textureTarget, 0, this._internalFormat, this._imageFormat, this._type, this._image);
-
-                    } else if (image instanceof Uint8Array) {
-                        gl.texImage2D(this._textureTarget, 0, this._internalFormat, this._textureWidth, this._textureHeight, 0, this._internalFormat, this._type, this._image);
-                    }
-
+                    gl.texImage2D(this._textureTarget, 0, this._internalFormat, this._textureWidth, this._textureHeight, 0, this._internalFormat, this._type, null);
                     this.applyFilterParameter(gl, this._textureTarget);
                     this.generateMipmap(gl, this._textureTarget);
-
-                    if (this._unrefImageDataAfterApply) {
-                        this._image = undefined;
-                    }
-                } else {
-                    gl.bindTexture(this._textureTarget, null);
+                    this.setDirty(false);
                 }
-
-            } else if (this._textureHeight !== 0 && this._textureWidth !== 0 ) {
-                if (!this._textureObject) {
-                    this.init(gl);
-                }
-                gl.bindTexture(this._textureTarget, this._textureObject);
-                gl.texImage2D(this._textureTarget, 0, this._internalFormat, this._textureWidth, this._textureHeight, 0, this._internalFormat, this._type, null);
-                this.applyFilterParameter(gl, this._textureTarget);
-                this.generateMipmap(gl, this._textureTarget);
-                this.setDirty(false);
             }
-        }
-    },
+        },
 
 
-    /**
+        /**
       set the injection code that will be used in the shader generation
       for FragmentMain part we would write something like that
       @example
@@ -282,32 +349,35 @@ osg.Texture.prototype = osg.objectLibraryClass( osg.objectInehrit(osg.StateAttri
       setShaderGeneratorFunction(fragmentGenerator, osg.ShaderGeneratorType.FragmentMain);
 
     */
-    setShaderGeneratorFunction: function(
-        /**Function*/ injectionFunction, 
-        /**osg.ShaderGeneratorType*/ mode) {
-        this[mode] = injectionFunction;
-    },
+        setShaderGeneratorFunction: function(
+        /**Function*/
+        injectionFunction,
+        /**osg.ShaderGeneratorType*/
+        mode) {
+            this[mode] = injectionFunction;
+        },
 
-    generateShader: function(unit, type)
-    {
-        if (this[type]) {
-            return this[type].call(this,unit);
+        generateShader: function(unit, type) {
+            if (this[type]) {
+                return this[type].call(this, unit);
+            }
+            return "";
         }
-        return "";
-    }
-}), "osg", "Texture");
+    }),
+    "osg",
+    "Texture");
 
 osg.Texture.prototype[osg.ShaderGeneratorType.VertexInit] = function(unit) {
-    var str = "attribute vec2 TexCoord"+unit+";\n";
-    str += "varying vec2 FragTexCoord"+unit+";\n";
+    var str = "attribute vec2 TexCoord" + unit + ";\n";
+    str += "varying vec2 FragTexCoord" + unit + ";\n";
     return str;
 };
 osg.Texture.prototype[osg.ShaderGeneratorType.VertexMain] = function(unit) {
-        return "FragTexCoord"+unit+" = TexCoord" + unit + ";\n";
+    return "FragTexCoord" + unit + " = TexCoord" + unit + ";\n";
 };
 osg.Texture.prototype[osg.ShaderGeneratorType.FragmentInit] = function(unit) {
-    var str = "varying vec2 FragTexCoord" + unit +";\n";
-    str += "uniform sampler2D Texture" + unit +";\n";
+    var str = "varying vec2 FragTexCoord" + unit + ";\n";
+    str += "uniform sampler2D Texture" + unit + ";\n";
     str += "vec4 texColor" + unit + ";\n";
     return str;
 };
@@ -321,10 +391,10 @@ osg.Texture.prototype[osg.ShaderGeneratorType.FragmentMain] = function(unit) {
 osg.Texture.createFromURL = function(imageSource, format) {
     var texture = new osg.Texture();
     osgDB.Promise.when(osgDB.readImage(imageSource)).then(
-        function(img) {
-            texture.setImage(img, format);
-        }
-    );
+
+    function(img) {
+        texture.setImage(img, format);
+    });
     return texture;
 };
 osg.Texture.createFromImg = function(img, format) {

@@ -19,7 +19,7 @@
  */
 
 var Viewer;
-var main = function() {
+var startCubeMap = function() {
     //osg.ReportWebGLError = true;
 
     var canvas = document.getElementById("3DView");
@@ -332,4 +332,14 @@ function createScene()
 
 
 
-window.addEventListener("load", main ,true);
+if (!window.multidemo) {
+    window.addEventListener("load", function() {
+        if (window.location.href.indexOf("debug") !== -1) {
+            loadOSGJSON("../../", "project.json", startCubeMap);
+        } else if (window.location.href.indexOf("concat") !== -1) {
+            loadOSGJS("../../", "build/osg.debug.js", startCubeMap);
+        } else {
+            loadOSGJS("../../", "build/osg.min.js", startCubeMap);
+        }
+    }, true);
+}

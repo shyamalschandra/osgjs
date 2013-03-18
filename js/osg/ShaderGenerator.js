@@ -152,8 +152,8 @@ osg.ShaderGenerator.prototype = {
         program.activeUniforms = this.getActiveUniforms(state, attributeKeys, textureAttributeKeys);
         program.generated = true;
 
-        osg.log(program.vertex.text);
-        osg.log(program.fragment.text);
+        //osg.log(program.vertex.text);
+        //osg.log(program.fragment.text);
 
         this.cache.push(program);
         return program;

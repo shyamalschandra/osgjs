@@ -60,7 +60,9 @@ osgViewer.View.prototype = {
     getManipulator: function() { return this._manipulator; },
     setManipulator: function(manipulator) { this._manipulator = manipulator; },
 
-    getLight: function() { return this._light; },
+    getLight: function() {
+         return this._light; 
+    },
     setLight: function(light) { 
         this._light = light;
         if (this._lightingMode !== osgViewer.View.LightingMode.NO_LIGHT) {

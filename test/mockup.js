@@ -3,7 +3,7 @@ function check_near(a, b, threshold) {
         threshold = 1e-5;
     }
 
-    if (jQuery.isArray(a)) {
+    if (a instanceof Array) {
         for (var i = 0; i < a.length; ++i) {
             var number = typeof a[i] === "number" && typeof b[i] === "number";
             if (Math.abs(a[i]-b[i]) > threshold || number === false) {
@@ -30,7 +30,7 @@ function near(a, b, threshold)
         threshold = 1e-5;
     }
 
-    if (jQuery.isArray(a)) {
+    if (a instanceof Array) {
         for (var i = 0; i < a.length; ++i) {
             var number = typeof a[i] === "number" && typeof b[i] === "number" && !isNaN(a[i]) && !isNaN(b[i]);
             if (Math.abs(a[i]-b[i]) > threshold || number === false) {
@@ -78,6 +78,7 @@ function createFakeRenderer() {
              depthFunc: function() {},
              depthRange: function() {},
              depthMask: function() {},
+             colorMask: function() {},
              activeTexture: function() {},
              bindTexture: function() {},
              bufferData: function() {},

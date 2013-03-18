@@ -3,4 +3,4 @@
  *  Cedric Pinson <cedric.pinson@plopbyte.com>
  */
 
-var osgViewer = {};
+var osgViewer = osgViewer || {};

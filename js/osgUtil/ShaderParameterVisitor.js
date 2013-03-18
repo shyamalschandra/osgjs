@@ -88,11 +88,15 @@
                     if (typeof(value) === 'string') {
                         value = parseFloat(value);
                     }
-
-                    if (typeof(object[cfield]) === 'number') {
-                        obj[cfield] = value;
-                    } else {
-                        obj[cfield][index] = value;
+                    if (object[cfield]){
+                        if (typeof(object[cfield]) === 'number') {
+                            obj[cfield] = value;
+                        } else {
+                            obj[cfield][index] = value;
+                        }
+                    }
+                    else{
+                        value = 0;
                     }
                     osg.debug(cname + ' value ' + value);
                     document.getElementById(cbnameIndex).innerHTML = Number(value).toFixed(4);
@@ -181,7 +185,7 @@
                 var readValue = this.getValue(cbnameIndex);
                 if (readValue !== null) {
                     value = readValue;
-                } else {
+                } else if (object[field]){
                     if (typeof object[field] === 'number') {
                         value = object[field];
                     } else {

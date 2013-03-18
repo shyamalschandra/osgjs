@@ -878,18 +878,28 @@ function when(value, fulfilled, rejected) {
                         // single call to one of the callbacks
 
     function _fulfilled(value) {
-        try {
+        if (osg.DebugPromise){
             return fulfilled ? fulfilled(value) : value;
-        } catch (exception) {
-            return reject(exception);
+        }
+        else{
+            try {
+                return fulfilled ? fulfilled(value) : value;
+            } catch (exception) {
+                return reject(exception);
+            }
         }
     }
 
-    function _rejected(exception) {
-        try {
+    function _rejected(exception) { 
+        if (osg.DebugPromise){
             return rejected ? rejected(exception) : reject(exception);
-        } catch (newException) {
-            return reject(newException);
+        }
+        else{
+            try {
+                return rejected ? rejected(exception) : reject(exception);
+            } catch (newException) {
+                return reject(newException);
+            }
         }
     }
 

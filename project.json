@@ -12,6 +12,7 @@
 		"js/osg/Node.js",
 		"js/osg/NodeVisitor.js",
 		"js/osg/Transform.js",
+		"js/osg/MatrixTransform.js",
 		"js/osg/BlendFunc.js",
 		"js/osg/BlendColor.js",
 		"js/osg/BoundingBox.js",
@@ -21,6 +22,7 @@
 		"js/osg/CullSettings.js",
 		"js/osg/Camera.js",
 		"js/osg/Depth.js",
+		"js/osg/ColorMask.js",
 		"js/osg/EllipsoidModel.js",
 		"js/osg/FrameBufferObject.js",
 		"js/osg/FrameStamp.js",
@@ -29,7 +31,6 @@
 		"js/osg/LightSource.js",
 		"js/osg/LineWidth.js",
 		"js/osg/Material.js",
-		"js/osg/MatrixTransform.js",
 		"js/osg/PrimitiveSet.js",
 		"js/osg/Program.js",
 		"js/osg/Projection.js",
@@ -68,6 +69,7 @@
 		"js/osgUtil/ShaderParameterVisitor.js",
 		"js/osgUtil/Composer.js",
 		"js/osgUtil/osgPool.js",
+		"js/osgUtil/ShaderLoader.js",
 
 		"js/osgDB/osgDB.js",
 		"js/osgDB/Input.js",
@@ -87,6 +89,13 @@
 		"js/osgGA/SwitchManipulator.js",
 
 		"js/osgWrappers/serializers/osg.js",
-		"js/osgWrappers/serializers/osgAnimation.js"
-    ]
+		"js/osgWrappers/serializers/osgAnimation.js",
+
+		"js/osgShadow/osgShadowScene.js",
+		"js/osgShadow/osgShadowTechnique.js",
+		"js/osgShadow/osgShadowTechniquePCF.js",
+		"js/osgShadow/osgShadowTechniqueVSM.js",
+		"js/osgShadow/osgShadowTechniqueEVSM.js",
+		"js/osgShadow/osgShadowTechniqueCVSM.js"
+		]
 }

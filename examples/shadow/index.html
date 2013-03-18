@@ -3,13 +3,14 @@
 <head>
 <style>
   body {
-  background:-moz-radial-gradient(farthest-side, rgba(0,0,0,0) 90%, rgba(0,0,0,0.1) 150%) rgb(76,76,76);
-  background:-webkit-gradient(radial, center center, 500, center center, 1400, from(rgba(0,0,0,0)), to(rgba(0,0,0,0.2))) rgb(76,76,76);
-  overflow:hidden;
-  padding:0;
-  margin:0;
-  color: white;
+    background:-moz-radial-gradient(farthest-side, rgba(0,0,0,0) 90%, rgba(0,0,0,0.1) 150%) rgb(76,76,76);
+    background:-webkit-gradient(radial, center center, 500, center center, 1400, from(rgba(0,0,0,0)), to(rgba(0,0,0,0.2))) rgb(76,76,76);
+    overflow:hidden;
+    padding:0;
+    margin:0;
+    color: white;
   }
+
 
   a:link {text-decoration: none; color: black;}
   a:visited {text-decoration: none; color: black;}
@@ -17,14 +18,24 @@
   a:hover {text-decoration: underline;  color: black;}
 
   #ViewContainer {
-  position: absolute;
+    position: absolute;
   }
 
   #explanation {
-  overflow:auto;
-  position: absolute;
-  left: 70%;
-  height: 100%;
+    overflow:auto;
+    position: absolute;
+    left: 72%;
+    height: 100%;
+    width: 28%;
+    -webkit-user-select: none;  /* Chrome all / Safari all */
+    -moz-user-select: none;     /* Firefox all */
+    -ms-user-select: none;      /* IE 10+ */
+
+    /* No support for these yet, use at own risk */
+    -o-user-select: none;
+    user-select: none;
+      pointer-events: none;
+      cursor: pointer;
   }
   
   #explanation:focus { outline: none; }
@@ -36,7 +47,9 @@
 </style>
 <title>Shadow</title>
 <meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
-<script type="text/javascript" src="../../build/osg.js"></script>
+
+<script type="text/javascript" src="../../build/osg.include.js"></script>
+
 <script type="text/javascript" src="main.js"></script>
 <script type="text/javascript" src="ogre.osgjs"></script>
 

@@ -53,7 +53,7 @@
             if (arg0 instanceof osg.Texture) {
                 this._stack.push({ filter: filter, texture: arg0} );
             } else if ( arg0 !== undefined && arg1 !== undefined) {
-                this._stack.push({ filter: filter, 
+                this._stack.push({ filter: filter,
                                    width: Math.floor(arg0),
                                    height: Math.floor(arg1)
                                  } );
@@ -76,7 +76,7 @@
             return false;
         },
 
-        build: function() {
+        build: function(isDebug) {
             var root = this;
             this.removeChildren();
             var lastTextureResult;

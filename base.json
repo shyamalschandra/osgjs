@@ -1,0 +1,13 @@
+{
+	"scripts": [
+		"js/osg/osg.js",
+		"js/osg/Object.js",
+		"js/osg/StateAttribute.js",
+
+		"js/osgAnimation/osgAnimation.js",
+		"js/osgUtil/osgUtil.js",
+		
+		"js/osgGA/osgGA.js"
+
+    ]
+}

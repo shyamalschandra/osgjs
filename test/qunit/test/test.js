@@ -1,3 +1,43 @@
+function getPreviousTests( rTestName, rModuleName ) {
+	var testSpan, moduleSpan,
+		matches = [],
+		i = 0,
+		rModule = /(^| )module-name( |$)/,
+		testNames = typeof document.getElementsByClassName !== "undefined" ?
+			document.getElementsByClassName("test-name") :
+			(function( spans ) {
+				var span,
+					tests = [],
+					i = 0,
+					rTest = /(^| )test-name( |$)/;
+				for ( ; (span = spans[i]); i++ ) {
+					if ( rTest.test( span.className ) ) {
+						tests.push( span );
+					}
+				}
+				return tests;
+			})( document.getElementsByTagName("span") );
+
+	for ( ; (testSpan = testNames[i]); i++ ) {
+		moduleSpan = testSpan;
+		while ( (moduleSpan = moduleSpan.previousSibling) ) {
+			if ( rModule.test( moduleSpan.className ) ) {
+				break;
+			}
+		}
+		if ( (!rTestName || rTestName.test( testSpan.innerHTML )) &&
+			(!rModuleName || moduleSpan && rModuleName.test( moduleSpan.innerHTML )) ) {
+
+			while ( (testSpan = testSpan.parentNode) ) {
+				if ( testSpan.nodeName.toLowerCase() === "li" ) {
+					matches.push( testSpan );
+				}
+			}
+		}
+	}
+	return matches;
+}
+
 test("module without setup/teardown (default)", function() {
 	expect(1);
 	ok(true);
@@ -13,19 +53,32 @@ test("expect in test", 1, function() {
 	ok(true);
 });
 
+test("expect query and multiple issue", function() {
+	expect(2);
+	ok(true);
+	var expected = expect();
+	equal(expected, 2);
+	expect(expected + 1);
+	ok(true);
+});
+
 QUnit.module("assertion helpers");
 
-QUnit.test( "QUnit.assert compatibility", function( assert ) {
-	QUnit.expect(4);
-
+QUnit.test( "QUnit.assert compatibility", 5, function( assert ) {
 	assert.ok( true, "Calling method on `assert` argument to test() callback" );
 
-	// Should also work, although not documented
+	// Should also work, although discouraged and not documented
 	QUnit.assert.ok( true, "Calling method on QUnit.assert object" );
 
 	// Test compatibility aliases
 	QUnit.ok( true, "Calling aliased method in QUnit root object" );
 	ok( true, "Calling aliased function in global namespace" );
+
+	// Regression fix for #341
+	// The assert-context way of testing discouraged global variables,
+	// it doesn't make sense of it itself to be a global variable.
+	// Only allows for mistakes (e.g. forgetting to list 'assert' as parameter)
+	assert.notStrictEqual( window.assert, QUnit.assert, "Assert does not get exposed as a global variable" );
 });
 
 module("setup test", {
@@ -43,19 +96,63 @@ test("module with setup, expect in test call", 2, function() {
 	ok(true);
 });
 
+module("<script id='qunit-unescaped-module'>'module';</script>", {
+	setup: function() {
+	},
+	teardown: function() {
+		// We can't use ok(false) inside script tags since some browsers
+		// don't evaluate script tags inserted through innerHTML after domready.
+		// Counting them before/after doesn't cover everything either as qunit-modulefilter
+		// is created before any test is ran. So use ids instead.
+		if (document.getElementById('qunit-unescaped-module')) {
+			// This can either be from in #qunit-modulefilter or #qunit-testresult
+			ok(false, 'Unescaped module name');
+		}
+		if (document.getElementById('qunit-unescaped-test')) {
+			ok(false, 'Unescaped test name');
+		}
+		if (document.getElementById('qunit-unescaped-assertion')) {
+			ok(false, 'Unescaped test name');
+		}
+	}
+});
+
+test("<script id='qunit-unescaped-test'>'test';</script>", 1, function() {
+	ok(true, "<script id='qunit-unescaped-asassertionsert'>'assertion';</script>");
+});
+
 var state;
 
 module("setup/teardown test", {
 	setup: function() {
 		state = true;
 		ok(true);
-		x = 1;
+		// Assert that we can introduce and delete globals in setup/teardown
+		// without noglobals sounding any alarm.
+
+		// Using an implied global variable instead of explicit window property
+		// because there is no way to delete a window.property in IE6-8
+		// `delete x` only works for `x = 1, and `delete window.x` throws exception.
+		// No one-code fits all solution possible afaic. Resort to @cc.
+
+		/*@cc_on
+			@if (@_jscript_version < 9)
+				x = 1;
+			@else @*/
+				window.x = 1;
+			/*@end
+		@*/
 	},
 	teardown: function() {
 		ok(true);
-		// can introduce and delete globals in setup/teardown
-		// without noglobals sounding the alarm
-		delete x;
+
+		/*@cc_on
+			@if (@_jscript_version < 9)
+				delete x;
+			@else @*/
+				delete window.x;
+			/*@end
+		@*/
 	}
 });
 
@@ -67,6 +164,26 @@ test("module with setup/teardown", function() {
 module("setup/teardown test 2");
 
 test("module without setup/teardown", function() {
+	expect(1);
+	ok(true);
+});
+
+var orgDate;
+
+module("Date test", {
+	setup: function() {
+		orgDate = Date;
+		window.Date = function () {
+			ok( false, 'QUnit should internally be independent from Date-related manipulation and testing' );
+			return new orgDate();
+		};
+	},
+	teardown: function() {
+		window.Date = orgDate;
+	}
+});
+
+test("sample test for Date test", function () {
 	expect(1);
 	ok(true);
 });
@@ -94,7 +211,8 @@ test("parameter passed to stop increments semaphore n times", function() {
 	stop(3);
 	setTimeout(function() {
 		state = "not enough starts";
-		start(), start();
+		start();
+		start();
 	}, 13);
 	setTimeout(function() {
 		state = "done";
@@ -104,7 +222,9 @@ test("parameter passed to stop increments semaphore n times", function() {
 
 test("parameter passed to start decrements semaphore n times", function() {
 	expect(1);
-	stop(), stop(), stop();
+	stop();
+	stop();
+	stop();
 	setTimeout(function() {
 		state = "done";
 		start(3);
@@ -114,7 +234,7 @@ test("parameter passed to start decrements semaphore n times", function() {
 module("async setup test", {
 	setup: function() {
 		stop();
-		setTimeout(function(){
+		setTimeout(function() {
 			ok(true);
 			start();
 		}, 500);
@@ -130,7 +250,7 @@ asyncTest("module with async setup", function() {
 module("async teardown test", {
 	teardown: function() {
 		stop();
-		setTimeout(function(){
+		setTimeout(function() {
 			ok(true);
 			start();
 		}, 500);
@@ -179,11 +299,11 @@ test("sync", 2, function() {
 
 test("test synchronous calls to stop", 2, function() {
 	stop();
-	setTimeout(function(){
+	setTimeout(function() {
 		ok(true, 'first');
 		start();
 		stop();
-		setTimeout(function(){
+		setTimeout(function() {
 			ok(true, 'second');
 			start();
 		}, 150);
@@ -206,7 +326,8 @@ test("scope check", function() {
 
 module("simple testEnvironment setup", {
 	foo: "bar",
-	bugid: "#5311" // example of meta-data
+	// example of meta-data
+	bugid: "#5311"
 });
 test("scope check", function() {
 	deepEqual(this.foo, "bar");
@@ -271,7 +392,85 @@ test("jsDump output", function() {
 });
 
 module("assertions");
-test("raises",function() {
+
+test("propEqual", 5, function( assert ) {
+	var objectCreate = Object.create || function ( origin ) {
+		function O() {}
+		O.prototype = origin;
+		var r = new O();
+		return r;
+	};
+
+	function Foo( x, y, z ) {
+		this.x = x;
+		this.y = y;
+		this.z = z;
+	}
+	Foo.prototype.doA = function () {};
+	Foo.prototype.doB = function () {};
+	Foo.prototype.bar = 'prototype';
+
+	function Bar() {
+	}
+	Bar.prototype = objectCreate( Foo.prototype );
+	Bar.prototype.constructor = Bar;
+
+	assert.propEqual(
+		new Foo( 1, '2', [] ),
+		{
+			x: 1,
+			y: '2',
+			z: []
+		}
+	);
+
+	assert.notPropEqual(
+		new Foo( '1', 2, 3 ),
+		{
+			x: 1,
+			y: '2',
+			z: 3
+		},
+		'Primitive values are strictly compared'
+	);
+
+	assert.notPropEqual(
+		new Foo( 1, '2', [] ),
+		{
+			x: 1,
+			y: '2',
+			z: {}
+		},
+		'Array type is preserved'
+	);
+
+	assert.notPropEqual(
+		new Foo( 1, '2', {} ),
+		{
+			x: 1,
+			y: '2',
+			z: []
+		},
+		'Empty array is not the same as empty object'
+	);
+
+	assert.propEqual(
+		new Foo( 1, '2', new Foo( [ 3 ], new Bar(), null ) ),
+		{
+			x: 1,
+			y: '2',
+			z: {
+				x: [ 3 ],
+				y: {},
+				z: null
+			}
+		},
+		'Complex nesting of different types, inheritance and constructors'
+	);
+});
+
+test("raises", 9, function() {
+	/*jshint es5:true */
 	function CustomError( message ) {
 		this.message = message;
 	}
@@ -282,15 +481,25 @@ test("raises",function() {
 
 	throws(
 		function() {
-			throw "my error"
+			throw "my error";
 		}
 	);
 
 	throws(
 		function() {
-			throw "my error"
+			throw "my error";
 		},
 		"simple string throw, no 'expected' value given"
+	);
+
+	// This test is for IE 7 and prior which does not properly
+	// implement Error.prototype.toString
+	throws(
+		function() {
+			throw new Error("error message");
+		},
+		/error message/,
+		"use regexp against instance of Error"
 	);
 
 	throws(
@@ -323,9 +532,10 @@ test("raises",function() {
 
 	throws(
 		function() {
+			/*jshint evil:true */
 			( window.execScript || function( data ) {
 				window["eval"].call( window, data );
-			})( "throw 'error'" );
+			})( "throw 'error';" );
 		},
 		'globally-executed errors caught'
 	);
@@ -342,7 +552,7 @@ test("raises",function() {
 
     raises(
         function() {
-            throw "error"
+            throw "error";
         },
         "simple throw, asserting with deprecated raises() function"
     );
@@ -356,6 +566,7 @@ test("setup", function() {
 	expect(0);
 	document.getElementById("qunit-fixture").innerHTML = "foobar";
 });
+
 test("basics", function() {
 	equal( document.getElementById("qunit-fixture").innerHTML, "test markup", "automatically reset" );
 });
@@ -368,6 +579,41 @@ test("running test name displayed", function() {
 	ok( /running test name displayed/.test(displaying.innerHTML), "Expect test name to be found in displayed text" );
 	ok( /fixture/.test(displaying.innerHTML), "Expect module name to be found in displayed text" );
 });
+
+(function() {
+	var delayNextSetup,
+		sleep = function( n ) {
+			stop();
+			setTimeout( function() { start(); }, n );
+		};
+
+	module("timing", {
+		setup: function() {
+			if ( delayNextSetup ) {
+				delayNextSetup = false;
+				sleep( 250 );
+			}
+		}
+	});
+
+	test("setup", 0, function() {
+		delayNextSetup = true;
+	});
+
+	test("basics", 2, function() {
+		var previous = getPreviousTests(/^setup$/, /^timing$/)[0],
+			runtime = previous.lastChild.previousSibling;
+		ok( /(^| )runtime( |$)/.test( runtime.className ), "Runtime element exists" );
+		ok( /^\d+ ms$/.test( runtime.innerHTML ), "Runtime reported in ms" );
+	});
+
+	test("values", 2, function() {
+		var basics = getPreviousTests(/^setup$/, /^timing$/)[0],
+			slow = getPreviousTests(/^basics$/, /^timing$/)[0];
+		ok( parseInt( basics.lastChild.previousSibling.innerHTML, 10 ) < 50, "Fast runtime for trivial test" );
+		ok( parseInt( slow.lastChild.previousSibling.innerHTML, 10 ) > 250, "Runtime includes setup" );
+	});
+})();
 
 }
 
@@ -388,7 +634,9 @@ module("recursions");
 
 function Wrap(x) {
 	this.wrap = x;
-	if (x == undefined)  this.first = true;
+	if (x === undefined) {
+		this.first = true;
+	}
 }
 
 function chainwrap(depth, first, prev) {
@@ -508,33 +756,19 @@ test('Circular reference - test reported by soniciq in #105', function() {
 	});
 })();
 
-if (typeof setTimeout !== 'undefined') {
-function testAfterDone(){
+function testAfterDone() {
 	var testName = "ensure has correct number of assertions";
 
-	function secondAfterDoneTest(){
+	function secondAfterDoneTest() {
 		QUnit.config.done = [];
-		//QUnit.done = function(){};
-		//because when this does happen, the assertion count parameter doesn't actually
-		//work we use this test to check the assertion count.
+		// Because when this does happen, the assertion count parameter doesn't actually
+		// work we use this test to check the assertion count.
 		module("check previous test's assertion counts");
-		test('count previous two test\'s assertions', function(){
-			var spans = document.getElementsByTagName('span'),
-			tests = [],
-			countNodes;
+		test('count previous two test\'s assertions', function () {
+			var tests = getPreviousTests(/^ensure has correct number of assertions/, /^Synchronous test after load of page$/);
 
-			//find these two tests
-			for (var i = 0; i < spans.length; i++) {
-				if (spans[i].innerHTML.indexOf(testName) !== -1) {
-					tests.push(spans[i]);
-				}
-			}
-
-			//walk dom to counts
-			countNodes = tests[0].nextSibling.nextSibling.getElementsByTagName('b');
-			equal(countNodes[1].innerHTML, "99");
-			countNodes = tests[1].nextSibling.nextSibling.getElementsByTagName('b');
-			equal(countNodes[1].innerHTML, "99");
+			equal(tests[0].firstChild.lastChild.getElementsByTagName("b")[1].innerHTML, "99");
+			equal(tests[1].firstChild.lastChild.getElementsByTagName("b")[1].innerHTML, "99");
 		});
 	}
 	QUnit.config.done = [];
@@ -542,22 +776,22 @@ function testAfterDone(){
 
 	module("Synchronous test after load of page");
 
-	asyncTest('Async test', function(){
+	asyncTest('Async test', function() {
 		start();
 		for (var i = 1; i < 100; i++) {
 			ok(i);
 		}
 	});
 
-	test(testName, 99, function(){
+	test(testName, 99, function() {
 		for (var i = 1; i < 100; i++) {
 			ok(i);
 		}
 	});
 
-	//we need two of these types of tests in order to ensure that assertions
-	//don't move between tests.
-	test(testName + ' 2', 99, function(){
+	// We need two of these types of tests in order to ensure that assertions
+	// don't move between tests.
+	test(testName + ' 2', 99, function() {
 		for (var i = 1; i < 100; i++) {
 			ok(i);
 		}
@@ -566,6 +800,6 @@ function testAfterDone(){
 
 }
 
-QUnit.done(testAfterDone);
-
+if (typeof setTimeout !== 'undefined') {
+	QUnit.done(testAfterDone);
 }

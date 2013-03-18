@@ -1,29 +1,31 @@
 /** -*- compile-command: "jslint-cli Viewer.js" -*-
  * Authors:
  *  Cedric Pinson <cedric.pinson@plopbyte.com>
- */
+ */ 
+ 
+ var optionsURL = function() {
+    var vars = [], hash;
+    var hashes = window.location.href.slice(window.location.href.indexOf('?') + 1).split('&');
+    for(var i = 0; i < hashes.length; i++)
+    {
+        hash = hashes[i].split('=');
+        var element = hash[0].toLowerCase();
+        vars.push(element);
+        var result = hash[1];
+        if (result === undefined) {
+            result = "1";
+        }
+        vars[element] = result.toLowerCase();
+
+    }
+    return vars;
+};
+
 (function() {
 
 
     // install an html console logger for mobile
-    var optionsURL = function() {
-        var vars = [], hash;
-        var hashes = window.location.href.slice(window.location.href.indexOf('?') + 1).split('&');
-        for(var i = 0; i < hashes.length; i++)
-        {
-            hash = hashes[i].split('=');
-            var element = hash[0].toLowerCase();
-            vars.push(element);
-            var result = hash[1];
-            if (result === undefined) {
-                result = "1";
-            }
-            vars[element] = result.toLowerCase();
-
-        }
-        return vars;
-    };
-
+   
     var options = optionsURL();
 
     if (options.log === "html") {
@@ -52,7 +54,6 @@
             window.console[value] = logFunc;
         });
     }
-    
 })();
 
 osgViewer.Viewer = function(canvas, options, error) {
@@ -61,8 +62,14 @@ osgViewer.Viewer = function(canvas, options, error) {
     if (options === undefined) {
         options = {antialias : true};
     }
-
-    if (osg.SimulateWebGLLostContext) {
+   
+    osg.extend(options, optionsURL());
+        
+    if (options.debugpromise) {
+        osg.DebugPromise= true;
+    }
+        
+    if (osg.SimulateWebGLLostContext || options.simulatewebgllostcontext) {
         canvas = WebGLDebugUtils.makeLostContextSimulatingCanvas(canvas);
         canvas.loseContextInNCalls(osg.SimulateWebGLLostContext);
     }
@@ -78,13 +85,18 @@ osgViewer.Viewer = function(canvas, options, error) {
         self.contextRestored();
     }, false);
 
+    if (osg.cacheState || options.cachestate && WebGL_StateCache) {
+        gl = new WebGL_StateCache(gl);
+    }
 
-    if (osg.reportWebGLError  || options.reportWebGLError) {
+    if (osg.reportWebGLError  || options.reportwebglerror) {
         gl = WebGLDebugUtils.makeDebugContext(gl);
     }
 
 
+
     if (gl) {
+        
         this.setGraphicContext(gl);
         osg.init();
         this._canvas = canvas;
@@ -160,29 +172,13 @@ osgViewer.Viewer.prototype = osg.objectInehrit(osgViewer.View.prototype, {
     },
     parseOptions: function() {
 
-        var optionsURL = function() {
-            var vars = [], hash;
-            var hashes = window.location.href.slice(window.location.href.indexOf('?') + 1).split('&');
-            for(var i = 0; i < hashes.length; i++)
-            {
-                hash = hashes[i].split('=');
-                var element = hash[0].toLowerCase();
-                vars.push(element);
-                var result = hash[1];
-                if (result === undefined) {
-                    result = "1";
-                }
-                vars[element] = result.toLowerCase();
-
-            }
-            return vars;
-        };
 
         var options = optionsURL();
 
-        if (options.stats === "1") {
+        if (options.stats) {
             this.initStats(options);
         }
+       
 
         if (options.gamepad !== "0") {
             this.initGamepad();

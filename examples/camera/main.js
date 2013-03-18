@@ -57,8 +57,7 @@ function createScene() {
 }
 
 
-window.addEventListener("load",
-                        function() {
+var startCamera = function() {
                             var canvas = document.getElementById("3DView");
                             var w = window.innerWidth;
                             var h = window.innerHeight;
@@ -72,5 +71,16 @@ window.addEventListener("load",
                             viewer.setupManipulator();
                             viewer.setSceneData(createScene());
                             viewer.run();
-                        }
-                        ,true);
+};
+
+if (!window.multidemo){
+window.addEventListener("load", function() {
+    if(window.location.href.indexOf("debug") !== -1) {
+        loadOSG("../../", startCamera);
+    } else if(window.location.href.indexOf("concat") !== -1) {
+        loadOSG("../../", startCamera);
+    } else {
+        loadJSONP("../../build/osg.min.js", startCamera);
+    }
+}, true);
+}

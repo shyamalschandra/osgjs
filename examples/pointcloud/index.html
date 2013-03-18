@@ -24,7 +24,7 @@
 </style>
 <title>PointCloud</title>
 <meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
-<script type="text/javascript" src="../../build/osg.js"></script>
+<script type="text/javascript" src="../../build/osg.include.js"></script>
 <script type="text/javascript" src="mickey.osgjs"></script>
 
 <script type="text/javascript">
@@ -51,8 +51,7 @@ function getWindowSize() {
 //    window.alert( 'Height = ' + myHeight );
 }
 
-window.addEventListener("load",
-function() {
+var startPointCloud = function() {
 
     var size = getWindowSize();
     var canvas = document.getElementById("3DView");
@@ -79,8 +78,19 @@ rotate.addChild(data);
   osg.log("exception in osgViewer " + er);
 }
 
+};
+
+if (!window.multidemo) {
+    window.addEventListener("load", function() {
+        if (window.location.href.indexOf("debug") !== -1) {
+            loadOSGJSON("../../", "project.json", startPointCloud);
+        } else if (window.location.href.indexOf("concat") !== -1) {
+            loadOSGJS("../../", "build/osg.debug.js", startPointCloud);
+        } else {
+            loadOSGJS("../../", "build/osg.min.js", startPointCloud);
+        }
+    }, true);
 }
-,true);
 
 </script>
 </head>

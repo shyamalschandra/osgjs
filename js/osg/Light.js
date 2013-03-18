@@ -1,6 +1,6 @@
 /** -*- compile-command: "jslint-cli Node.js" -*- */
 
-/** 
+/**
  *  Light
  *  @class Light
  */
@@ -22,7 +22,7 @@ osg.Light = function (lightNumber) {
     this._linearAttenuation = 0.0;
     this._quadraticAttenuation = 0.0;
     this._lightUnit = lightNumber;
-    this._enabled = 0;
+    this._enabled = 1;
 
     this.dirty();
 };
@@ -39,7 +39,7 @@ osg.Light.prototype = osg.objectLibraryClass( osg.objectInehrit(osg.StateAttribu
         var typeMember = this.getTypeMember();
         if (uniforms[typeMember] === undefined) {
             var uFact = osg.Uniform;
-            uniforms[typeMember] = { 
+            uniforms[typeMember] = {
                 "ambient": uFact.createFloat4([ 0.2, 0.2, 0.2, 1], this.getUniformName("ambient")) ,
                 "diffuse": uFact.createFloat4([ 0.8, 0.8, 0.8, 1], this.getUniformName('diffuse')) ,
                 "specular": uFact.createFloat4([ 0.2, 0.2, 0.2, 1], this.getUniformName('specular')) ,
@@ -127,7 +127,7 @@ osg.Light.prototype = osg.objectLibraryClass( osg.objectInehrit(osg.StateAttribu
         light.quadraticAttenuation.get()[0] = this._quadraticAttenuation;
         light.quadraticAttenuation.dirty();
 
-        //light._enable.set([this.enable]);
+        light.enable.set([this._enabled]);
 
         this.setDirty(false);
     },
@@ -173,7 +173,7 @@ osg.Light.prototype._shaderCommon[osg.ShaderGeneratorType.VertexInit] = function
              "" ].join('\n');
 };
 
-osg.Light.prototype._shaderCommon[osg.ShaderGeneratorType.VertexFunction] = function() 
+osg.Light.prototype._shaderCommon[osg.ShaderGeneratorType.VertexFunction] = function()
 {
     return [ "",
              "vec3 computeNormal() {",
@@ -187,7 +187,7 @@ osg.Light.prototype._shaderCommon[osg.ShaderGeneratorType.VertexFunction] = func
              ""].join('\n');
 };
 
-osg.Light.prototype._shaderCommon[osg.ShaderGeneratorType.VertexMain] = function() 
+osg.Light.prototype._shaderCommon[osg.ShaderGeneratorType.VertexMain] = function()
 {
     return [ "",
              "  FragEyeVector = computeEyeVertex();",
@@ -237,7 +237,7 @@ osg.Light.prototype._shaderCommon[osg.ShaderGeneratorType.FragmentFunction] = fu
                      "        vec3 E = eye;",
                      "        vec3 R = reflect(-L, N);",
                      "        float RdotE = max(dot(R, E), 0.0);",
-                     "        if ( RdotE > 0.0) {", 
+                     "        if ( RdotE > 0.0) {",
                      "           RdotE = pow( RdotE, materialShininess );",
                      "        }",
                      "        vec3 D = lightSpotDirection;",

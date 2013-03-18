@@ -30,7 +30,7 @@ module.exports = function(grunt) {
                 .on('exit', function(code) {
                     done(code == 0)
                 });
-grunt.log.write(cli);
+            grunt.log.write(cli);
 
             child.stdout.on('data', grunt.log.write.bind(grunt.log));
             child.stderr.on('data', grunt.log.error.bind(grunt.log));

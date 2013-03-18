@@ -146,6 +146,20 @@ asyncTest("Input.readBufferArray - external", function() {
             start();
         });
     })();
+});
+
+asyncTest("Input.readBufferArray - check progress callbac", function() {
+    var ba = {
+        "Array": {
+            "Uint16Array" : {
+                "File": "stream.bin",
+                "Size": 3
+            }
+        }, 
+        "ItemSize": 1, 
+        "Type": "ARRAY_BUFFER",
+        "UniqueID" : 10
+    };
 
     (function() {
         var calledProgress = false;

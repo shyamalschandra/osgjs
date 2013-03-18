@@ -72,7 +72,7 @@ function decodeHDRHeader(buf) {
 
 // Read a radiance .hdr file (http://radsite.lbl.gov/radiance/refer/filefmts.pdf)
 // Ported from http://www.graphics.cornell.edu/~bjw/rgbe.html
-osg.readHDRImage = function(url, options) {
+readHDRImage = function(url, options) {
     if (options === undefined) {
         options = {};
     }
@@ -244,7 +244,7 @@ function getEnvSphere(size, scene)
 }
 
 var Viewer;
-var main = function() {
+var startHDR = function() {
     //osg.ReportWebGLError = true;
 
     var canvas = document.getElementById("3DView");
@@ -505,14 +505,33 @@ var getModel = function(func) {
         addLoading();
     };
     
-    loadModel('monkey.osgjs');
+    var modelName;
+    modelName = 'monkey';
+    //modelName = 'monkey';
+    //modelName = 'sponza';
+    //modelName = 'raceship';
+    var url = window.location.href;
+    if (window.location.href.indexOf('model')!=-1){
+        var urlParts = url.split('?');
+        if(urlParts.length > 1){
+           urlParts = urlParts[1].split('&');
+           for(var k in urlParts){
+                if (urlParts[k].indexOf('model') !==-1){
+                    urlParts = urlParts[k].split('=');
+                    modelName = urlParts[1];
+                    break;
+                }
+            }
+        }
+    }
+    loadModel(modelName + '.osgjs');
     return node;
 };
 
 function readImageURL(url) {
     var ext = url.split('.').pop();
     if(ext == "hdr")
-        return osg.readHDRImage(url);
+        return readHDRImage(url);
 
     return osgDB.readImageURL(url);
 }
@@ -590,5 +609,14 @@ function createScene()
 }
 
 
-
-window.addEventListener("load", main ,true);
+if (!window.multidemo) {
+    window.addEventListener("load", function() {
+        if (window.location.href.indexOf("debug") !== -1) {
+            loadOSGJSON("../../", "project.json", startHDR);
+        } else if (window.location.href.indexOf("concat") !== -1) {
+            loadOSGJS("../../", "build/osg.debug.js", startHDR);
+        } else {
+            loadOSGJS("../../", "build/osg.min.js", startHDR);
+        }
+    }, true);
+}

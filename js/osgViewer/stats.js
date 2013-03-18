@@ -25,7 +25,10 @@ Stats.Stats = function(canvas, textCanvas) {
     this.last_update = undefined;
     this.canvas = canvas;
     this.text_canvas = textCanvas;
-    this.numberUpdate = 0;
+    this.numberUpdateGraph = 0;
+    this.numberUpdateText = 0;
+    this.deltaSum = 0;
+    this.deltas = [];
 };
 
 Stats.Stats.prototype = {
@@ -39,69 +42,115 @@ Stats.Stats.prototype = {
             getValue: getter,
             getText: texter,
             average: 0,
-            max: maxVal
+            max: maxVal,
+            data: []
         });
     },
 
     update: function() {
 
-        var delta, i, l, layer, value, c, ctx, height, myImageData, t = performance.now();
+        var delta, i, k, l, layer, value, c, ctx, height, myImageData, t = performance.now();
         if(this.last_update === undefined) {
             this.last_update = t;
-        }
-        this.numberUpdate++;
-        for(i = 0, l = this.layers.length; i < l; i++) {
-            layer = this.layers[i];
-            value = layer.getValue(t);
-            layer.average += value;
         }
         //i = 2.0 * 60.0 / 1000.0;
         i = 0.12; //4.0 * 60.0 / 1000.0;
         delta = (t - this.last_update) * i;
         if(delta >= 1.0) {
 
+            this.numberUpdateGraph++;
+            this.numberUpdateText++;
+
             t -= (delta - Math.floor(delta)) / i;
             delta = Math.floor(delta);
 
-            c = this.canvas;
-            ctx = c.getContext("2d");
-
-            myImageData = ctx.getImageData(delta, 0, c.width - delta, c.height);
-            ctx.putImageData(myImageData, 0, 0);
-            ctx.clearRect(c.width - delta, 0, delta, c.height);
+            this.deltaSum += delta;
+            this.deltas.push(delta);
 
             for(i = 0, l = this.layers.length; i < l; i++) {
                 layer = this.layers[i];
-                value = layer.getValue(t);
-                value *= c.height / layer.max;
-                if(value > c.height) value = c.height;
+                layer.data.push(layer.getValue(t));
+            }
+
+            
+            if(this.numberUpdateGraph > 0 && (this.deltaSum > this.canvas.width || this.numberUpdateGraph % 30 === 0)) {
+                if(this.numberUpdateText > 0 && this.numberUpdateText % 60 === 0) {
+                    c = this.text_canvas;
+                    ctx = c.getContext("2d");
+                    ctx.font = "14px Sans";
+                    height = 17;
+                    delta = height;
+                    ctx.clearRect(0, 0, c.width, c.height);
+                    for(i = 0, l = this.layers.length; i < l; i++) {
+                        layer = this.layers[i];
+                        value = layer.getText(layer.average / this.numberUpdateText);
+                        layer.average = 0;
+                        ctx.fillStyle = layer.color;
+                        ctx.fillText(value, 0, delta);
+                        delta += height;
+                    }
+                    this.numberUpdateText = 0;
+                }
+                c = this.canvas;
+                ctx = c.getContext("2d");
+                var xStart = c.width - this.deltaSum;
+                if(xStart > 0) {
+                    myImageData = ctx.getImageData(this.deltaSum, 0, xStart, c.height);
+                    ctx.putImageData(myImageData, 0, 0);
+                    ctx.clearRect(xStart, 0, this.deltaSum, c.height);
+                } else {
+                    xStart = 0;
+                    ctx.clearRect(0, 0, c.width, c.height);
+                }
+
                 ctx.lineWidth = 1.0;
-                ctx.strokeStyle = layer.color;
-                ctx.beginPath();
-                ctx.moveTo(c.width - delta, c.height - layer.previous);
-                ctx.lineTo(c.width, c.height - value);
-                ctx.stroke();
-                layer.previous = value;
-            }
-        }
 
-        if(this.numberUpdate % 60 === 0) {
-            c = this.text_canvas;
-            ctx = c.getContext("2d");
-            ctx.font = "14px Sans";
-            height = 17;
-            delta = height;
-            ctx.clearRect(0, 0, c.width, c.height);
-            for(i = 0, l = this.layers.length; i < l; i++) {
-                layer = this.layers[i];
-                value = layer.getText(layer.average / this.numberUpdate);
-                layer.average = 0;
-                ctx.fillStyle = layer.color;
-                ctx.fillText(value, 0, delta);
-                delta += height;
+                for(i = 0, l = this.layers.length; i < l; i++) {
+                    layer = this.layers[i];
+                    layer.average = layer.data[0];
+                    var xstartCurr = xStart;
+
+                    ctx.strokeStyle = layer.color;
+                    ctx.beginPath();
+                    ctx.moveTo(xstartCurr, c.height - layer.previous);
+
+                    for(k = 1; k < layer.data.length; k++) {
+                        value = layer.data[k];
+                        layer.average += value;
+
+                        value *= c.height / layer.max;
+                        if(value > c.height) value = c.height;
+
+                        xstartCurr += this.deltas[k];
+                        ctx.lineTo(xstartCurr, c.height - value);
+                    }
+                    ctx.stroke();
+                    layer.previous = value;
+                }
+
+                this.deltaSum = 0;
+                this.deltas = [0];
+
+                c = this.text_canvas;
+                ctx = c.getContext("2d");
+                ctx.font = "14px Sans";
+                height = 17;
+                delta = height;
+                ctx.clearRect(0, 0, c.width, c.height);
+                for(i = 0, l = this.layers.length; i < l; i++) {
+                    layer = this.layers[i];
+                    value = layer.getText(layer.average / layer.data.length);
+                    layer.average = 0;
+                    ctx.fillStyle = layer.color;
+                    ctx.fillText(value, 0, delta);
+                    delta += height;
+
+                    layer.data = [layer.data[layer.data.length - 1]];
+                }
+                this.numberUpdateGraph = 0;
             }
-            this.numberUpdate = 0;
+
+            this.last_update = t;
         }
-        this.last_update = t;
     }
-};
+}

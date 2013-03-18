@@ -1,6 +1,6 @@
 osg.Depth = function (func, near, far, writeMask) {
     osg.StateAttribute.call(this);
-    
+
     this._func = osg.Depth.LESS;
     this._near = 0.0;
     this._far = 1.0;

@@ -48,6 +48,11 @@ osg.FrameBufferObject.prototype = osg.objectInehrit(osg.StateAttribute.prototype
                     this.fbo = gl.createFramebuffer();
                 }
 
+                if (!osg.framebufferList)
+                    osg.framebufferList = [];
+                if (osg.framebufferList.indexOf(this) == -1)
+                    osg.framebufferList.push(this);
+                
                 gl.bindFramebuffer(gl.FRAMEBUFFER, this.fbo);
                 var hasRenderBuffer = false;
                 for (var i = 0, l = this.attachments.length; i < l; ++i) {

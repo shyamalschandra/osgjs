@@ -1,5 +1,5 @@
-/** 
- * CullVisitor traverse the tree and collect Matrix/State for the rendering traverse 
+/**
+ * CullVisitor traverse the tree and collect Matrix/State for the rendering traverse
  * @class CullVisitor
  */
 osg.CullVisitor = function () {
@@ -56,7 +56,7 @@ osg.CullVisitor.prototype = osg.objectInehrit(osg.CullStack.prototype ,osg.objec
         // corners of the bounding box.
         d_near = this.distance(bb.corner(this._bbCornerNear),matrix);
         d_far = this.distance(bb.corner(this._bbCornerFar),matrix);
-        
+
         if (d_near>d_far) {
             var tmp = d_near;
             d_near = d_far;
@@ -85,7 +85,7 @@ osg.CullVisitor.prototype = osg.objectInehrit(osg.CullStack.prototype ,osg.objec
             osg.log("clampProjectionMatrix not applied, invalid depth range, znear = " + znear + "  zfar = " + zfar);
             return false;
         }
-        
+
         var desired_znear, desired_zfar;
         if (zfar<znear+epsilon) {
             // znear and zfar are too close together and could cause divide by zero problems
@@ -96,8 +96,8 @@ osg.CullVisitor.prototype = osg.objectInehrit(osg.CullStack.prototype ,osg.objec
             // OSG_INFO << "_clampProjectionMatrix widening znear and zfar to "<<znear<<" "<<zfar<<std::endl;
         }
 
-        if (Math.abs(osg.Matrix.get(projection,0,3))<epsilon  && 
-            Math.abs(osg.Matrix.get(projection,1,3))<epsilon  && 
+        if (Math.abs(osg.Matrix.get(projection,0,3))<epsilon  &&
+            Math.abs(osg.Matrix.get(projection,1,3))<epsilon  &&
             Math.abs(osg.Matrix.get(projection,2,3))<epsilon ) {
             // OSG_INFO << "Orthographic matrix before clamping"<<projection<<std::endl;
 
@@ -125,7 +125,7 @@ osg.CullVisitor.prototype = osg.objectInehrit(osg.CullStack.prototype ,osg.objec
             var zfarPushRatio = 1.02;
             var znearPullRatio = 0.98;
 
-            //znearPullRatio = 0.99; 
+            //znearPullRatio = 0.99;
 
             desired_znear = znear * znearPullRatio;
             desired_zfar = zfar * zfarPushRatio;
@@ -139,7 +139,7 @@ osg.CullVisitor.prototype = osg.objectInehrit(osg.CullStack.prototype ,osg.objec
             // assign the clamped values back to the computed values.
             znear = desired_znear;
             zfar = desired_zfar;
-            
+
             var m22 = osg.Matrix.get(projection,2,2);
             var m32 = osg.Matrix.get(projection,3,2);
             var m23 = osg.Matrix.get(projection,2,3);
@@ -256,7 +256,10 @@ osg.CullVisitor.prototype[osg.Camera.prototype.objectType] = function( camera ) 
     if (camera.light) {
         this.addPositionedAttribute(camera.light);
     }
-
+    var OldtraversalMask = this.traversalMask;
+    if (camera.traversalMask) {
+        this.traversalMask = camera.traversalMask & this.traversalMask;
+    }
     var originalModelView = this._modelviewMatrixStack[this._modelviewMatrixStack.length-1];
 
     var modelview = this._getReservedMatrix();
@@ -272,6 +275,7 @@ osg.CullVisitor.prototype[osg.Camera.prototype.objectType] = function( camera ) 
         osg.Matrix.copy(camera.getViewMatrix(), modelview);
         osg.Matrix.copy(camera.getProjectionMatrix(), projection);
     }
+    osg.Matrix.copy(modelview, camera.getPureViewMatrix()) ;
     this.pushProjectionMatrix(projection);
     this.pushModelviewMatrix(modelview);
 
@@ -291,9 +295,9 @@ osg.CullVisitor.prototype[osg.Camera.prototype.objectType] = function( camera ) 
 
     // nested camera
     if (camera.getRenderOrder() === osg.Camera.NESTED_RENDER) {
-        
+
         this.handleCullCallbacksAndTraverse(camera);
-        
+
     } else {
         // not tested
 
@@ -306,7 +310,7 @@ osg.CullVisitor.prototype[osg.Camera.prototype.objectType] = function( camera ) 
         rtts.setClearColor(camera.getClearColor());
 
         rtts.setClearMask(camera.getClearMask());
-        
+
         var vp;
         if (camera.getViewport() === undefined) {
             vp = previous_stage.getViewport();
@@ -314,7 +318,7 @@ osg.CullVisitor.prototype[osg.Camera.prototype.objectType] = function( camera ) 
             vp = camera.getViewport();
         }
         rtts.setViewport(vp);
-        
+
         // skip positional state for now
         // ...
 
@@ -335,11 +339,14 @@ osg.CullVisitor.prototype[osg.Camera.prototype.objectType] = function( camera ) 
 
     this.popModelviewMatrix();
     this.popProjectionMatrix();
+    camera.near = this._computedNear;
+    camera.far = this._computedFar;
 
     if (camera.getViewport()) {
         this.popViewport();
     }
 
+    this.traversalMask = OldtraversalMask;
     // restore previous state of the camera
     this.setCullSettings(previous_cullsettings);
     this._computedNear = previous_znear;
@@ -350,8 +357,6 @@ osg.CullVisitor.prototype[osg.Camera.prototype.objectType] = function( camera ) 
     }
 
 };
-
-
 osg.CullVisitor.prototype[osg.MatrixTransform.prototype.objectType] = function (node) {
     var matrix = this._getReservedMatrix();
 
@@ -379,7 +384,7 @@ osg.CullVisitor.prototype[osg.MatrixTransform.prototype.objectType] = function (
     if (stateset) {
         this.popStateSet();
     }
-    
+
     this.popModelviewMatrix();
 
 };
@@ -422,6 +427,15 @@ osg.CullVisitor.prototype[osg.Node.prototype.objectType] = function (node) {
     }
 };
 osg.CullVisitor.prototype[osg.LightSource.prototype.objectType] = function (node) {
+    var matrix = this._getReservedMatrix();
+    if (node.getReferenceFrame() === osg.Transform.RELATIVE_RF) {
+        var lastMatrixStack = this._modelviewMatrixStack[this._modelviewMatrixStack.length-1];
+        osg.Matrix.mult(lastMatrixStack, node.getMatrix(), matrix);
+    } else {
+        // absolute
+        osg.Matrix.copy(node.getMatrix(), matrix);
+    }
+    this.pushModelviewMatrix(matrix);
 
     var stateset = node.getStateSet();
     if (stateset) {
@@ -438,6 +452,8 @@ osg.CullVisitor.prototype[osg.LightSource.prototype.objectType] = function (node
     if (stateset) {
         this.popStateSet();
     }
+    this.popModelviewMatrix();
+
 };
 
 osg.CullVisitor.prototype[osg.Geometry.prototype.objectType] = function (node) {
@@ -462,7 +478,7 @@ osg.CullVisitor.prototype[osg.Geometry.prototype.objectType] = function (node) {
     }
 
     var leaf = this._getReservedLeaf();
-    var depth = 0;    
+    var depth = 0;
     if (bb.valid()) {
         depth = this.distance(bb.center(), modelview);
     }

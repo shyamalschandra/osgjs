@@ -23,7 +23,8 @@
 
 <title>Materials</title>
 <meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
-<script type="text/javascript" src="../../build/osg.js"></script>
+    
+<script type="text/javascript" src="../../build/osg.include.js"></script>
 
 <script type="text/javascript">
 
@@ -386,8 +387,7 @@ function getWindowSize() {
     return { 'w': myWidth, 'h': myHeight };
 }
 
-window.addEventListener("load",
-function() {
+var startMaterials = function() {
   
   var size = getWindowSize();
 
@@ -406,9 +406,19 @@ try {
   osg.log("exception in osgViewer " + er);
 }
 
-}
-,true);
+};
 
+if (!window.multidemo) {
+    window.addEventListener("load", function() {
+        if (window.location.href.indexOf("debug") !== -1) {
+            loadOSGJSON("../../", "project.json", startMaterials);
+        } else if (window.location.href.indexOf("concat") !== -1) {
+            loadOSGJS("../../", "build/osg.debug.js", startMaterials);
+        } else {
+            loadOSGJS("../../", "build/osg.min.js", startMaterials);
+        }
+    }, true);
+}
 //);
 
 </script>
