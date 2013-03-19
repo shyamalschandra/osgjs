@@ -117,7 +117,7 @@ osgUtil.ressourcesCache.frameBufferObjectTarget = [];
 
 
 osg.init = function() {
-    osg.memoryPools.stateGraph = new OsgObjectMemoryPool(osg.StateGraph).grow(50);
+    osg.memoryPools.stateGraph = new osg.ObjectMemoryPool(osg.StateGraph).grow(50);
 };
 
 // from jquery
@@ -3189,6 +3189,7 @@ osg.Camera = function () {
     this.setClearDepth(1.0);
     this.setClearMask(osg.Camera.COLOR_BUFFER_BIT | osg.Camera.DEPTH_BUFFER_BIT);
     this.setViewMatrix(osg.Matrix.makeIdentity([]));
+    this.setPureViewMatrix(osg.Matrix.makeIdentity([]));
     this.setProjectionMatrix(osg.Matrix.makeIdentity([]));
     this.renderOrder = osg.Camera.NESTED_RENDER;
     this.renderOrderNum = 0;
@@ -3225,6 +3226,10 @@ osg.Camera.prototype = osg.objectLibraryClass( osg.objectInehrit(
         },
         getViewport: function() { return this.viewport; },
 
+        setPureViewMatrix: function(matrix) {
+            this.pureViewMatrix = matrix;
+        },
+
 
         setViewMatrix: function(matrix) {
             this.modelviewMatrix = matrix;
@@ -3242,6 +3247,7 @@ osg.Camera.prototype = osg.objectLibraryClass( osg.objectInehrit(
         },
 
         getViewMatrix: function() { return this.modelviewMatrix; },
+        getPureViewMatrix: function() { return this.pureViewMatrix; },
         getProjectionMatrix: function() { return this.projectionMatrix; },
         getRenderOrder: function() { return this.renderOrder; },
         setRenderOrder: function(order, orderNum) {
@@ -8226,7 +8232,7 @@ osg.CullVisitor.prototype[osg.Camera.prototype.objectType] = function( camera ) 
     }
     var OldtraversalMask = this.traversalMask;
     if (camera.traversalMask) {
-        this.traversalMask = camera.traversalMask & this.traversalMask;
+        this.traversalMask = camera.traversalMask | this.traversalMask;
     }
     var originalModelView = this._modelviewMatrixStack[this._modelviewMatrixStack.length-1];
 
@@ -8243,6 +8249,7 @@ osg.CullVisitor.prototype[osg.Camera.prototype.objectType] = function( camera ) 
         osg.Matrix.copy(camera.getViewMatrix(), modelview);
         osg.Matrix.copy(camera.getProjectionMatrix(), projection);
     }
+    osg.Matrix.copy(modelview, camera.getPureViewMatrix()) ;
     this.pushProjectionMatrix(projection);
     this.pushModelviewMatrix(modelview);
 
@@ -11803,7 +11810,7 @@ osgUtil.ParameterVisitor.prototype = osg.objectInehrit(osg.NodeVisitor.prototype
  *  Tuan.kuranes <tuan.kuranes@gmail.com> Jerome Etienne <Jerome.etienne@gmail.com>
  */
 
-
+var osg = osg || {  };
  /*
  * Keep reference of object that can be reused across frame
  * Targeting ZERO new/delete and Javascript Garbage collector stuttering 
@@ -11811,7 +11818,7 @@ osgUtil.ParameterVisitor.prototype = osg.objectInehrit(osg.NodeVisitor.prototype
  *  TODO: Debug Mode: check if not putting object twice, etc.
  *  USAGE: osg.memoryPools.stateGraph = new OsgObjectMemoryPool(osg.StateGraph).grow(50);
  */
-var OsgObjectMemoryPool = function(pooledObjectClassName) {
+osg.ObjectMemoryPool = function(pooledObjectClassName) {
         return {
             _memPool: [],
             reset: function() {
@@ -11844,7 +11851,7 @@ var OsgObjectMemoryPool = function(pooledObjectClassName) {
  *  // do use matrix, etc..
  *  osg.memoryPools.arrayPool.put(mymatrix);
  */
- var OsgArrayMemoryPool = function(){
+ osg.ArrayMemoryPool = function(){
         return {
             _mempoolofPools: [],
             reset: function() {

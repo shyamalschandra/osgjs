@@ -117,7 +117,7 @@ osgUtil.ressourcesCache.frameBufferObjectTarget = [];
 
 
 osg.init = function() {
-    osg.memoryPools.stateGraph = new OsgObjectMemoryPool(osg.StateGraph).grow(50);
+    osg.memoryPools.stateGraph = new osg.ObjectMemoryPool(osg.StateGraph).grow(50);
 };
 
 // from jquery

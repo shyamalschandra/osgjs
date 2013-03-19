@@ -2,47 +2,55 @@
 
 <head>
 <style>
+
   body {
-    background:-moz-radial-gradient(farthest-side, rgba(0,0,0,0) 90%, rgba(0,0,0,0.1) 150%) rgb(76,76,76);
-    background:-webkit-gradient(radial, center center, 500, center center, 1400, from(rgba(0,0,0,0)), to(rgba(0,0,0,0.2))) rgb(76,76,76);
-    overflow:hidden;
-    padding:0;
-    margin:0;
-    color: white;
+  background: rgb(76,76,76);
+  overflow:hidden;
+  padding:0;
+  margin:0;
+  color: white;
   }
 
+  .vignette {
+  -moz-box-shadow: inset 0px 0px 88px rgba(0,0,0,.5);
+  -webkit-box-shadow: inset 0px 0px 88px rgba(0,0,0,.5);
+  box-shadow: inset 0px 0px 88px rgba(0,0,0,.5);
+  }
 
-  a:link {text-decoration: none; color: black;}
-  a:visited {text-decoration: none; color: black;}
-  a:active {text-decoration: none; color: black;}
-  a:hover {text-decoration: underline;  color: black;}
+  a:link {text-decoration: none; color: white;}
+  a:visited {text-decoration: none; color: white;}
+  a:active {text-decoration: none; color: white;}
+  a:hover {text-decoration: underline;  color: white;}
 
   #ViewContainer {
-    position: absolute;
+  position: absolute;
   }
 
   #explanation {
-    overflow:auto;
-    position: absolute;
-    left: 72%;
-    height: 100%;
-    width: 28%;
-    -webkit-user-select: none;  /* Chrome all / Safari all */
-    -moz-user-select: none;     /* Firefox all */
-    -ms-user-select: none;      /* IE 10+ */
-
-    /* No support for these yet, use at own risk */
-    -o-user-select: none;
-    user-select: none;
-      pointer-events: none;
-      cursor: pointer;
+  background: rgba(90, 90, 90, 0.5);
+  color: black;
+  overflow:auto;
+  position: absolute;
+  left: 70%;
   }
-  
+
   #explanation:focus { outline: none; }
 
   code {
     font-size: 10px;
   }
+  
+  input {
+  background: rgba(90, 90, 90, 0.5);
+  }
+  
+  #loading {
+  position: absolute;
+  left: 10px;
+  height: 10px;
+  }
+
+
   
 </style>
 <title>Scene Setup</title>
@@ -60,13 +68,43 @@
   <canvas id="3DView"></canvas>
   </div>
   <div id="explanation" tabIndex="0" >
-    <h1>scene setup example with <a href="http://osgjs.org">osgjs</a></h1>
-    This sample demonstrate how to do complex scene setup. The model used for this example comes from <a href="http://www.ogre3d.org"> Ogre project</a>
-     <p>Model</p>
-     <p>Fog</p>
-     <p>ground : mirror effect using RTT</p>
-     <p>Lights&shadow: Exponential Variance Shadow Map (EVSM) </p>
-     <p>Post-processing: depth of field</p>
+    <h1>Lights&Shadows <a href="http://osgjs.org">osgjs</a></h1>
+     <p>Model
+        <select class="combobox" name="modeltype" onChange="paramChange(this.options[this.selectedIndex].value, 'model');"  >
+               <option>raceship</option>
+               <option>monkey</option>
+               <option>ogre</option>
+               <option>pokerscene</option>
+               <option>sponza</option>
+        </select></p>
+     <p><b>Fog</b></p>
+      <div id="fogparameters"/>
+      </div>
+     <p><b>ground</b></p>
+      <div id="groundparameters"/>
+      </div>
+     <p><b>Lights&shadow</b></p>
+      <select name="scenetype" onChange="paramChange(this.options[this.selectedIndex].value,'shadow');"  >
+             <option>Shadow Map Percentage Close Filtering</option>
+             <option>Exponential Variance Shadow Map (VSM)</option>
+             <option>Exponential Variance Shadow Map (EVSM)</option>
+      </select>
+      <div id="shadowparameters"/>
+      </div>
+      <div id="shadowblurparameters"/>
+      </div>
+     <p><b>Post-processing: depth of field</b></p>
+      <div id="dofparameters"/>
+      </div>
+      <p>debug</p><select class="combobox" name="debugtype" onChange="paramChange(this.options[this.selectedIndex].value,'debug');"  >
+       <option>vanilla</option>
+       <option>stats</option>
+       <option>debug</option>
+       <option>debug+stats</option>
+       <option>debug+DebugPromise</option>
+       <option>debug+stats+DebugPromise</option>
+</select>
+
   </div>
 </body>
 </html>

@@ -275,7 +275,6 @@ osg.CullVisitor.prototype[osg.Camera.prototype.objectType] = function( camera ) 
         osg.Matrix.copy(camera.getViewMatrix(), modelview);
         osg.Matrix.copy(camera.getProjectionMatrix(), projection);
     }
-    osg.Matrix.copy(modelview, camera.getPureViewMatrix()) ;
     this.pushProjectionMatrix(projection);
     this.pushModelviewMatrix(modelview);
 
@@ -346,11 +345,14 @@ osg.CullVisitor.prototype[osg.Camera.prototype.objectType] = function( camera ) 
         this.popViewport();
     }
 
+    this._computedNear = previous_znear;
+    this._computedFar = previous_zfar;
+    osg.Matrix.copy(modelview, camera.getPureViewMatrix()) ;
+    
     this.traversalMask = OldtraversalMask;
     // restore previous state of the camera
     this.setCullSettings(previous_cullsettings);
-    this._computedNear = previous_znear;
-    this._computedFar = previous_zfar;
+
 
     if (stateset) {
         this.popStateSet();

@@ -10,6 +10,10 @@ osg.ShadowTechnique = function(ShadowTechniqueNumber, CastsShadowTraversalMask) 
 	if (ShadowTechniqueNumber === undefined) {
 		ShadowTechniqueNumber = 0;
 	}
+
+	if (!CastsShadowTraversalMask) CastsShadowTraversalMask = 0x2;
+	this._CastsShadowTraversalMask = CastsShadowTraversalMask;
+
 	this._position = [0.0, 0.0, 1.0, 0.0];
 	this._direction = [0.0, 0.0, -1.0];
 	this._ShadowTechniqueUnit = ShadowTechniqueNumber;
@@ -17,7 +21,7 @@ osg.ShadowTechnique = function(ShadowTechniqueNumber, CastsShadowTraversalMask) 
 
 	this._Textures = [];
 	var texSize = 256;
-	this._TextureSize = [texSize, texSize, 1.0/texSize, 1.0/texSize];
+	this._TextureSize = [texSize, texSize, 1.0 / texSize, 1.0 / texSize];
 
 	this._biasScale = 0.0;
 	this._fov = 60;
@@ -36,12 +40,12 @@ osg.ShadowTechnique = function(ShadowTechniqueNumber, CastsShadowTraversalMask) 
 	this._Camera.setViewport(new osg.Viewport(0, 0, this._TextureSize[0], this._TextureSize[1]));
 	this._Camera.setClearColor([1, 1, 1, 0.0]);
 
-    this.shadowmapCasterVertex = "shadowmap_cast.vert";
-    this.shadowmapCasterFragment = "shadowmap_cast.frag";
-    this.shadowmapReceiverVertex = "shadowmap_receive.vert";
-    this.shadowmapReceiverFragment = "shadowmap_receive.frag";
-    this.textureType = osg.Texture.UNSIGNED_BYTE;
-    this.textureFormat = osg.Texture.RGBA;
+	this.shadowmapCasterVertex = "shadowmap_cast.vert";
+	this.shadowmapCasterFragment = "shadowmap_cast.frag";
+	this.shadowmapReceiverVertex = "shadowmap_receive.vert";
+	this.shadowmapReceiverFragment = "shadowmap_receive.frag";
+	this.textureType = osg.Texture.UNSIGNED_BYTE;
+	this.textureFormat = osg.Texture.RGBA;
 
 	this.dirty();
 };

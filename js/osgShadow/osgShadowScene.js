@@ -5,21 +5,20 @@
  *  Shadow
  *  @class ShadowScene
  */
-osg.ShadowScene = function(sceneCamera, lightNode, ReceivesShadowTraversalMask, technique) {
+osg.ShadowScene = function(sceneCamera, lightNode, technique, ReceivesShadowTraversalMask) {
 	osg.Transform.call(this);
 	osg.CullSettings.call(this);
 
-	this._camera = sceneCamera;
-	this._lightNode = lightNode0;
-	this._technique = technique;
+	if (!ReceivesShadowTraversalMask) ReceivesShadowTraversalMask = 0x1;
 	this._receivesShadowTraversalMask = ReceivesShadowTraversalMask;
+
+	this._camera = sceneCamera;
+	this._lightNode = lightNode;
+	this._technique = technique;
 
 	// scene models (shadow receiver)
 	this._shadowReceiverScene = new osg.Node();
-
-	this._enabled = 0;
-
-	//this.dirty();
+	this._stateSet = this.getorCreateStateSet();
 };
 
 /** @lends osg.ShadowScene.prototype */
@@ -36,24 +35,24 @@ osg.objectInehrit(osg.Transform.prototype, {
 		this._ShadowedScene.removeChild(child);
 	},
 	addChild: function(child) {
+		child.setNodeMask(child.getNodeMask() | this._receivesShadowTraversalMask);
 		return this._ShadowedScene.addChild(child);
 	},
 	getChildren: function() {
 		return this._ShadowedScene.getChildren();
 	},
 	setLightSource: function(light) {
-		this._lightSource = _lightSource;
+		this._lightNode = _lightSource;
 	},
 	getLightSource: function() {
-		return this._lightSource;
+		return this._lightNode;
 	},
 	setTechnique: function(technique) {
 		this._technique = technique;
 	},
 	getTechnique: function() {
 		return this._technique;
-	},
-	setScene: function(light, technique) {}
+	}
 
 })), "osg", "Shadow");
 osg.ShadowScene.prototype.objectType = osg.objectType.generate("ShadowScene");

@@ -115,7 +115,7 @@ LightUpdateCallbackShadowMap.prototype = {
             // put that into shadow camera view matrix.
             osg.Matrix.makeLookAt(this.worldLightPos, this.worldlightTarget, up, this.camera.getViewMatrix());
             //this.shadowCasterScene.setMatrix(worldMatrix);
-            
+
            // osg.Matrix.mult(this.camera.pureViewMatrix, worldMatrix, this.shadowView);
             osg.Matrix.copy(this.camera.getPureViewMatrix(), this.shadowView);
 
@@ -129,7 +129,7 @@ LightUpdateCallbackShadowMap.prototype = {
                 this.depthRangeNum.set([near, far, far - near, 1.0 / (far - near)]);
 
                 // spot light get spot light angle/frustum
-                this.camera.setProjectionMatrix(osg.Matrix.makePerspective(15, 1, near, far));
+                this.camera.setProjectionMatrix(osg.Matrix.makePerspective(35, 1, near, far));
 
                 // Dir light
                 // get scene bbox ?
@@ -141,8 +141,6 @@ LightUpdateCallbackShadowMap.prototype = {
             this.invShadowViewMatrix.set(this.invViewMat);
 
             osg.Matrix.copy(this.camera.getProjectionMatrix(), this.shadowProj);
-            //bias scale
-            osg.Matrix.postMult(this.biasScale, this.shadowProj);
 
             // udpate shader Parameters
             this.projectionShadow.set(this.shadowProj);
@@ -178,7 +176,7 @@ function setShadowReceiving(receivers, sceneCamera, ReceivesShadowTraversalMask)
 
     //sceneCamera.traversalMask = ReceivesShadowTraversalMask;
     // applies on receivers selection for material state set apply only ?
-    
+
     // scene models (shadow receiver)
     var shadowReceiverScene = new osg.Node();
     shadowReceiverScene.addChild(receivers);
@@ -628,8 +626,9 @@ var startViewer = function() {
     }
     var groundNode = new osg.Node();
     groundNode.setName('groundNode');
-
-    var ground = osg.createTexturedQuadGeometry(-100, -100, -5.0, 200, 0, 0, 0, 200, 0);
+    
+    var groundSize = 5;
+    var ground = osg.createTexturedQuadGeometry(0, 0, 0, groundSize, 0, 0, 0, groundSize, 0);
     var groundTex = osg.Texture.createFromURL("textures/sol_trauma_periph.png");
     groundTex.setMinFilter('LINEAR_MIPMAP_LINEAR', 16);
     groundTex.setMagFilter('LINEAR_MIPMAP_LINEAR', 16);
@@ -637,8 +636,17 @@ var startViewer = function() {
     groundTex.setWrapS('MIRRORED_REPEAT');
     ground.getOrCreateStateSet().setTextureAttributeAndMode(0, groundTex);
     ground.getOrCreateStateSet().setAttributeAndMode(new osg.CullFace(osg.CullFace.DISABLE), osg.StateAttribute.ON | osg.StateAttribute.OVERRIDE);
-    groundNode.addChild(ground);
 
+    var groundSubNode;
+    for (var wG = 0; wG < 40; wG++){
+        for (var wH = 0; wH < 40; wH++){
+            groundSubNode = new osg.MatrixTransform();
+            groundSubNode.setMatrix(osg.Matrix.makeTranslate(wG*groundSize - 100, wH*groundSize -100 , -5.0, []));
+            groundSubNode.setName('groundSubNode');
+            groundSubNode.addChild(ground);
+            groundNode.addChild(groundSubNode);
+        }
+    }
     var lightNodemodel0 = osg.createAxisGeometry();
     var lightNodemodelNode0 = new osg.MatrixTransform();
     lightNodemodelNode0.addChild(lightNodemodel0);
@@ -714,9 +722,9 @@ var startViewer = function() {
     var isNative = window.location.href.indexOf('custom') === -1;
     //
     //
-    light0._enabled = 0;
+    light0._enabled = 1;
     light1._enabled = 1;
-    light2._enabled = 0;
+    light2._enabled = 1;
     //
     //
     if (isNative) {
@@ -730,14 +738,19 @@ var startViewer = function() {
         } else {
             technique = 'PCF';
         }
-        lightedmodel0 = new osg.ShadowScene(sceneCamera, lightNode0, ReceivesShadowTraversalMask, new osg['ShadowTechnique' + technique](0, CastsShadowTraversalMask));
-        lightedmodel0.addChild(ShadowScene);
+        if (light0._enabled){
+            lightedmodel0 = new osg.ShadowScene(sceneCamera, lightNode0, new osg['ShadowTechnique' + technique](0, CastsShadowTraversalMask), ReceivesShadowTraversalMask);
+            lightedmodel0.addChild(ShadowScene);
+        }
+        if (light1._enabled){
+            lightedmodel1 = new osg.ShadowScene(sceneCamera, lightNode1,new osg['ShadowTechnique' + technique](0, CastsShadowTraversalMask, ReceivesShadowTraversalMask));
+            lightedmodel0.addChild(ShadowScene);
+        }
 
-        lightedmodel1 = new osg.ShadowScene(sceneCamera, lightNode1, ReceivesShadowTraversalMask,new osg['ShadowTechnique' + technique](0, CastsShadowTraversalMask));
-        lightedmodel0.addChild(ShadowScene);
-
-        lightedmodel2 = new osg.ShadowScene(sceneCamera, lightNode2, ReceivesShadowTraversalMask,new osg['ShadowTechnique' + technique](0, CastsShadowTraversalMask));
-        lightedmodel0.addChild(ShadowScene);
+        if (light2._enabled){
+            lightedmodel2 = new osg.ShadowScene(sceneCamera, lightNode2,new osg['ShadowTechnique' + technique](0, CastsShadowTraversalMask), ReceivesShadowTraversalMask);
+            lightedmodel0.addChild(ShadowScene);
+        }
 
 
     } else {
@@ -782,6 +795,135 @@ var startViewer = function() {
 
     viewer.run();
 
+    osgUtil.ParameterVisitor.createSlider({
+        min: 1,
+        max: 10,
+        step: 1,
+        value: 2,
+        name: "fogdensity",
+        object: root,
+        field: '_noiseTextureSize',
+        onchange: function(value) {
+            // fix to a power of two
+            root._noiseTextureSize = Math.pow(2, value);
+            root._noiseTextureSize = Math.min(root._noiseTextureSize, 512);
+        },
+        html: document.getElementById('fogparameters')
+    });
+
+    osgUtil.ParameterVisitor.createSlider({
+        min: 1,
+        max: 10,
+        step: 1,
+        value: 2,
+        name: "fogStart",
+        object: root,
+        field: '_noiseTextureSize',
+        onchange: function(value) {
+            // fix to a power of two
+            root._noiseTextureSize = Math.pow(2, value);
+            root._noiseTextureSize = Math.min(root._noiseTextureSize, 512);
+        },
+        html: document.getElementById('fogparameters')
+    });
+
+    osgUtil.ParameterVisitor.createSlider({
+        min: 1,
+        max: 10,
+        step: 1,
+        value: 2,
+        name: "fogEnd",
+        object: root,
+        field: '_noiseTextureSize',
+        onchange: function(value) {
+            // fix to a power of two
+            root._noiseTextureSize = Math.pow(2, value);
+            root._noiseTextureSize = Math.min(root._noiseTextureSize, 512);
+        },
+        html: document.getElementById('fogparameters')
+    });
+
+
+    osgUtil.ParameterVisitor.createSlider({
+        min: 1,
+        max: 10,
+        step: 1,
+        value: 2,
+        name: "mirrorCoef",
+        object: root,
+        field: '_noiseTextureSize',
+        onchange: function(value) {
+            // fix to a power of two
+            root.mirrorCoef = Math.pow(2, value);
+            root.mirrorCoef = Math.min(root.mirrorCoef, 512);
+        },
+        html: document.getElementById('groundparameters')
+    });
+    osgUtil.ParameterVisitor.createSlider({
+        min: 1,
+        max: 10,
+        step: 1,
+        value: 2,
+        name: "mirrorBlur",
+        object: root,
+        field: '_mirrorBlur',
+        onchange: function(value) {
+            // fix to a power of two
+            root.mirrorBlur = Math.pow(2, value);
+            root.mirrorBlur = Math.min(root.mirrorBlur, 512);
+        },
+        html: document.getElementById('groundparameters')
+    });
+    osgUtil.ParameterVisitor.createSlider({
+        min: 1,
+        max: 10,
+        step: 1,
+        value: 2,
+        name: "_mirrorTexSize",
+        object: root,
+        field: '_mirrorTexSize',
+        onchange: function(value) {
+            // fix to a power of two
+            root._mirrorTexSize = Math.pow(2, value);
+            root._mirrorTexSize = Math.min(root._mirrorTexSize, 512);
+        },
+        html: document.getElementById('groundparameters')
+    });
+
+
+
+     osgUtil.ParameterVisitor.createSlider({
+                min: 0.0,
+                max: 0.1,
+                step: 0.0001,
+                value: 0.001,
+                name: "bias",
+                object: root,
+                field: '_shadowBias',
+                onchange: function(value) {
+                    // fix to a power of two
+                    root._shadowBias = value;
+                },
+                html: document.getElementById('shadowparameters')
+            });
+  osgUtil.ParameterVisitor.createSlider({
+            min: 1,
+            max: 8,
+            step: 0.5,
+            value: 1,
+            name: "blurPixelDistance",
+            object: root,
+            field: '_pixelSize',
+            onchange: function(value) {
+                root.setPixelSize = value;
+                root.setPixelSize = value;
+            },
+            html: document.getElementById('shadowblurparameters')
+        });
+
+
+
+
     var mousedown = function(ev) {
         ev.stopPropagation();
     };
@@ -804,3 +946,35 @@ if (!window.multidemo) {
         }
     }, true);
 }
+
+
+
+var paramCurrent = {};
+var paramChange = function(option, type) {
+  var url = window.location.href;
+  var param = '';
+  if (url.indexOf('?') !== -1) {
+      //todo: handle models and debug option
+    param = '?';
+    url = url.split('?')[0];
+  }
+  else {
+    param = '?';
+  }
+
+  switch (type){
+  case 'debug':
+      if (option.indexOf('debug') !== -1)
+        param += "&debug=1";
+      if (option.indexOf('stats') !== -1)
+        param += "&stats=1";
+      if (option.indexOf('DebugPromise') !== -1)
+        param += "&DebugPromise=1";
+      break;
+  case 'model':
+      param += "&model=" + option ;
+      break;
+  }
+  console.log(url+param);
+  window.location.href = url + param;
+};

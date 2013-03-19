@@ -114,16 +114,10 @@ float computeShadowTerm(vec4 shadowVertexProjected, vec4 shadowZ, sampler2D tex,
     float shadowed = 0.0;
     vec4 shadowUV = shadowVertexProjected / shadowVertexProjected.w;
    
-    //if (shadowUV.w <= 0.0) // ignore negative projection
-    //   return 1.0;
-       // outside light frustum, ignore
-    //if (shadowUV.x >= 1.0 || shadowUV.y >= 1.0 || shadowUV.x <= 0.0 || shadowUV.y <= 0.0)
-    //  return 1.0;
     shadowUV.xy = shadowUV.xy* 0.5 + 0.5;
-       // outside light frustum, ignore
-    //if (shadowUV.x >= 1.0 || shadowUV.y >= 1.0 || shadowUV.x <= 0.0 || shadowUV.y <= 0.0)
-    //    return 1.0;
-    //
+     // show limits of light frustum, 
+    if (shadowUV.x >= 1.0 || shadowUV.y >= 1.0 || shadowUV.x <= 0.0 || shadowUV.y <= 0.0)
+     return 0.0;
     float depth = length(shadowZ.xyz);
     depth =  (depth - depthRange.x)* depthRange.w;// linerarize (aka map z to near..far to 0..1)
    // depth =   clamp(depth, 0.0, 1.0);
