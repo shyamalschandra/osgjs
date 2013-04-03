@@ -328,8 +328,8 @@ osg.CullVisitor.prototype = osg.objectInehrit(osg.CullStack.prototype ,osg.objec
         this[node.objectType].call(this, node);
         //clean whole hierarchy
         //even if no matrix computation in this node
-        //node._dirtyMatrix = false;
-        //node._dirtySceneGraph = false;
+        node._dirtyMatrix = false;
+        node._dirtySceneGraph = false;
     },
 
     // faster path is stack does not change
