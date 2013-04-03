@@ -8328,6 +8328,7 @@ osg.CullVisitor.prototype = osg.objectInehrit(osg.CullStack.prototype ,osg.objec
         this.pushViewport(camera.getViewport());
 
         // update bound
+        // for what ?
         var bs = camera.getBound();
         if (light) {
             this.addPositionedAttribute(light);
@@ -8568,8 +8569,8 @@ osg.CullVisitor.prototype = osg.objectInehrit(osg.CullStack.prototype ,osg.objec
         this[node.objectType].call(this, node);
         //clean whole hierarchy
         //even if no matrix computation in this node
-        node._dirtyMatrix = false;
-        node._dirtySceneGraph = false;
+        //node._dirtyMatrix = false;
+        //node._dirtySceneGraph = false;
     },
 
     // faster path is stack does not change
@@ -8598,9 +8599,9 @@ osg.CullVisitor.prototype = osg.objectInehrit(osg.CullStack.prototype ,osg.objec
             return this._reserveBBoxStack[this._reserveBBoxStack.current];
         }
         else{
-            return this._reserveBBoxStack[this.BBoxIndex];
+            return this._reserveBBoxStack[this.bboxIndex];
         }
-        this.BBoxIndex++;
+        this.bboxIndex++;
     },
     _getCurrentBBox: function() {
         return this._reserveMatrixStack[this.bboxIndex];
