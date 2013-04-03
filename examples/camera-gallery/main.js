@@ -105,6 +105,7 @@ var startCameraGallery = function() {
 
     var stats = document.getElementById("Stats");
 
+  //osg.oldModelViewMatrixMode = true;
 
     var manipulator = new osgGA.OrbitManipulator();
     manipulator._cameraSwitcher = new CameraSwitcher(10, [0,0,0], [2000, 20, 2000]);
@@ -140,8 +141,9 @@ function createScene() {
     var group = new osg.Node();
 
     var size = 50;
-    var ground = osg.createTexturedBox(0,0,0, size,size,size);
+    var ground = osg.createTexturedBoxGeometry(0,0,0, size,size,size);
 
+    group.setName("baseNode");
     group.addChild(ground);
     group.getOrCreateStateSet().setAttributeAndMode(new osg.CullFace('DISABLE'));
 
@@ -149,14 +151,14 @@ function createScene() {
 }
 
 
-if (!window.multidemo){
-window.addEventListener("load", function() {
-    if(window.location.href.indexOf("debug") !== -1) {
-        loadOSG("../../", startCameraGallery);
-    } else if(window.location.href.indexOf("concat") !== -1) {
-        loadOSG("../../", startCameraGallery);
-    } else {
-        loadJSONP("../../build/osg.min.js", startCameraGallery);
-    }
-}, true);
+if (!window.multidemo) {
+    window.addEventListener("load", function() {
+        if (window.location.href.indexOf("debug") !== -1) {
+            loadOSGJSON("../../", "project.json", startCameraGallery);
+        } else if (window.location.href.indexOf("concat") !== -1) {
+            loadOSGJS("../../", "build/osg.debug.js", startCameraGallery);
+        } else {
+            loadOSGJS("../../", "build/osg.min.js", startCameraGallery);
+        }
+    }, true);
 }

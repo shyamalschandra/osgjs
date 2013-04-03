@@ -27,7 +27,7 @@ var viewMatrixCallbackShadowMap = function(options) {
 };
 viewMatrixCallbackShadowMap.prototype = {
     update: function(node, nv) {
-        osg.Matrix.inverse(this.camera.getPureViewMatrix(),  this.invViewMat );
+        osg.Matrix.inverse(this.camera.getViewMatrix(),  this.invViewMat );
         this.invViewMatrix.set(this.invViewMat);
         node.traverse(nv);
     }
@@ -117,7 +117,7 @@ LightUpdateCallbackShadowMap.prototype = {
             //this.shadowCasterScene.setMatrix(worldMatrix);
 
            // osg.Matrix.mult(this.camera.pureViewMatrix, worldMatrix, this.shadowView);
-            osg.Matrix.copy(this.camera.getPureViewMatrix(), this.shadowView);
+            osg.Matrix.copy(this.camera.getViewMatrix(), this.shadowView);
 
             // LIGHT PROJ MATRIX
             // update depth range camera with  light parameters
@@ -137,7 +137,7 @@ LightUpdateCallbackShadowMap.prototype = {
 
             }
 
-            osg.Matrix.inverse(this.camera.getPureViewMatrix(),  this.invViewMat );
+            osg.Matrix.inverse(this.camera.getViewMatrix(),  this.invViewMat );
             this.invShadowViewMatrix.set(this.invViewMat);
 
             osg.Matrix.copy(this.camera.getProjectionMatrix(), this.shadowProj);
@@ -706,7 +706,7 @@ var startViewer = function() {
     rootShadowScene.addChild(lightNode2);
     rootShadowScene.getOrCreateStateSet().setAttributeAndMode(lightNode2.getLight());
     //
-    var sceneCamera = new osg.Camera();
+    var sceneCamera = viewer.getCamera();
     sceneCamera.setName("mainShadowReceivingCam");
     sceneCamera.addChild(rootShadowScene);  // Shadowed scene root, all lights
     // Node Mask
@@ -777,7 +777,7 @@ var startViewer = function() {
 
 
     var root = new osg.Node();// All pure native root.
-    root.addChild(sceneCamera);
+    //root.addChild(sceneCamera);
 
     //root = addPostProcess(root, sceneCamera, viewer);
 
@@ -790,7 +790,7 @@ var startViewer = function() {
 
     viewer.getCamera().setClearColor([0.0, 0.0, 0.0, 0.0]);
 
-    viewer.setSceneData(root);
+    viewer.setSceneData(rootShadowScene);
     viewer.getManipulator().computeHomePosition();
 
     viewer.run();

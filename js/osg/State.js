@@ -8,7 +8,7 @@ osg.State = function () {
     this.stateSets = osg.Stack.create();
     this.uniforms = {};
     this.uniforms.uniformKeys = [];
-    
+
     this.textureAttributeMapList = [];
 
     this.attributeMap = {};
@@ -19,6 +19,8 @@ osg.State = function () {
     this.shaderGenerator = new osg.ShaderGenerator();
 
     this.modelViewMatrix = osg.Uniform.createMatrix4(osg.Matrix.makeIdentity([]), "ModelViewMatrix");
+    this.modelMatrix = osg.Uniform.createMatrix4(osg.Matrix.makeIdentity([]), "ModelMatrix");
+    this.viewMatrix = osg.Uniform.createMatrix4(osg.Matrix.makeIdentity([]), "ViewMatrix");
     this.projectionMatrix = osg.Uniform.createMatrix4(osg.Matrix.makeIdentity([]), "ProjectionMatrix");
     this.normalMatrix = osg.Uniform.createMatrix4(osg.Matrix.makeIdentity([]), "NormalMatrix");
 
@@ -243,7 +245,7 @@ osg.State.prototype = {
             } else {
                 uniformMap = this.uniforms;
                 (function() {
-                    
+
                     var programUniforms = program.uniformsCache;
                     var activeUniforms = program.activeUniforms;
                     var foreignUniforms = program.foreignUniforms;
@@ -262,6 +264,8 @@ osg.State.prototype = {
                                 if (location !== undefined && activeUniforms[name] === undefined) {
                                     // filter 'standard' uniform matrix that will be applied for all shader
                                     if (name !== self.modelViewMatrix.name &&
+                                        name !== self.modelMatrix.name &&
+                                        name !== self.viewMatrix.name &&
                                         name !== self.projectionMatrix.name &&
                                         name !== self.normalMatrix.name &&
                                         name !== 'ArrayColorEnabled') {
@@ -296,7 +300,7 @@ osg.State.prototype = {
                         })();
                     }
 
-                    
+
                     // apply active uniforms
                     // caching uniforms from attribtues make it impossible to overwrite uniform with a custom uniform instance not used in the attributes
                     (function() {
@@ -329,7 +333,7 @@ osg.State.prototype = {
                 })();
             }
         } else {
-            
+
             //this.applyUniformList(this.uniforms, {});
 
             // custom program so we will iterate on uniform from the program and apply them
@@ -474,7 +478,7 @@ osg.State.prototype = {
 
     applyAttributeMap: function(attributeMap) {
         var attributeStack;
-        
+
         for (var i = 0, l = attributeMap.attributeKeys.length; i < l; i++) {
             var key = attributeMap.attributeKeys[i];
 
@@ -699,7 +703,7 @@ osg.State.prototype = {
 
             if (! vertexAttribMap[attrib]) {
                 gl.enableVertexAttribArray(attrib);
-                
+
                 if ( vertexAttribMap[attrib] === undefined) {
                     vertexAttribMap._keys.push(attrib);
                 }

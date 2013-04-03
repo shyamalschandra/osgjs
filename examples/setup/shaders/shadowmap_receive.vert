@@ -7,6 +7,9 @@ attribute vec4 Color;
 attribute vec3 Normal;
 
 uniform float ArrayColorEnabled;
+
+ uniform mat4 ViewMatrix;
+ uniform mat4 ModelMatrix;
 uniform mat4 ModelViewMatrix;
 uniform mat4 invViewMatrix;
 uniform mat4 ProjectionMatrix;
@@ -64,15 +67,15 @@ void main(void) {
 	FragNormal = computeNormal();
 
 	if (Light0_uniform_enable == 1) {
-		Shadow_Z0 =  Shadow_ModelView0 * invViewMatrix * ModelViewMatrix *  vec4(Vertex,1.0);
+		Shadow_Z0 =  Shadow_ModelView0 * ViewMatrix * ModelViewMatrix *  vec4(Vertex,1.0);
 		Shadow_VertexProjected0 =  Shadow_Projection0 * Shadow_Z0;
 	}
 	if (Light1_uniform_enable == 1) {
-		Shadow_Z1 =  Shadow_ModelView1 * invViewMatrix * ModelViewMatrix *  vec4(Vertex,1.0);
+		Shadow_Z1 =  Shadow_ModelView1 * ViewMatrix * ModelViewMatrix *  vec4(Vertex,1.0);
 		Shadow_VertexProjected1 =  Shadow_Projection1  * Shadow_Z1;
 	}
 	if (Light2_uniform_enable == 1) {
-		Shadow_Z2 =  Shadow_ModelView2 * invViewMatrix * ModelViewMatrix *  vec4(Vertex,1.0);
+		Shadow_Z2 =  Shadow_ModelView2 * ViewMatrix * ModelViewMatrix *  vec4(Vertex,1.0);
 		Shadow_VertexProjected2 =  Shadow_Projection2   *  Shadow_Z2;
 	}
 

@@ -24,7 +24,7 @@ var startClouds = function() {
     var canvas = document.getElementById("3DView");
     var w = window.innerWidth;
     var h = window.innerHeight;
-    osg.log("size " + w + " x " + h );
+    osg.log("size " + w + " x " + h);
     canvas.style.width = w;
     canvas.style.height = h;
     canvas.width = w;
@@ -34,7 +34,10 @@ var startClouds = function() {
 
     var viewer;
     try {
-        viewer = new osgViewer.Viewer(canvas, {antialias : true, alpha: true });
+        viewer = new osgViewer.Viewer(canvas, {
+            antialias: true,
+            alpha: true
+        });
         viewer.init();
         var rotate = new osg.MatrixTransform();
         rotate.addChild(createScene());
@@ -169,39 +172,37 @@ var getNoiseFunction = function() {
         "  f += snoise(p*8.0)/8.0;",
         "  return f;",
         "  return 0.5+0.5*f;",
-        "}" ].join('\n');
+        "}"].join('\n');
     return noise;
 };
 
 
 
-
-
 var createHudCamera = function(size3d, shader) {
 
-    var size = [size3d[0]*size3d[2], size3d[1]];
+    var size = [size3d[0] * size3d[2], size3d[1]];
 
     var hudCamera = new osg.Camera();
     hudCamera.setProjectionMatrix(osg.Matrix.makeOrtho(0, size[0], 0, size[1], -5, 5));
     hudCamera.setReferenceFrame(osg.Transform.ABSOLUTE_RF);
     hudCamera.setRenderOrder(osg.Camera.PRE_RENDER, 0);
-    hudCamera.setViewport(new osg.Viewport(0,0,size[0],size[1]));
+    hudCamera.setViewport(new osg.Viewport(0, 0, size[0], size[1]));
     hudCamera.setClearColor([0.0, 0.0, 0.0, 0.0]);
 
     // texture attach to the camera to render the scene on
     var rttTexture = new osg.Texture();
-    rttTexture.setTextureSize(size[0],size[1]);
+    rttTexture.setTextureSize(size[0], size[1]);
     rttTexture.setMinFilter('LINEAR');
     rttTexture.setMagFilter('LINEAR');
     hudCamera.attachTexture(osg.FrameBufferObject.COLOR_ATTACHMENT0, rttTexture, 0);
 
-    var quad = osg.createTexturedQuad(0,0,0,
-                                      size[0], 0 ,0,
-                                      0, size[1] ,0 );
+    var quad = osg.createTexturedQuad(0, 0, 0,
+    size[0], 0, 0,
+    0, size[1], 0);
     quad.getOrCreateStateSet().setAttributeAndMode(shader);
 
 
-    var uniform = osg.Uniform.createFloat2([1.0/size[0], 1.0/size[1] ], "pixelSize");
+    var uniform = osg.Uniform.createFloat2([1.0 / size[0], 1.0 / size[1]], "pixelSize");
     quad.getOrCreateStateSet().addUniform(uniform);
     quad.getOrCreateStateSet().addUniform(osg.Uniform.createFloat3(size3d, "size"));
 
@@ -225,8 +226,7 @@ var generateTexture = function(size) {
             "uniform mat4 ProjectionMatrix;",
             "void main(void) {",
             "  gl_Position = ProjectionMatrix * ModelViewMatrix * vec4(Vertex,1.0);",
-            "}"
-        ].join('\n');
+            "}"].join('\n');
 
         var fragmentshader = [
             "",
@@ -262,7 +262,6 @@ var generateTexture = function(size) {
             "  //checkDiscard(v);",
             "  return v;",
             "}",
-
             "void main(void) {",
             "  // normalized coord [0 : 1]",
             "  float x = mod(gl_FragCoord.x, size[0])/size[0];",
@@ -273,14 +272,13 @@ var generateTexture = function(size) {
             "  vec3 position = (vec3(x,y,z) - vec3(0.5))*2.0;",
             "  gl_FragColor = vec4(vec3(evaluate(position)), 1.0);",
             "}",
-            ""
-        ].join('\n');
+            ""].join('\n');
 
         var frag = fragmentshader;
         frag = frag.replace('NOISE', getNoiseFunction());
         var program = new osg.Program(
-            new osg.Shader(gl.VERTEX_SHADER, vertexshader),
-            new osg.Shader(gl.FRAGMENT_SHADER, frag));
+        new osg.Shader(gl.VERTEX_SHADER, vertexshader),
+        new osg.Shader(gl.FRAGMENT_SHADER, frag));
 
         return program;
     };
@@ -293,9 +291,8 @@ function createScene() {
     var NodeVolume = function() {
         osg.Node.call(this);
     };
-    
-    NodeVolume.prototype = osg.objectInehrit(osg.Node.prototype, {
-    });
+
+    NodeVolume.prototype = osg.objectInehrit(osg.Node.prototype, {});
 
     var root = new osg.Node();
     var group = new osg.MatrixTransform();
@@ -304,14 +301,13 @@ function createScene() {
 
     var size = 2.0;
     for (var i = 0, l = maxPlan; i < l; i++) {
-        var plan = osg.createTexturedQuad(-size*0.5, size/2 - i*size/maxPlan, -size*0.5,
-                                            size,0,0,
-                                            0,0,size);
+        var plan = osg.createTexturedQuad(-size * 0.5, size / 2 - i * size / maxPlan, -size * 0.5,
+        size, 0, 0,
+        0, 0, size);
         group.addChild(plan);
     }
 
-    var getShader = function()
-    {
+    var getShader = function() {
 
         var vertexshader = [
             "",
@@ -325,8 +321,7 @@ function createScene() {
             "void main(void) {",
             "  gl_Position = ProjectionMatrix * ModelViewMatrix * vec4(Vertex,1.0);",
             "  FragVertex = vec3(vec4(Vertex,1.0));",
-            "}"
-        ].join('\n');
+            "}"].join('\n');
 
         var fragmentshader = [
             "",
@@ -343,6 +338,24 @@ function createScene() {
             "uniform float density;",
             "uniform float turbulenceExponent;",
 
+            "// tex is a texture with each slice of the cube placed horizontally across the texture.",
+            "// texCoord is a 3d texture coord",
+            "// size is the size if the cube in pixels.",
+            " ",
+            "vec4 sampleAs3DTexture(sampler2D tex, vec3 texCoord, float size) {",
+            "float sliceSize = 1.0 / size;                         // space of 1 slice",
+            "float slicePixelSize = sliceSize / size;              // space of 1 pixel",
+            "float sliceInnerSize = slicePixelSize * (size - 1.0); // space of size pixels",
+            "float zSlice0 = min(floor(texCoord.z * size), size - 1.0);",
+            "float zSlice1 = min(zSlice0 + 1.0, size - 1.0);",
+            "float xOffset = slicePixelSize * 0.5 + texCoord.x * sliceInnerSize;",
+            "float s0 = xOffset + (zSlice0 * sliceSize);",
+            "float s1 = xOffset + (zSlice1 * sliceSize);",
+            "vec4 slice0Color = texture2D(tex, vec2(s0, texCoord.y));",
+            "vec4 slice1Color = texture2D(tex, vec2(s1, texCoord.y));",
+            "float zOffset = mod(texCoord.z * size, 1.0);",
+            "return mix(slice0Color, slice1Color, zOffset);",
+            "}",
 
             "NOISE",
 
@@ -364,14 +377,13 @@ function createScene() {
             "  checkDiscard(v);",
             "  gl_FragColor = vec4(v);",
             "}",
-            ""
-        ].join('\n');
+            ""].join('\n');
 
         var frag = fragmentshader;
         frag = frag.replace('NOISE', getNoiseFunction());
         var program = new osg.Program(
-            new osg.Shader(gl.VERTEX_SHADER, vertexshader),
-            new osg.Shader(gl.FRAGMENT_SHADER, frag));
+        new osg.Shader(gl.VERTEX_SHADER, vertexshader),
+        new osg.Shader(gl.FRAGMENT_SHADER, frag));
 
         return program;
     };
@@ -386,13 +398,13 @@ function createScene() {
     var visitor = new osgUtil.ParameterVisitor();
     visitor.setTargetHTML(document.getElementById("Parameters"));
 
-    root.getOrCreateStateSet().addUniform(osg.Uniform.createFloat3([0,0,0], "offset"));
-    root.getOrCreateStateSet().addUniform(osg.Uniform.createFloat3([1,1,1], "scaleVertex"));
+    root.getOrCreateStateSet().addUniform(osg.Uniform.createFloat3([0, 0, 0], "offset"));
+    root.getOrCreateStateSet().addUniform(osg.Uniform.createFloat3([1, 1, 1], "scaleVertex"));
     root.getOrCreateStateSet().addUniform(osg.Uniform.createFloat1([1], "limitBorder"));
     root.getOrCreateStateSet().addUniform(osg.Uniform.createFloat1([0], "discardLimit"));
     root.getOrCreateStateSet().addUniform(osg.Uniform.createFloat1([1], "density"));
     root.getOrCreateStateSet().addUniform(osg.Uniform.createFloat1([2], "turbulenceExponent"));
-/*
+    /*
     visitor.types.vec3.params['scale'] = {
         min: 0.1,
         max: 5.0,
@@ -415,20 +427,24 @@ function createScene() {
     };*/
 
     group.accept(visitor);
-    group.setMatrix(osg.Matrix.makeScale(1,2,1, [] ));
+    group.setMatrix(osg.Matrix.makeScale(1, 2, 1, []));
 
 
-    var size = [ 64, 64, 128 ];
+    var size = [64, 64, 128];
     var generator = generateTexture(size);
     var texture = generator.renderedTexture;
-    var qsize = [texture.getWidth()/10, texture.getHeight()/10];
-    var generatorQuad = osg.createTexturedQuad(-qsize[0]*0.5, 0, -qsize[1]*0.5,
-                                            qsize[0],0,0,
-                                            0,0,qsize[1]);
+    var qsize = [texture.getWidth() / 10, texture.getHeight() / 10];
+    var generatorQuad = osg.createTexturedQuad(-qsize[0] * 0.5, 0, -qsize[1] * 0.5,
+    qsize[0], 0, 0,
+    0, 0, qsize[1]);
+
+    var stateSet = generatorQuad.getOrCreateStateSet();
+    //stateSet.program(shader1, shader2);
+
     var mt = new osg.MatrixTransform();
     generatorQuad.getOrCreateStateSet().setTextureAttributeAndMode(0, texture);
     mt.addChild(generatorQuad);
-    mt.setMatrix(osg.Matrix.makeTranslate(0,0,-4, []));
+    mt.setMatrix(osg.Matrix.makeTranslate(0, 0, -4, []));
 
     root.addChild(generator);
     root.addChild(mt);

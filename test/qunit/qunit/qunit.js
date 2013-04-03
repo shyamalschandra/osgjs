@@ -1,5 +1,5 @@
 /**
- * QUnit v1.12.0pre - A JavaScript Unit Testing Framework
+ * QUnit v1.11.0 - A JavaScript Unit Testing Framework
  *
  * http://qunitjs.com
  *
@@ -419,7 +419,7 @@ QUnit = {
 		test.queue();
 	},
 
-	// Specify the number of expected assertions to guarantee that failed test (no assertions are run at all) don't slip through.
+	// Specify the number of expected assertions to gurantee that failed test (no assertions are run at all) don't slip through.
 	expect: function( asserts ) {
 		if (arguments.length === 1) {
 			config.current.expected = asserts;
@@ -487,7 +487,7 @@ QUnit = {
 };
 
 // `assert` initialized at top of scope
-// Assert helpers
+// Asssert helpers
 // All of these must either call QUnit.push() or manually do:
 // - runLoggingCallbacks( "log", .. );
 // - config.current.assertions.push({ .. });
@@ -997,10 +997,7 @@ extend( QUnit, {
 
 	extend: extend,
 	id: id,
-	addEvent: addEvent,
-	addClass: addClass,
-	hasClass: hasClass,
-	removeClass: removeClass
+	addEvent: addEvent
 	// load, equiv, jsDump, diff: Attached later
 });
 
@@ -1047,7 +1044,6 @@ QUnit.load = function() {
 	var banner, filter, i, label, len, main, ol, toolbar, userAgent, val,
 		urlConfigCheckboxesContainer, urlConfigCheckboxes, moduleFilter,
 		numModules = 0,
-		moduleNames = [],
 		moduleFilterHtml = "",
 		urlConfigHtml = "",
 		oldconfig = extend( {}, config );
@@ -1076,24 +1072,18 @@ QUnit.load = function() {
 			"'><label for='qunit-urlconfig-" + escapeText( val.id ) +
 			"' title='" + escapeText( val.tooltip ) + "'>" + val.label + "</label>";
 	}
-	for ( i in config.modules ) {
-		if ( config.modules.hasOwnProperty( i ) ) {
-			moduleNames.push(i);
-		}
-	}
-	numModules = moduleNames.length;
-	moduleNames.sort( function( a, b ) {
-		return a.localeCompare( b );
-	});
+
 	moduleFilterHtml += "<label for='qunit-modulefilter'>Module: </label><select id='qunit-modulefilter' name='modulefilter'><option value='' " +
 		( config.module === undefined  ? "selected='selected'" : "" ) +
 		">< All Modules ></option>";
 
-
-	for ( i = 0; i < numModules; i++) {
-			moduleFilterHtml += "<option value='" + escapeText( encodeURIComponent(moduleNames[i]) ) + "' " +
-				( config.module === moduleNames[i] ? "selected='selected'" : "" ) +
-				">" + escapeText(moduleNames[i]) + "</option>";
+	for ( i in config.modules ) {
+		if ( config.modules.hasOwnProperty( i ) ) {
+			numModules += 1;
+			moduleFilterHtml += "<option value='" + escapeText( encodeURIComponent(i) ) + "' " +
+				( config.module === i ? "selected='selected'" : "" ) +
+				">" + escapeText(i) + "</option>";
+		}
 	}
 	moduleFilterHtml += "</select>";
 
@@ -1147,7 +1137,7 @@ QUnit.load = function() {
 		// `label` initialized at top of scope
 		label = document.createElement( "label" );
 		label.setAttribute( "for", "qunit-filter-pass" );
-		label.setAttribute( "title", "Only show tests and assertions that fail. Stored in sessionStorage." );
+		label.setAttribute( "title", "Only show tests and assertons that fail. Stored in sessionStorage." );
 		label.innerHTML = "Hide passed tests";
 		toolbar.appendChild( label );
 
@@ -1198,7 +1188,7 @@ addEvent( window, "load", QUnit.load );
 onErrorFnPrev = window.onerror;
 
 // Cover uncaught exceptions
-// Returning true will suppress the default browser handler,
+// Returning true will surpress the default browser handler,
 // returning false will let it run.
 window.onerror = function ( error, filePath, linerNr ) {
 	var ret = false;
@@ -1207,7 +1197,7 @@ window.onerror = function ( error, filePath, linerNr ) {
 	}
 
 	// Treat return value as window.onerror itself does,
-	// Only do our handling if not suppressed.
+	// Only do our handling if not surpressed.
 	if ( ret !== true ) {
 		if ( QUnit.config.current ) {
 			if ( QUnit.config.current.ignoreGlobalErrors ) {
@@ -1545,7 +1535,7 @@ function removeClass( elem, name ) {
 	while ( set.indexOf(" " + name + " ") > -1 ) {
 		set = set.replace(" " + name + " " , " ");
 	}
-	// If possible, trim it for prettiness, but not necessarily
+	// If possible, trim it for prettiness, but not neccecarily
 	elem.className = window.jQuery ? jQuery.trim( set ) : ( set.trim ? set.trim() : set );
 }
 
@@ -1568,7 +1558,8 @@ function runLoggingCallbacks( key, scope, args ) {
 	} else {
 		callbacks = config[ key ];
 		for ( i = 0; i < callbacks.length; i++ ) {
-			callbacks[ i ].call( scope, args );
+		    if (callbacks[ i ] && callbacks[ i ].call)
+    			callbacks[ i ].call( scope, args );
 		}
 	}
 }
@@ -1595,7 +1586,6 @@ QUnit.equiv = (function() {
 		callers = [],
 		// stack to avoiding loops from circular referencing
 		parents = [],
-		parentsB = [],
 
 		getProto = Object.getPrototypeOf || function ( obj ) {
 			return obj.__proto__;
@@ -1606,7 +1596,7 @@ QUnit.equiv = (function() {
 			function useStrictEquality( b, a ) {
 				/*jshint eqeqeq:false */
 				if ( b instanceof a.constructor || a instanceof b.constructor ) {
-					// to catch short annotation VS 'new' annotation of a
+					// to catch short annotaion VS 'new' annotation of a
 					// declaration
 					// e.g. var i = 1;
 					// var j = new Number(1);
@@ -1635,7 +1625,7 @@ QUnit.equiv = (function() {
 					return QUnit.objectType( b ) === "regexp" &&
 						// the regex itself
 						a.source === b.source &&
-						// and its modifiers
+						// and its modifers
 						a.global === b.global &&
 						// (gmi) ...
 						a.ignoreCase === b.ignoreCase &&
@@ -1652,7 +1642,7 @@ QUnit.equiv = (function() {
 				},
 
 				"array": function( b, a ) {
-					var i, j, len, loop, aCircular, bCircular;
+					var i, j, len, loop;
 
 					// b could be an object literal here
 					if ( QUnit.objectType( b ) !== "array" ) {
@@ -1667,35 +1657,24 @@ QUnit.equiv = (function() {
 
 					// track reference to avoid circular references
 					parents.push( a );
-					parentsB.push( b );
 					for ( i = 0; i < len; i++ ) {
 						loop = false;
 						for ( j = 0; j < parents.length; j++ ) {
-							aCircular = parents[j] === a[i];
-							bCircular = parentsB[j] === b[i];
-							if ( aCircular || bCircular ) {
-								if ( a[i] === b[i] || aCircular && bCircular ) {
-									loop = true;
-								} else {
-									parents.pop();
-									parentsB.pop();
-									return false;
-								}
+							if ( parents[j] === a[i] ) {
+								loop = true;// dont rewalk array
 							}
 						}
 						if ( !loop && !innerEquiv(a[i], b[i]) ) {
 							parents.pop();
-							parentsB.pop();
 							return false;
 						}
 					}
 					parents.pop();
-					parentsB.pop();
 					return true;
 				},
 
 				"object": function( b, a ) {
-					var i, j, loop, aCircular, bCircular,
+					var i, j, loop,
 						// Default to true
 						eq = true,
 						aProperties = [],
@@ -1714,36 +1693,28 @@ QUnit.equiv = (function() {
 
 					// stack constructor before traversing properties
 					callers.push( a.constructor );
-
 					// track reference to avoid circular references
 					parents.push( a );
-					parentsB.push( b );
 
-					// be strict: don't ensures hasOwnProperty and go deep
-					for ( i in a ) {
+					for ( i in a ) { // be strict: don't ensures hasOwnProperty
+									// and go deep
 						loop = false;
 						for ( j = 0; j < parents.length; j++ ) {
-							aCircular = parents[j] === a[i];
-							bCircular = parentsB[j] === b[i];
-							if ( aCircular || bCircular ) {
-								if ( a[i] === b[i] || aCircular && bCircular ) {
-									loop = true;
-								} else {
-									eq = false;
-									break;
-								}
+							if ( parents[j] === a[i] ) {
+								// don't go down the same path twice
+								loop = true;
 							}
 						}
-						aProperties.push(i);
-						if ( !loop && !innerEquiv(a[i], b[i]) ) {
+						aProperties.push(i); // collect a's properties
+
+						if (!loop && !innerEquiv( a[i], b[i] ) ) {
 							eq = false;
 							break;
 						}
 					}
 
-					parents.pop();
-					parentsB.pop();
 					callers.pop(); // unstack, we are done
+					parents.pop();
 
 					for ( i in b ) {
 						bProperties.push( i ); // collect b's properties
@@ -2173,7 +2144,7 @@ QUnit.diff = (function() {
 	};
 }());
 
-// for CommonJS environments, export everything
+// for CommonJS enviroments, export everything
 if ( typeof exports !== "undefined" ) {
 	extend( exports, QUnit );
 }

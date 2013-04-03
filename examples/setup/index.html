@@ -4,17 +4,17 @@
 <style>
 
   body {
-  background: rgb(76,76,76);
-  overflow:hidden;
-  padding:0;
-  margin:0;
-  color: white;
+    background: rgb(76,76,76);
+    overflow:hidden;
+    padding:0;
+    margin:0;
+    color: white;
   }
 
   .vignette {
-  -moz-box-shadow: inset 0px 0px 88px rgba(0,0,0,.5);
-  -webkit-box-shadow: inset 0px 0px 88px rgba(0,0,0,.5);
-  box-shadow: inset 0px 0px 88px rgba(0,0,0,.5);
+    -moz-box-shadow: inset 0px 0px 88px rgba(0,0,0,.5);
+    -webkit-box-shadow: inset 0px 0px 88px rgba(0,0,0,.5);
+    box-shadow: inset 0px 0px 88px rgba(0,0,0,.5);
   }
 
   a:link {text-decoration: none; color: white;}
@@ -23,15 +23,15 @@
   a:hover {text-decoration: underline;  color: white;}
 
   #ViewContainer {
-  position: absolute;
+    position: absolute;
   }
 
   #explanation {
-  background: rgba(90, 90, 90, 0.5);
-  color: black;
-  overflow:auto;
-  position: absolute;
-  left: 70%;
+    background: rgba(90, 90, 90, 0.1);
+    color: black;
+    overflow:auto;
+    position: absolute;
+    right: 1%;
   }
 
   #explanation:focus { outline: none; }
@@ -39,19 +39,82 @@
   code {
     font-size: 10px;
   }
-  
+
   input {
   background: rgba(90, 90, 90, 0.5);
   }
-  
+
   #loading {
   position: absolute;
   left: 10px;
   height: 10px;
   }
 
+/* CSS Tree menu styles */
+ol.tree
+{
+  padding: 0 0 0 0px;
+  width: 300px;
+}
+  li
+  {
+    position: relative;
+    margin-left: -15px;
+    list-style: none;
+  }
+  li.file
+  {
+    margin-left: -1px !important;
+  }
+    li.file a
+    {
+      color: #fff;
+      padding-left: 21px;
+      text-decoration: none;
+      display: block;
+    }
+    li p
+    {
+      width: 150px;
+    }
+  li input
+  {
+    position: absolute;
+    left: 0;
+    margin-left: 0;
+    opacity: 0.0;
+    z-index: 2;
+    cursor: pointer;
+    height: 1em;
+    width: 1em;
+    top: 0;
+  }
+    li input + ol
+    {
+      margin: -0.938em 0 0 -44px; /* 15px */
+      height: 1em;
+    }
+    li input + ol > li { display: none; margin-left: -14px !important; padding-left: 1px; }
+  li label
+  {
+    cursor: pointer;
+    display: block;
+    color: rgba(255,255,255,0.8);
+    background-color: rgba(0,0,0,0.8);
+    text-align: center;
+  }
 
-  
+  li input:checked + ol
+  {
+    background: url(toggle-small.png) 40px 5px no-repeat;
+    margin: -1.25em 0 0 -44px; /* 20px */
+    padding: 1.563em 0 0 80px;
+    height: auto;
+  }
+    li input:checked + ol > li { display: block; margin: 0 0 0.125em;  /* 2px */}
+    li input:checked + ol > li:last-child { margin: 0 0 0.063em; /* 1px */ }
+
+
 </style>
 <title>Scene Setup</title>
 <meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
@@ -67,43 +130,107 @@
   <div id="ViewContainer">
   <canvas id="3DView"></canvas>
   </div>
-  <div id="explanation" tabIndex="0" >
-    <h1>Lights&Shadows <a href="http://osgjs.org">osgjs</a></h1>
-     <p>Model
-        <select class="combobox" name="modeltype" onChange="paramChange(this.options[this.selectedIndex].value, 'model');"  >
-               <option>raceship</option>
-               <option>monkey</option>
-               <option>ogre</option>
-               <option>pokerscene</option>
-               <option>sponza</option>
-        </select></p>
-     <p><b>Fog</b></p>
-      <div id="fogparameters"/>
-      </div>
-     <p><b>ground</b></p>
-      <div id="groundparameters"/>
-      </div>
-     <p><b>Lights&shadow</b></p>
-      <select name="scenetype" onChange="paramChange(this.options[this.selectedIndex].value,'shadow');"  >
-             <option>Shadow Map Percentage Close Filtering</option>
-             <option>Exponential Variance Shadow Map (VSM)</option>
-             <option>Exponential Variance Shadow Map (EVSM)</option>
-      </select>
-      <div id="shadowparameters"/>
-      </div>
-      <div id="shadowblurparameters"/>
-      </div>
-     <p><b>Post-processing: depth of field</b></p>
-      <div id="dofparameters"/>
-      </div>
-      <p>debug</p><select class="combobox" name="debugtype" onChange="paramChange(this.options[this.selectedIndex].value,'debug');"  >
-       <option>vanilla</option>
-       <option>stats</option>
-       <option>debug</option>
-       <option>debug+stats</option>
-       <option>debug+DebugPromise</option>
-       <option>debug+stats+DebugPromise</option>
-</select>
+
+
+  <div class="question" id="explanation" tabIndex="0" >
+      <h1> Lights&Shadows</h1>
+      <ol>
+          <li>
+              <label for="subfolder1">Explanations</label>
+              <input type="checkbox" id="subfolder1" />
+              <ol>
+                  <li class="file">
+                    <p>
+                      Shadow is renderedfrom the light point of view in a texture once per frame and each item receiving shadow get the texture projected on.
+                    </p>
+                  </li>
+              </ol>
+          </li>
+          <li>
+              <label for="subfolder1">Model</label>
+              <input type="checkbox" id="subfolder1" />
+              <ol>
+                  <li class="file">
+                <select class="combobox" name="modeltype" onChange="paramChange(this.options[this.selectedIndex].value, 'model');"  >
+                       <option>raceship</option>
+                       <option>monkey</option>
+                       <option>ogre</option>
+                       <option>pokerscene</option>
+                       <option>sponza</option>
+                </select></li>
+              </ol>
+          </li>
+
+          <li>
+              <label for="subfolder2">Fog</label>
+              <input type="checkbox" id="subfolder2" />
+              <ol>
+                  <li class="file">
+                    <div id="fogparameters">
+                    </div>
+                  </li>
+              </ol>
+          </li>
+
+          <li>
+              <label for="subfolder3">Ground</label>
+              <input type="checkbox" id="subfolder3" />
+              <ol>
+                  <li class="file">
+                    <div id="groundparameters">
+                    </div>
+                  </li>
+              </ol>
+          </li>
+
+          <li>
+              <label for="subfolder4">Lights&shadow</label>
+              <input type="checkbox" id="subfolder4" />
+              <ol>
+                  <li class="file">
+                     <select name="scenetype" onChange="paramChange(this.options[this.selectedIndex].value,'shadow');"  >
+                       <option>Shadow Map Percentage Close Filtering</option>
+                       <option>Exponential Variance Shadow Map (VSM)</option>
+                        <option>Exponential Variance Shadow Map (EVSM)</option>
+                    </select>
+                    <div id="shadowparameters">
+                    </div>
+                    <div id="shadowblurparameters">
+                    </div>
+                  </li>
+              </ol>
+          </li>
+
+          <li>
+              <label for="subfolder5">Post-processing: depth of field</label>
+              <input type="checkbox" id="subfolder5" />
+              <ol>
+                  <li class="file">
+                    <div id="dofparameters">
+                    </div>
+                  </li>
+              </ol>
+          </li>
+
+          <li>
+              <label for="subfolder5">debug</label>
+              <input type="checkbox" id="subfolder5" />
+              <ol>
+                  <li class="file">
+
+                      <select class="combobox" name="debugtype" onChange="paramChange(this.options[this.selectedIndex].value,'debug');"  >
+                           <option>vanilla</option>
+                           <option>stats</option>
+                           <option>debug</option>
+                           <option>debug+stats</option>
+                           <option>debug+DebugPromise</option>
+                           <option>debug+stats+DebugPromise</option>
+                      </select>
+                  </li>
+              </ol>
+          </li>
+      </ol> 
+      <div  style="float:right; font-style:italic;">made with <a href="http://osgjs.org">OSGJS</a></div>
 
   </div>
 </body>

@@ -196,7 +196,7 @@ void main(void) {
     vec4 lightColor = nullColor;
 //#define PURE
 #ifdef PURE
- //#define LIGHT_ONLY
+  //#define LIGHT_ONLY
   #ifdef LIGHT_ONLY
       lightColor += Light0_uniform_enable == 0 ? nullColor : LightColor0;
       lightColor += Light1_uniform_enable == 0 ? nullColor : LightColor1;

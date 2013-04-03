@@ -1,8 +1,8 @@
 /** -*- compile-command: "jslint-cli Viewer.js" -*-
  * Authors:
  *  Cedric Pinson <cedric.pinson@plopbyte.com>
- */ 
- 
+ */
+
  var optionsURL = function() {
     var vars = [], hash;
     var hashes = window.location.href.slice(window.location.href.indexOf('?') + 1).split('&');
@@ -25,7 +25,7 @@
 
 
     // install an html console logger for mobile
-   
+
     var options = optionsURL();
 
     if (options.log === "html") {
@@ -62,13 +62,13 @@ osgViewer.Viewer = function(canvas, options, error) {
     if (options === undefined) {
         options = {antialias : true};
     }
-   
+
     osg.extend(options, optionsURL());
-        
+
     if (options.debugpromise) {
         osg.DebugPromise= true;
     }
-        
+
     if (osg.SimulateWebGLLostContext || options.simulatewebgllostcontext) {
         canvas = WebGLDebugUtils.makeLostContextSimulatingCanvas(canvas);
         canvas.loseContextInNCalls(osg.SimulateWebGLLostContext);
@@ -96,7 +96,7 @@ osgViewer.Viewer = function(canvas, options, error) {
 
 
     if (gl) {
-        
+
         this.setGraphicContext(gl);
         osg.init();
         this._canvas = canvas;
@@ -178,7 +178,7 @@ osgViewer.Viewer.prototype = osg.objectInehrit(osgViewer.View.prototype, {
         if (options.stats) {
             this.initStats(options);
         }
-       
+
 
         if (options.gamepad !== "0") {
             this.initGamepad();
@@ -204,7 +204,7 @@ osgViewer.Viewer.prototype = osg.objectInehrit(osgViewer.View.prototype, {
     initGamepad: function() {
 
         var gamepadSupportAvailable = !!navigator.webkitGetGamepads || !!navigator.webkitGamepads;
-        
+
         // || (navigator.userAgent.indexOf('Firefox/') != -1); // impossible to detect Gamepad API support in FF
 
         if (!gamepadSupportAvailable) return;
@@ -263,7 +263,7 @@ osgViewer.Viewer.prototype = osg.objectInehrit(osgViewer.View.prototype, {
         if (this._gamepadPolling && this._gamepad) {
             this.webkitGamepadPoll();
         }
-        
+
         // if (Math.random()>0.99) osg.warn(this._gamepad);
 
         if (this._gamepad) {
@@ -282,7 +282,7 @@ osgViewer.Viewer.prototype = osg.objectInehrit(osgViewer.View.prototype, {
             }
 
         }
-        
+
 
     },
 
@@ -388,43 +388,16 @@ osgViewer.Viewer.prototype = osg.objectInehrit(osgViewer.View.prototype, {
     cull: function() {
         // this part of code should be called for each view
         // right now, we dont support multi view
-        this._stateGraph.clean();
+        this._stateGraph.setClean();
         this._renderStage.reset();
 
-        this._cullVisitor.reset();
+       //this._cullVisitor._forceUpdate = true;
+
+        //TODO: set once and for all at init or stategraph/renderstage are inti?
         this._cullVisitor.setStateGraph(this._stateGraph);
         this._cullVisitor.setRenderStage(this._renderStage);
-        var camera = this.getCamera();
-        this._cullVisitor.pushStateSet(camera.getStateSet());
-        this._cullVisitor.pushProjectionMatrix(camera.getProjectionMatrix());
 
-        // update bound
-        var bs = camera.getBound();
-
-        var identity = osg.Matrix.makeIdentity([]);
-        this._cullVisitor.pushModelviewMatrix(identity);
-
-        if (this._light) {
-            this._cullVisitor.addPositionedAttribute(this._light);
-        }
-
-        this._cullVisitor.pushModelviewMatrix(camera.getViewMatrix());
-        this._cullVisitor.pushViewport(camera.getViewport());
-        this._cullVisitor.setCullSettings(camera);
-
-        this._renderStage.setClearDepth(camera.getClearDepth());
-        this._renderStage.setClearColor(camera.getClearColor());
-        this._renderStage.setClearMask(camera.getClearMask());
-        this._renderStage.setViewport(camera.getViewport());
-
-        //osg.CullVisitor.prototype.handleCullCallbacksAndTraverse.call(this._cullVisitor,camera);
-        this.getScene().accept(this._cullVisitor);
-
-        // fix projection matrix if camera has near/far auto compute
-        this._cullVisitor.popModelviewMatrix();
-        this._cullVisitor.popProjectionMatrix();
-        this._cullVisitor.popViewport();
-        this._cullVisitor.popStateSet();
+        this._cullVisitor.startCullTransformCallBacks(this.getCamera(), this._light, this.getScene());
 
         this._renderStage.sort();
     },
@@ -465,7 +438,7 @@ osgViewer.Viewer.prototype = osg.objectInehrit(osgViewer.View.prototype, {
         // should be merged with the update of game pad below
         if (this.getManipulator()) {
             this.getManipulator().update(this._updateVisitor);
-            osg.Matrix.copy(this.getManipulator().getInverseMatrix(), this.getCamera().getViewMatrix());
+            osg.Matrix.copy(this.getManipulator().getInverseMatrix(), this.getCamera().getViewMatrix(true));
         }
 
         //TODO: does this belong here?
@@ -490,7 +463,6 @@ osgViewer.Viewer.prototype = osg.objectInehrit(osgViewer.View.prototype, {
             this._updateTime = performance.now();
             this.update();
             this._updateTime =  performance.now() - this._updateTime;
-
 
             this._cullTime =  performance.now();
             this.cull();
@@ -541,7 +513,7 @@ osgViewer.Viewer.prototype = osg.objectInehrit(osgViewer.View.prototype, {
 
         var that = this;
         var viewer = this;
-    
+
         var fixEvent = function( event ) {
 
             //if ( event[ expando ] ) {

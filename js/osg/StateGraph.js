@@ -11,7 +11,7 @@ osg.StateGraph = function () {
 
 
 osg.StateGraph.prototype = {
-    clean: function() {
+    setClean: function() {
         this.leafs.splice(0, this.leafs.length);
         this.stateset = undefined;
         this.parent = undefined;
@@ -19,7 +19,7 @@ osg.StateGraph.prototype = {
         var key, keys = this.children.keys;
         for (var i = 0, l = keys.length; i < l; i++) {
             key = keys[i];
-            this.children[key].clean();
+            this.children[key].setClean();
             osg.memoryPools.stateGraph.put(this.children[key]);
         }
         this.children = {};

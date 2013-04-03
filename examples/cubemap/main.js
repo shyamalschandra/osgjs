@@ -47,7 +47,7 @@ var startCubeMap = function() {
 
         //viewer.getManipulator().setDistance(100.0);
         //viewer.getManipulator().setTarget([0,0,0]);
-            
+
         viewer.run();
 
         var mousedown = function(ev) {
@@ -143,7 +143,7 @@ function getShaderBackground()
         "varying vec3 osg_FragEye;",
         "varying vec3 osg_FragVertex;",
         "varying vec2 osg_TexCoord0;",
-        
+
         "void main(void) {",
         "  osg_FragVertex = Vertex;",
         "  osg_TexCoord0 = TexCoord0;",
@@ -243,16 +243,17 @@ function getCubeMap(size, scene)
     var CullCallback = function() {
         this.cull = function(node, nv) {
             // overwrite matrix, remove translate so environment is always at camera origin
-            osg.Matrix.setTrans(nv.getCurrentModelviewMatrix(), 0,0,0);
-            var m = nv.getCurrentModelviewMatrix();
+            //current view Matrix
+            var m = nv.getCurrentModelMatrix();
+            osg.Matrix.copyTrans(m, nv.getCurrentViewMatrix());
             osg.Matrix.copy(m, cubemapTransform.get());
             cubemapTransform.dirty();
             return true;
-        }
-    }
+        };
+    };
     mt.setCullCallback(new CullCallback());
     scene.getOrCreateStateSet().addUniform(cubemapTransform);
-    
+
 
     var cam = new osg.Camera();
 
@@ -283,7 +284,7 @@ function getCubeMap(size, scene)
     return geom;
 }
 
-function createScene() 
+function createScene()
 {
     var group = new osg.Node();
 

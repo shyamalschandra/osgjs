@@ -51,11 +51,11 @@ osg.RenderBin.prototype = {
 
         if (detectedNaN) {
             osg.debug("warning: RenderBin::copyLeavesFromStateGraphListToRenderLeafList() detected NaN depth values, database may be corrupted.");
-        }        
+        }
         // empty the render graph list to prevent it being drawn along side the render leaf list (see drawImplementation.)
         this.stateGraphList.splice(0, this.stateGraphList.length);
     },
-    
+
     sortBackToFront: function() {
         this.copyLeavesFromStateGraphListToRenderLeafList();
         var cmp = function(a, b) {
@@ -154,7 +154,7 @@ osg.RenderBin.prototype = {
             }
             previous = bin.drawImplementation(state, previous);
         }
-        
+
         // draw leafs
         previous = this.drawLeafs(state, previous);
 
@@ -170,7 +170,9 @@ osg.RenderBin.prototype = {
 
         var stateList = this.stateGraphList;
         var leafs = this._leafs;
+        var viewUniform;
         var normalUniform;
+        var modelUniform;
         var modelViewUniform;
         var projectionUniform;
         var program;
@@ -225,14 +227,26 @@ osg.RenderBin.prototype = {
                 program = state.getLastProgramApplied();
 
                 modelViewUniform = program.uniformsCache[state.modelViewMatrix.name];
+                modelUniform = program.uniformsCache[state.modelMatrix.name];
+                viewUniform = program.uniformsCache[state.viewMatrix.name];
                 projectionUniform = program.uniformsCache[state.projectionMatrix.name];
                 normalUniform = program.uniformsCache[state.normalMatrix.name];
             }
 
-
+                if (modelViewUniform !== undefined || normalUniform !==  undefined) {
+                    leaf.modelview =  osg.Matrix.mult(leaf.view, leaf.model, []);
+                }
             if (modelViewUniform !== undefined) {
                 state.modelViewMatrix.set(leaf.modelview);
                 state.modelViewMatrix.apply(modelViewUniform);
+            }
+            if (modelUniform !== undefined) {
+                state.modelMatrix.set(leaf.model);
+                state.modelMatrix.apply(modelUniform);
+            }
+            if (viewUniform !== undefined) {
+                state.viewMatrix.set(leaf.view);
+                state.viewMatrix.apply(viewUniform);
             }
             if (projectionUniform !== undefined) {
                 state.projectionMatrix.set(leaf.projection);
@@ -261,7 +275,7 @@ osg.RenderBin.prototype = {
             previousLeaf = leaf;
         }
 
-        
+
         // draw coarse grained ordering.
         for (var i = 0, l = stateList.length; i < l; i++) {
             var sg = stateList[i];
@@ -302,11 +316,25 @@ osg.RenderBin.prototype = {
                     program = state.getLastProgramApplied();
 
                     modelViewUniform = program.uniformsCache[state.modelViewMatrix.name];
+                    modelUniform = program.uniformsCache[state.modelMatrix.name];
+                    viewUniform = program.uniformsCache[state.viewMatrix.name];
                     projectionUniform = program.uniformsCache[state.projectionMatrix.name];
                     normalUniform = program.uniformsCache[state.normalMatrix.name];
                 }
 
 
+                if (viewUniform !== undefined) {
+                    state.viewMatrix.set(leaf.view);
+                    state.viewMatrix.apply(viewUniform);
+                }
+                if (modelUniform !== undefined) {
+                    state.modelMatrix.set(leaf.model);
+                    state.modelMatrix.apply(modelUniform);
+                }
+
+                if (modelViewUniform !== undefined || normalUniform !==  undefined) {
+                    leaf.modelview =  osg.Matrix.mult(leaf.view, leaf.model, []);
+                }
                 if (modelViewUniform !== undefined) {
                     state.modelViewMatrix.set(leaf.modelview);
                     state.modelViewMatrix.apply(modelViewUniform);

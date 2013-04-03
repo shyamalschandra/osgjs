@@ -73,7 +73,7 @@ osg.Program.prototype = osg.objectLibraryClass(osg.objectInehrit(osg.StateAttrib
             if(!gl.getProgramParameter(this.program, gl.LINK_STATUS) && !gl.isContextLost()) {
                 osg.error("can't link program\n" + "vertex shader:\n" + this.vertex.text + "\n fragment shader:\n" + this.fragment.text);
                 osg.error(gl.getProgramInfoLog(this.program));
-                this.setDirty(false);
+                this.setClean();
                 //debugger;
                 return null;
             }
@@ -85,7 +85,7 @@ osg.Program.prototype = osg.objectLibraryClass(osg.objectInehrit(osg.StateAttrib
             //osg.log(this.uniformsCache);
             //this.cacheAttributeList(this.vertex.text);
 
-            this.setDirty(false);
+            this.setClean();
         }
 
         gl.useProgram(this.program);

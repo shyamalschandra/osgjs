@@ -1,4 +1,6 @@
-/** -*- compile-command: "jslint-cli osg.js" -*- */
+//     For all details and documentation:
+//     http://osgjs.org
+//     /** -*- compile-command: "jslint-cli osg.js" -*- */
 var osg = osg || {  };
 var osgUtil = osgUtil || {};
 var osgGA = osgGA || {};
@@ -8,6 +10,8 @@ var osgAnimation = osgAnimation || {};
 
 osg.version = '0.8.0';
 osg.copyright = 'Cedric Pinson - cedric.pinson@plopbyte.com';
+
+//osg.oldModelViewMatrixMode = true;
 
 // log function
 osg.log = function(str) {

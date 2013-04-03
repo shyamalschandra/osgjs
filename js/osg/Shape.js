@@ -89,7 +89,7 @@ osg.createTexturedBoxGeometry = function(centerx, centery, centerz,
     normal[23] = 0;
     uv[14] = 1;
     uv[15] = 1;
-    
+
 
     // +ve x plane
     vertexes[24] = centerx + dx;
@@ -287,7 +287,7 @@ osg.createTexturedBoxGeometry = function(centerx, centery, centerz,
     g.getAttributes().Vertex = new osg.BufferArray(osg.BufferArray.ARRAY_BUFFER, vertexes, 3 );
     g.getAttributes().Normal = new osg.BufferArray(osg.BufferArray.ARRAY_BUFFER, normal, 3 );
     g.getAttributes().TexCoord0 = new osg.BufferArray(osg.BufferArray.ARRAY_BUFFER, uv, 2 );
-    
+
     var primitive = new osg.DrawElements(osg.PrimitiveSet.TRIANGLES, new osg.BufferArray(osg.BufferArray.ELEMENT_ARRAY_BUFFER, indexes, 1 ));
     g.getPrimitives().push(primitive);
     return g;
@@ -374,7 +374,7 @@ osg.createTexturedQuadGeometry = function(cornerx, cornery, cornerz,
     g.getAttributes().Vertex = new osg.BufferArray(osg.BufferArray.ARRAY_BUFFER, vertexes, 3 );
     g.getAttributes().Normal = new osg.BufferArray(osg.BufferArray.ARRAY_BUFFER, normal, 3 );
     g.getAttributes().TexCoord0 = new osg.BufferArray(osg.BufferArray.ARRAY_BUFFER, uvs, 2 );
-    
+
     var primitive = new osg.DrawElements(osg.PrimitiveSet.TRIANGLES, new osg.BufferArray(osg.BufferArray.ELEMENT_ARRAY_BUFFER, indexes, 1 ));
     g.getPrimitives().push(primitive);
     return g;
@@ -405,7 +405,9 @@ osg.createAxisGeometry = function(size) {
     if (osg.createAxisGeometry.getShader === undefined) {
         osg.createAxisGeometry.getShader = function() {
             if (osg.createAxisGeometry.getShader.program === undefined) {
-                var vertexshader = [
+       var vertexshader;
+       if (osg.oldModelViewMatrixMode) {
+                vertexshader = [
                     "#ifdef GL_ES",
                     "precision highp float;",
                     "#endif",
@@ -423,8 +425,31 @@ osg.createAxisGeometry = function(size) {
                     "void main(void) {",
                     "gl_Position = ftransform();",
                     "FragColor = Color;",
-                    "}"
-                ].join('\n');
+                    "}"].join('\n');
+        }
+        else{
+                vertexshader = [
+                    "#ifdef GL_ES",
+                    "precision highp float;",
+                    "#endif",
+                    "attribute vec3 Vertex;",
+                    "attribute vec4 Color;",
+                    "uniform mat4 ViewMatrix;",
+                    "uniform mat4 ModelMatrix;",
+                    "uniform mat4 ProjectionMatrix;",
+                    "",
+                    "varying vec4 FragColor;",
+                    "",
+                    "vec4 ftransform() {",
+                    "return ProjectionMatrix * ViewMatrix * ModelMatrix * vec4(Vertex, 1.0);",
+                    "}",
+                    "",
+                    "void main(void) {",
+                    "gl_Position = ftransform();",
+                    "FragColor = Color;",
+                    "}"].join('\n');
+        }
+
 
                 var fragmentshader = [
                     "#ifdef GL_ES",
@@ -497,12 +522,12 @@ osg.createTexturedSphere = function(radius, widthSegments, heightSegments, phiSt
 
     var x, y, vertices = [], uvs = [], allVertices = [], indexes = [];
 
-    for (y = 0; y <= segmentsY; y++) 
+    for (y = 0; y <= segmentsY; y++)
     {
         var verticesRow = [];
         var uvsRow = [];
 
-        for (x = 0; x <= segmentsX; x++) 
+        for (x = 0; x <= segmentsX; x++)
         {
             var u = x / segmentsX;
             var v = y / segmentsY;
@@ -528,17 +553,17 @@ osg.createTexturedSphere = function(radius, widthSegments, heightSegments, phiSt
     var fullUVList = [];
     var vtxCount = 0;
 
-    for ( y = 0; y < segmentsY; y ++ ) 
+    for ( y = 0; y < segmentsY; y ++ )
     {
-        for ( x = 0; x < segmentsX; x ++ ) 
+        for ( x = 0; x < segmentsX; x ++ )
         {
             var v1 = {}, v2 = {}, v3 = {}, v4 = {}; //zz here
             var vtxStartOffset = (y * segmentsX * 3) + (x * 3);
 
-            var v1 = vertices[ y ][ x + 1 ];
-            var v2 = vertices[ y ][ x ];
-            var v3 = vertices[ y + 1 ][ x ];
-            var v4 = vertices[ y + 1 ][ x + 1 ];
+            v1 = vertices[ y ][ x + 1 ];
+            v2 = vertices[ y ][ x ];
+            v3 = vertices[ y + 1 ][ x ];
+            v4 = vertices[ y + 1 ][ x + 1 ];
 
             var vtx1 = allVertices[v1];
             var vtx2 = allVertices[v2];

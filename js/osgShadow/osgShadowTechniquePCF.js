@@ -100,7 +100,7 @@ osg.ShadowTechniquePCF.prototype = osg.objectLibraryClass(osg.objectInehrit(osg.
 
 		//ShadowTechniquePCF._enable.set([this.enable]);
 
-		this.setDirty(false);
+		this.setClean();
 	},
 
 

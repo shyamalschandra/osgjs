@@ -7,6 +7,7 @@
 osg.Object = function() {
 	this._name = undefined;
 	this._userdata = undefined;
+    this._dirty = true;
 };
 
 /** @lends osg.Object.prototype */
@@ -16,6 +17,15 @@ osg.Object.prototype = osg.objectLibraryClass({
 	},
 	getName: function() {
 		return this._name;
+	},
+	dirty: function() {
+		this._dirty = true;
+	},
+	setClean: function() {
+		this._dirty = false;
+	},
+	isDirty: function() {
+		return this._dirty;
 	},
 	setUserData: function(data) {
 		this._userdata = data;

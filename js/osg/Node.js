@@ -4,7 +4,7 @@
  *  Node that can contains child node
  *  @class Node
  */
-osg.Node = function () {
+osg.Node = function() {
     osg.Object.call(this);
 
     this.children = [];
@@ -12,12 +12,14 @@ osg.Node = function () {
     this.nodeMask = ~0;
     this.boundingSphere = new osg.BoundingSphere();
     this.boundingSphereComputed = false;
+    this._dirtySceneGraph = false;
+    this._dirtyMatrix = false;
     this._updateCallbacks = [];
     this._cullCallback = undefined;
 };
 
 /** @lends osg.Node.prototype */
-osg.Node.prototype = osg.objectLibraryClass( osg.objectInehrit(osg.Object.prototype, {
+osg.Node.prototype = osg.objectLibraryClass(osg.objectInehrit(osg.Object.prototype, {
     /**
         Return StateSet and create it if it does not exist yet
         @type osg.StateSet
@@ -28,7 +30,9 @@ osg.Node.prototype = osg.objectLibraryClass( osg.objectInehrit(osg.Object.protot
         }
         return this.stateset;
     },
-    getStateSet: function() { return this.stateset; },
+    getStateSet: function() {
+        return this.stateset;
+    },
     accept: function(nv) {
         if (nv.validNodeMask(this)) {
             nv.pushOntoNodePath(this);
@@ -44,9 +48,37 @@ osg.Node.prototype = osg.objectLibraryClass( osg.objectInehrit(osg.Object.protot
             }
         }
     },
-    setNodeMask: function(mask) { this.nodeMask = mask; },
-    getNodeMask: function(mask) { return this.nodeMask; },
-    setStateSet: function(s) { this.stateset = s; },
+    // go up tell that local hierarchy Matrix is updated.
+    dirtyMatrix: function() {
+        this.dirtyBound();
+        if (!this._dirtyMatrix) {
+            this.boundingSphereComputed = false;
+            this._dirtyMatrix = true;
+            for (var i = 0, l = this.children.length; i < l; i++) {
+                if (this.children[i].dirtyMatrix)
+                    this.children[i].dirtyMatrix();
+            }
+        }
+    },
+    dirtySceneGraph: function() {
+        if (!this._dirtySceneGraph) {
+            this._dirtySceneGraph = true;
+            this.boundingSphereComputed = false;
+            this.dirtyMatrix();
+            for (var i = 0, l = this.parents.length; i < l; i++) {
+                this.parents[i].dirtySceneGraph();
+            }
+        }
+    },
+    setNodeMask: function(mask) {
+        this.nodeMask = mask;
+    },
+    getNodeMask: function(mask) {
+        return this.nodeMask;
+    },
+    setStateSet: function(s) {
+        this.stateset = s;
+    },
 
     /**
        <p>
@@ -70,19 +102,26 @@ osg.Node.prototype = osg.objectLibraryClass( osg.objectInehrit(osg.Object.protot
 
         @param Oject callback
      */
-    setUpdateCallback: function(cb) { this._updateCallbacks[0] = cb; },
+    setUpdateCallback: function(cb) {
+        this._updateCallbacks[0] = cb;
+    },
     /** Get update node callback, called during update traversal.
         @type Oject
      */
-    getUpdateCallback: function() { return this._updateCallbacks[0]; },
+    getUpdateCallback: function() {
+        return this._updateCallbacks[0];
+    },
 
-    addUpdateCallback: function(cb) { this._updateCallbacks.push(cb);},
+    addUpdateCallback: function(cb) {
+        this._updateCallbacks.push(cb);
+    },
     removeUpdateCallback: function(cb) {
         var arrayIdx = this._updateCallbacks.indexOf(cb);
-        if (arrayIdx !== -1)
-            this._updateCallbacks.splice(arrayIdx, 1);
+        if (arrayIdx !== -1) this._updateCallbacks.splice(arrayIdx, 1);
     },
-    getUpdateCallbackList: function() { return this._updateCallbacks; },
+    getUpdateCallbackList: function() {
+        return this._updateCallbacks;
+    },
 
 
     /**
@@ -106,8 +145,12 @@ osg.Node.prototype = osg.objectLibraryClass( osg.objectInehrit(osg.Object.protot
 
         @param Oject callback
      */
-    setCullCallback: function(cb) { this._cullCallback = cb; },
-    getCullCallback: function() { return this._cullCallback; },
+    setCullCallback: function(cb) {
+        this._cullCallback = cb;
+    },
+    getCullCallback: function() {
+        return this._cullCallback;
+    },
 
     hasChild: function(child) {
         for (var i = 0, l = this.children.length; i < l; i++) {
@@ -117,57 +160,63 @@ osg.Node.prototype = osg.objectLibraryClass( osg.objectInehrit(osg.Object.protot
         }
         return false;
     },
-    addChild: function (child) {
-	var c =  this.children.push(child);
+    addChild: function(child) {
+        var c = this.children.push(child);
         child.addParent(this);
-	this.dirtyBound();
-	return c;
+        this.dirtySceneGraph();
+        return c;
     },
-    getChildren: function() { return this.children; },
+    getChildren: function() {
+        return this.children;
+    },
     getParents: function() {
         return this.parents;
     },
-    addParent: function( parent) {
+    addParent: function(parent) {
         this.parents.push(parent);
+        this.dirtySceneGraph();
     },
     removeParent: function(parent) {
         for (var i = 0, l = this.parents.length, parents = this.parents; i < l; i++) {
             if (parents[i] === parent) {
                 parents.splice(i, 1);
+                this.dirtySceneGraph();
                 return;
             }
         }
     },
-    removeChildren: function () {
+    removeChildren: function() {
         var children = this.children;
         if (children.length !== 0) {
             for (var i = 0, l = children.length; i < l; i++) {
                 children[i].removeParent(this);
             }
             this.children.splice(0, this.children.length);
-            this.dirtyBound();
+            this.dirtySceneGraph();
         }
     },
 
     // preserve order
-    removeChild: function (child) {
+    removeChild: function(child) {
+        var needDirtyFlag = false;
         for (var i = 0, l = this.children.length; i < l; i++) {
             if (this.children[i] === child) {
                 child.removeParent(this);
                 this.children.splice(i, 1);
-                this.dirtyBound();
+                needDirtyFlag = true;
             }
         }
+        if (needDirtyFlag) this.dirtySceneGraph();
     },
 
-    traverse: function (visitor) {
+    traverse: function(visitor) {
         for (var i = 0, l = this.children.length; i < l; i++) {
             var child = this.children[i];
             child.accept(visitor);
         }
     },
 
-    ascend: function (visitor) {
+    ascend: function(visitor) {
         for (var i = 0, l = this.parents.length; i < l; i++) {
             var parent = this.parents[i];
             parent.accept(visitor);
@@ -175,36 +224,36 @@ osg.Node.prototype = osg.objectLibraryClass( osg.objectInehrit(osg.Object.protot
     },
 
     getBound: function() {
-        if(!this.boundingSphereComputed) {
+        if (!this.boundingSphereComputed) {
             this.computeBound(this.boundingSphere);
             this.boundingSphereComputed = true;
         }
         return this.boundingSphere;
     },
 
-    computeBound: function (bsphere) {
+    computeBound: function(bsphere) {
         var bb = new osg.BoundingBox();
         bb.init();
         bsphere.init();
-	for (var i = 0, l = this.children.length; i < l; i++) {
+        for (var i = 0, l = this.children.length; i < l; i++) {
             var child = this.children[i];
             if (child.referenceFrame === undefined || child.referenceFrame === osg.Transform.RELATIVE_RF) {
                 bb.expandBySphere(child.getBound());
             }
-	}
+        }
         if (!bb.valid()) {
             return bsphere;
         }
         bsphere._center = bb.center();
         bsphere._radius = 0.0;
-	for (var j = 0, l2 = this.children.length; j < l2; j++) {
+        for (var j = 0, l2 = this.children.length; j < l2; j++) {
             var cc = this.children[j];
             if (cc.referenceFrame === undefined || cc.referenceFrame === osg.Transform.RELATIVE_RF) {
                 bsphere.expandRadiusBySphere(cc.getBound());
             }
-	}
+        }
 
-	return bsphere;
+        return bsphere;
     },
 
     getWorldMatrices: function(halt) {
@@ -227,7 +276,7 @@ osg.Node.prototype = osg.objectLibraryClass( osg.objectInehrit(osg.Object.protot
         this.accept(collected);
         var matrixList = [];
 
-        for(var i = 0, l = collected.nodePaths.length; i < l; i++) {
+        for (var i = 0, l = collected.nodePaths.length; i < l; i++) {
             var np = collected.nodePaths[i];
             if (np.length === 0) {
                 matrixList.push(osg.Matrix.makeIdentity([]));
@@ -239,5 +288,5 @@ osg.Node.prototype = osg.objectLibraryClass( osg.objectInehrit(osg.Object.protot
     }
 
 
-}), "osg","Node");
+}), "osg", "Node");
 osg.Node.prototype.objectType = osg.objectType.generate("Node");

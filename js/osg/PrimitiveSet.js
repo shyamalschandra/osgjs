@@ -7,11 +7,11 @@ osg.PrimitiveSet.TRIANGLES                      = 0x0004;
 osg.PrimitiveSet.TRIANGLE_STRIP                 = 0x0005;
 osg.PrimitiveSet.TRIANGLE_FAN                   = 0x0006;
 
-/** 
+/**
  * DrawArrays manage rendering primitives
  * @class DrawArrays
  */
-osg.DrawArrays = function (mode, first, count) 
+osg.DrawArrays = function (mode, first, count)
 {
     this.mode = mode;
     this.first = first;
@@ -35,7 +35,7 @@ osg.DrawArrays.create = function(mode, first, count) {
 };
 
 
-/** 
+/**
  * DrawArrayLengths manage rendering primitives
  * @class DrawArrayLengths
  */
@@ -66,7 +66,7 @@ osg.DrawArrayLengths.prototype = {
         for (var i = 0, l = array.length; i < l; i++) {
             count += array[i];
         }
-        return count; 
+        return count;
     },
     getArrayLengths: function() { return this._arrayLengths; },
     getFirst: function() { return this._first; },
@@ -74,7 +74,7 @@ osg.DrawArrayLengths.prototype = {
 };
 
 
-/** 
+/**
  * DrawElements manage rendering of indexed primitives
  * @class DrawElements
  */
@@ -100,7 +100,7 @@ osg.DrawElements.prototype = {
         var gl = state.getGraphicContext();
         gl.drawElements(this.mode, this.count, gl.UNSIGNED_SHORT, this.offset );
     },
-    setIndices: function(indices) { 
+    setIndices: function(indices) {
         this.indices = indices;
         this.count = indices.getElements().length;
     },

@@ -7,6 +7,9 @@ attribute vec4 Color;
 attribute vec3 Normal;
 
 uniform float ArrayColorEnabled;
+
+ uniform mat4 ViewMatrix;
+ uniform mat4 ModelMatrix;
 uniform mat4 ModelViewMatrix;
 uniform mat4 invViewMatrix;
 uniform mat4 ProjectionMatrix;

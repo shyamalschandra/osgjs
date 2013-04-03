@@ -3,7 +3,30 @@
 	var projectJson = grunt.file.read("project.json");
 	var project = JSON.parse(projectJson);
 	grunt.file.write("project.jsonp", "var dataScripts=" + projectJson);
-
+	project.core = project.scripts.filter(function(item) {
+		return /js\/osg\//i.test(item);
+	});
+	project.animation = project.scripts.filter(function(item) {
+		return /js\/osgAnimation\//i.test(item);
+	});
+	project.ga = project.scripts.filter(function(item) {
+		return /js\/osgGA\//i.test(item);
+	});
+	project.db = project.scripts.filter(function(item) {
+		return /js\/osgDB\//i.test(item);
+	});
+	project.util = project.scripts.filter(function(item) {
+		return /js\/osgUtil\//i.test(item);
+	});
+	project.viewer = project.scripts.filter(function(item) {
+		return /js\/osgViewer\//i.test(item);
+	});
+	project.wrappers = project.scripts.filter(function(item) {
+		return /js\/osgWrappers\//i.test(item);
+	});
+	project.shadows = project.scripts.filter(function(item) {
+		return /js\/osgShadow\//i.test(item);
+	});
 
 	// Project configuration
 	grunt.initConfig({
@@ -12,8 +35,14 @@
 			banner: '/*! <%= pkg.name %> - v<%= pkg.version %> - ' + '<%= grunt.template.today("yyyy-mm-dd") %>\n' + '<%= pkg.homepage ? "* " + pkg.homepage + "\n" : "" %>' + '* Copyright (c) <%= grunt.template.today("yyyy") %> <%= pkg.author.name %>;' + ' Licensed <%= _.pluck(pkg.licenses, "type").join(", ") %> */'
 		},
 		watch: {
-			files: project.scripts,
-			tasks: ['jsvalidate', 'jshint:beforeconcat']
+			error: {
+				files: [project.scripts, 'examples/*/*.js', 'sandbox/*/*.js', 'test/*.js'],
+				tasks: ['jsvalidate']
+			},
+			syntax: {
+				files: project.scripts,
+				tasks: ['jsvalidate', 'jshint:beforeconcat']
+			}
 		},
 		jshint: {
 			options: {
@@ -207,16 +236,67 @@
 			}
 		},
 		docco: {
+			options: {
+				//layout: 'parallel', //   'choose a layout (parallel, linear or classic'
+				css: 'docs/docco/docco.css' //'use a custom css file'
+				//template:  'docs/docco/mytemplace.jst',//'use a custom .jst template'
+				//extension:  'js'//'assume a file extension for all inputs'
+			},
 			main: {
 				src: project.scripts,
 				options: {
 					output: 'docs/docco'
-					//layout: 'parallel', //   'choose a layout (parallel, linear or classic'
-					//css: 'docs/docco/mycss.css'//'use a custom css file'
-					//template:  'docs/docco/mytemplace.jst',//'use a custom .jst template'
-					//extension:  'js'//'assume a file extension for all inputs'
 				}
 			}
+			/*
+			core: {
+				src: project.core,
+				options: {
+					output: 'docs/docco/osg'
+				}
+			},
+			animation: {
+				src: project.animation,
+				options: {
+					output: 'docs/docco/animation'
+				}
+			},
+			db: {
+				src: project.db,
+				options: {
+					output: 'docs/docco/db'
+				}
+			},
+			ga: {
+				src: project.ga,
+				options: {
+					output: 'docs/docco/ga'
+				}
+			},
+			shadows: {
+				src: project.shadows,
+				options: {
+					output: 'docs/docco/shadows'
+				}
+			},
+			util: {
+				src: project.util,
+				options: {
+					output: 'docs/docco/util'
+				}
+			},
+			viewer: {
+				src: project.viewer,
+				options: {
+					output: 'docs/docco/viewer'
+				}
+			},
+			wrappers: {
+				src: project.wrappers,
+				options: {
+					output: 'docs/docco/wrappers'
+				}
+			}*/
 		},
 		wrap: { // wrap my modules with define
 			main: {
@@ -231,6 +311,15 @@
 				//   // ...
 				//   return ['define(function (require, exports, module) {\n', '\n});'];
 				// }
+			}
+		},
+		dox: {
+			options: {
+				title: "osgjs documentation"
+			},
+			files: {
+				src: ['js'],
+				dest: 'doc/dox'
 			}
 		}
 	});
@@ -268,11 +357,15 @@
 
 	// docs
 	grunt.loadNpmTasks('grunt-plato'); // bug prediction
-	grunt.loadNpmTasks('grunt-docco'); // nice docs.
+	//
+	grunt.loadNpmTasks('grunt-docco'); // nice docs. https://bitbucket.org/doklovic_atlassian/atlassian-docco/wiki/writing-docco-comments
 	//grunt.loadNpmTasks('grunt-docco-husky');
 	//grunt.loadNpmTasks('grunt-dox');
 
 	//grunt.loadTasks('tasks'); // pure jsdoc
+	
+	// chrome dev tool for grunt 
+	grunt.loadNpmTasks('grunt-devtools');
 
 	grunt.registerTask('release', ['jshint:beforeconcat', 'concat', 'jshint:afterconcat', 'strip', 'uglify', 'compress', 'copy']);
 	grunt.registerTask('verify', ['jsvalidate', 'release']);

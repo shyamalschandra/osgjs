@@ -40,13 +40,13 @@
 <div>
 
 <select style='float:left;'class="combobox" name="scenetype" onChange="iframeChange(this.options[this.selectedIndex].value, 'scene');"  >
+       <option>hdr</option>
        <option>camera</option>
        <option>camera-gallery</option>
        <option>clouds</option>
        <option>cubemap</option>
        <option>cubemotion</option>
        <option>fog</option>
-       <option>hdr</option>
        <option>materials</option>
        <option>performance</option>
        <option>pointcloud</option>
@@ -56,6 +56,7 @@
        <option>shadow</option>
        <option>ssao</option>
 </select>
+ </div>
 <select class="combobox" name="debugtype" onChange="iframeChange(this.options[this.selectedIndex].value,'debug');"  >
        <option>vanilla</option>
        <option>stats</option>
@@ -73,11 +74,14 @@
 </select>
 
 <script>
+
 var paramCurrent = {};
+
 var iframeChange = function(option, type) {
   var myIframe = document.getElementById('iframedemo');
-  var url = myIframe.src; 
-  var param = '';
+  var url, param;
+  param = '';
+  url = myIframe.src;
   if (url.indexOf('?') !== -1) {
       //todo: handle models and debug option
     param = '?';
@@ -86,7 +90,7 @@ var iframeChange = function(option, type) {
   else {
     param = '?';
   }
- 
+
   switch (type){
   case 'scene':
       url = "../examples/" + option ;
@@ -106,10 +110,17 @@ var iframeChange = function(option, type) {
   console.log(url+param);
   myIframe.src = url + param;
 };
+
+var iframeToWindow = function(){
+  var myIframe = document.getElementById('iframedemo');
+  url = myIframe.src;
+  window.open(url, '_blank');
+}
+
 </script>
 <iframe id='iframedemo' width="100%" height="640px" src='../examples/hdr'>
 </iframe>
- </div>
+<a href="#" onClick='iframeToWindow();'>open in new window</a>
 
 <p>The mailing list is available here: <a href="http://groups.google.com/group/osgjs">http://groups.google.com/group/osgjs</a></p>
 

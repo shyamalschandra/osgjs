@@ -109,7 +109,7 @@ osg.TextureCubeMap.prototype = osg.objectLibraryClass( osg.objectInehrit(osg.Tex
             valid += this._applyImageTarget(gl, internalFormat, gl.TEXTURE_CUBE_MAP_POSITIVE_Z);
             valid += this._applyImageTarget(gl, internalFormat, gl.TEXTURE_CUBE_MAP_NEGATIVE_Z);
             if (valid === 6) {
-                this.setDirty(false);
+                this.setClean();
                 this.applyFilterParameter(gl, this._textureTarget);
                 this.generateMipmap(gl, this._textureTarget);
             }

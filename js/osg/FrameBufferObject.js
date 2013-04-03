@@ -80,7 +80,7 @@ osg.FrameBufferObject.prototype = osg.objectInehrit(osg.StateAttribute.prototype
                 if (hasRenderBuffer) { // set it to null only if used renderbuffer
                     gl.bindRenderbuffer(gl.RENDERBUFFER, null);
                 }
-                this.setDirty(false);
+                this.setClean();
             } else {
                 gl.bindFramebuffer(gl.FRAMEBUFFER, this.fbo);
                 if (osg.reportWebGLError === true) {

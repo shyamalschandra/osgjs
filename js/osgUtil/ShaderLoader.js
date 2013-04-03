@@ -1,10 +1,20 @@
+//
+//     Manage External Load Shader
+//     Or storage as json inside code
+//     (like concatened from shader file
+//     to json using a build tool like grunt)
+//     TODO: tests load/reload shaders for realtime editing.
+//
+//     Idea is to be able to edit shader in separate files than js, getting readable code, and avoid string/shader duplication in code, resulting in min code.
+//     Handle loading shader files using ajax,json,jsonp or  even inline, with a grunt dir2json task that will generate according files.
+//     Handle (recursive) include, avoiding code repeat and help code factorization
+//     Handle per shader and global define (upon extension supported, hw capabilites ("highp precision") or shader usage ("LAMBERT or BLINN_PHONG").)
+//     Possible afterward Todo list:
+//     a shader/program cache
+//     use glsl optimizer on shaders
+//     use glsl minimizer on shaders.
 /**
- *  Manage External Load Shader
- *  Or storage as json inside code
- *  (like concatened from shader file
- *  to json using a build tool like grunt)
- *  TODO: tests load/reload shaders for realtime editing.
- *  @class ShaderLoader
+ * @class ShaderLoader
  */
 osg.ShaderLoader = function(options) {
     this.init(options);
@@ -156,16 +166,22 @@ osg.ShaderLoader.prototype = osg.objectLibraryClass({
     },
     // recursively  handle #include external glsl
     // files (for now in the same folder.)
-    preprocess: function(content, sourceID) {
+    preprocess: function(content, sourceID, includeList) {
         return content.replace(this._includeR, function(_, name) {
-            // #pragma include "name";
+            // \#pragma include "name";
+            // already included
+            if (includeList.indexOf(name) !== -1)
+                return;
+            // avoid endless loop, not calling the impure
             var txt = this.getShaderTextPure(name);
+            // make sure it's not included twice
+            includeList.push(name);
             if (this._debugLines) {
                 txt = this.instrumentShaderlines(txt, sourceID);
-                sourceID++;
             }
+            sourceID++;
             // to the infinite and beyond !
-            txt = this.preprocess(txt, sourceID);
+            txt = this.preprocess(txt, sourceID, includeList);
             return txt;
         }.bind(this));
     },
@@ -175,13 +191,16 @@ osg.ShaderLoader.prototype = osg.objectLibraryClass({
     //  adding defines
     //  adding line instrumenting.
     getShaderText: function(shaderName, defines) {
+        // useful for
+        var includeList = [];
         var preShader = this.getShaderTextPure(shaderName);
+        includeList.push(shaderName);
         var sourceID = 0;
         if (this._debugLines) {
             preShader = this.instrumentShaderlines(preShader, sourceID);
             sourceID++;
         }
-        var postShader = this.preprocess(preShader, sourceID);
+        var postShader = this.preprocess(preShader, sourceID, includeList);
 
         var prePrend = '';
         if (this._globalDefaultprecision) {

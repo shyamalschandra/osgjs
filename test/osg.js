@@ -822,6 +822,8 @@ test("CullVisitor", function() {
 
         cull.pushProjectionMatrix(osg.Matrix.makeIdentity([]));
         cull.pushModelviewMatrix(osg.Matrix.makeIdentity([]));
+        cull.pushModelMatrix(osg.Matrix.makeIdentity([]));
+        cull.pushViewMatrix(osg.Matrix.makeIdentity([]));
         camera0.accept(cull);
         
         ok(cull.rootRenderStage === cull.currentRenderBin, "renderStage should stay the render bin and id " ); //+ cull.rootRenderStage === cull.currentRenderBin
@@ -852,6 +854,8 @@ test("CullVisitor", function() {
 
         cull.pushProjectionMatrix(osg.Matrix.makeIdentity([]));
         cull.pushModelviewMatrix(osg.Matrix.makeIdentity([]));
+        cull.pushModelMatrix(osg.Matrix.makeIdentity([]));
+        cull.pushViewMatrix(osg.Matrix.makeIdentity([]));
         cull.pushStateSet(new osg.StateSet());
 
         camera0.accept(cull);
@@ -887,19 +891,21 @@ test("CullVisitor", function() {
         }
         var resultProjection;
         function popProjectionMatrix() {
-            resultProjection = this._projectionMatrixStack[this._projectionMatrixStack.length-1];
+            resultProjection = this.getCurrentProjectionMatrix();
             osg.CullVisitor.prototype.popProjectionMatrix.call(this);
         }
         osg.CullVisitor.prototype.setCullSettings = setCullSettings;
         var cull = new osg.CullVisitor();
         var rs = new osg.RenderStage();
         var sg = new osg.StateGraph();
-        cull.popProjectionMatrix = popProjectionMatrix;
+        cull.popProjectionMatrix = popProjectionMatrix.bind(cull);
         cull.setRenderStage(rs);
         cull.setStateGraph(sg);
 
         cull.pushProjectionMatrix(osg.Matrix.makeIdentity([]));
         cull.pushModelviewMatrix(osg.Matrix.makeIdentity([]));
+        cull.pushModelMatrix(osg.Matrix.makeIdentity([]));
+        cull.pushViewMatrix(osg.Matrix.makeIdentity([]));
 
         camera0.accept(cull);
         var supposedProjection = [1.299038105676658, 0, 0, 0, 0, 1.7320508075688774, 0, 0, 0, 0, -1.9423076923076918, -1, 0, 0, -14.417307692307686, 0];
@@ -935,7 +941,7 @@ test("CullVisitor", function() {
 
         var resultProjection;
         function popProjectionMatrix() {
-            resultProjection = this._projectionMatrixStack[this._projectionMatrixStack.length-1];
+            resultProjection = this.getCurrentProjectionMatrix();
             osg.CullVisitor.prototype.popProjectionMatrix.call(this);
         }
 
@@ -949,6 +955,8 @@ test("CullVisitor", function() {
 
         cull.pushProjectionMatrix(osg.Matrix.makeIdentity([]));
         cull.pushModelviewMatrix(osg.Matrix.makeIdentity([]));
+        cull.pushModelMatrix(osg.Matrix.makeIdentity([]));
+        cull.pushViewMatrix(osg.Matrix.makeIdentity([]));
 
         camera0.accept(cull);
         ok(check_near(stack[1][0], 10), "near should be 10 and is " +  stack[1][0]);
@@ -1012,7 +1020,7 @@ test("CullVisitor", function() {
 
         var resultProjection;
         function popProjectionMatrix() {
-            resultProjection = this._projectionMatrixStack[this._projectionMatrixStack.length-1];
+            resultProjection = this.getCurrentProjectionMatrix();
             osg.CullVisitor.prototype.popProjectionMatrix.call(this);
         }
 
@@ -1030,6 +1038,8 @@ test("CullVisitor", function() {
 
         cull.pushProjectionMatrix(osg.Matrix.makeIdentity([]));
         cull.pushModelviewMatrix(osg.Matrix.makeIdentity([]));
+        cull.pushModelMatrix(osg.Matrix.makeIdentity([]));
+        cull.pushViewMatrix(osg.Matrix.makeIdentity([]));
 
         camera0.accept(cull);
         ok(check_near(stack[1][0], d_near,0.8), "near should be "+ d_near+ " and is " +  stack[1][0]);
@@ -1075,6 +1085,8 @@ test("CullVisitor", function() {
         var sg = new osg.StateGraph();
         cull.pushProjectionMatrix(osg.Matrix.makeIdentity([]));
         cull.pushModelviewMatrix(osg.Matrix.makeIdentity([]));
+        cull.pushModelMatrix(osg.Matrix.makeIdentity([]));
+        cull.pushViewMatrix(osg.Matrix.makeIdentity([]));
         cull.setRenderStage(rs);
         cull.setStateGraph(sg);
         cull.setComputeNearFar(false);
@@ -1115,6 +1127,8 @@ test("CullVisitor", function() {
         var sg = new osg.StateGraph();
         cull.pushProjectionMatrix(osg.Matrix.makeIdentity([]));
         cull.pushModelviewMatrix(osg.Matrix.makeIdentity([]));
+        cull.pushModelMatrix(osg.Matrix.makeIdentity([]));
+        cull.pushViewMatrix(osg.Matrix.makeIdentity([]));
         cull.setRenderStage(rs);
         cull.setStateGraph(sg);
         cull.setComputeNearFar(false);
@@ -1156,6 +1170,8 @@ test("CullVisitor", function() {
         rs.setViewport(new osg.Viewport());
         cull.pushProjectionMatrix(osg.Matrix.makeIdentity([]));
         cull.pushModelviewMatrix(osg.Matrix.makeIdentity([]));
+        cull.pushModelMatrix(osg.Matrix.makeIdentity([]));
+        cull.pushViewMatrix(osg.Matrix.makeIdentity([]));
         cull.setRenderStage(rs);
         cull.setStateGraph(sg);
         cull.setComputeNearFar(false);

@@ -299,7 +299,7 @@ return filter == osg.Texture.NEAREST_MIPMAP_NEAREST ||
                             this.init(gl);
                         }
 
-                        this.setDirty(false);
+                        this.setClean();
                         gl.bindTexture(this._textureTarget, this._textureObject);
 
                         if (image instanceof Image) {
@@ -332,7 +332,7 @@ return filter == osg.Texture.NEAREST_MIPMAP_NEAREST ||
                     gl.texImage2D(this._textureTarget, 0, this._internalFormat, this._textureWidth, this._textureHeight, 0, this._internalFormat, this._type, null);
                     this.applyFilterParameter(gl, this._textureTarget);
                     this.generateMipmap(gl, this._textureTarget);
-                    this.setDirty(false);
+                    this.setClean();
                 }
             }
         },

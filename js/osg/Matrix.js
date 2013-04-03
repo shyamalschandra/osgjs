@@ -36,7 +36,7 @@ osg.Matrix = {
     makeIdentity: function(matrix) {
         if (matrix === undefined) {
             matrix = [];
-            osg.log("osg.Matrix.makeIdentity without matrix destination is deprecated"); 
+            osg.log("osg.Matrix.makeIdentity without matrix destination is deprecated");
         }
         osg.Matrix.setRow(matrix, 0,    1, 0, 0, 0 );
         osg.Matrix.setRow(matrix, 1,    0, 1, 0, 0 );
@@ -74,6 +74,13 @@ osg.Matrix = {
         result[1] = matrix[13];
         result[2] = matrix[14];
         return result;
+    },
+
+    copyTrans: function(matrix1, matrix2) {
+        matrix1[12] = matrix2[12];
+        matrix1[13] = matrix2[13];
+        matrix1[14] = matrix2[14];
+        return matrix1;
     },
 
     // do a * b and result in a
@@ -440,27 +447,27 @@ osg.Matrix = {
             /* perform instant calculation */
             quatResult[3] = tq[0];
             quatResult[0] = mat[1*4+2]-mat[2*4+1];
-            quatResult[1] = mat[2*4+0]-mat[0  +2]; 
-            quatResult[2] = mat[0  +1]-mat[1*4+0]; 
+            quatResult[1] = mat[2*4+0]-mat[0  +2];
+            quatResult[2] = mat[0  +1]-mat[1*4+0];
         }
         else if (j==1)
         {
-            quatResult[3] = mat[1*4+2]-mat[2*4+1]; 
+            quatResult[3] = mat[1*4+2]-mat[2*4+1];
             quatResult[0] = tq[1];
-            quatResult[1] = mat[0  +1]+mat[1*4+0]; 
+            quatResult[1] = mat[0  +1]+mat[1*4+0];
             quatResult[2] = mat[2*4+0]+mat[0  +2];
         }
         else if (j==2)
         {
-            quatResult[3] = mat[2*4+0]-mat[0+2]; 
-            quatResult[0] = mat[0  +1]+mat[1*4+0]; 
+            quatResult[3] = mat[2*4+0]-mat[0+2];
+            quatResult[0] = mat[0  +1]+mat[1*4+0];
             quatResult[1] = tq[2];
-            quatResult[2] = mat[1*4+2]+mat[2*4+1]; 
+            quatResult[2] = mat[1*4+2]+mat[2*4+1];
         }
         else /* if (j==3) */
         {
-            quatResult[3] = mat[0  +1]-mat[1*4+0]; 
-            quatResult[0] = mat[2*4+0]+mat[0  +2]; 
+            quatResult[3] = mat[0  +1]-mat[1*4+0];
+            quatResult[0] = mat[2*4+0]+mat[0  +2];
             quatResult[1] = mat[1*4+2]+mat[2*4+1];
             quatResult[2] = tq[3];
         }
@@ -609,7 +616,7 @@ osg.Matrix = {
     },
 
     transformVec3: function(matrix, vector, result) {
-        var d = 1.0/(matrix[3] * vector[0] + matrix[7] * vector[1] + matrix[11] * vector[2] + matrix[15]); 
+        var d = 1.0/(matrix[3] * vector[0] + matrix[7] * vector[1] + matrix[11] * vector[2] + matrix[15]);
 
         if (result === undefined) {
             osg.warn("deprecated, osg.Matrix.transformVec3 needs a third parameter as result");
@@ -681,7 +688,7 @@ osg.Matrix = {
             osg.Matrix.copy(matrix, osg.Matrix._tmp1);
             matrix = osg.Matrix._tmp1;
         }
-        
+
         if (matrix[3] === 0.0 && matrix[7] === 0.0 && matrix[11] === 0.0 && matrix[15] === 1.0) {
             return this.inverse4x3(matrix,result);
         } else {
@@ -861,24 +868,24 @@ osg.Matrix = {
         var dm = d-1.0;
         if( dm*dm > 1.0e-6 )  // Involves perspective, so we must
         {                       // compute the full inverse
-            
+
             var inv = osg.Matrix._tmp0;
             result[12] = result[13] = result[14] = 0.0;
 
-            var a  = matrix[3]; 
-            var b  = matrix[7]; 
+            var a  = matrix[3];
+            var b  = matrix[7];
             var c  = matrix[11];
             var px = result[0]*a + result[1]*b + result[2] *c;
             var py = result[4]*a + result[5]*b + result[6] *c;
             var pz = result[8]*a + result[9]*b + result[10]*c;
 
-            tx = matrix[12]; 
-            ty = matrix[13]; 
+            tx = matrix[12];
+            ty = matrix[13];
             tz = matrix[14];
             var one_over_s  = 1.0/(d - (tx*px + ty*py + tz*pz));
 
-            tx *= one_over_s; 
-            ty *= one_over_s; 
+            tx *= one_over_s;
+            ty *= one_over_s;
             tz *= one_over_s;  // Reduces number of calculations later on
 
             // Compute inverse of trans*corr
@@ -902,8 +909,8 @@ osg.Matrix = {
             osg.Matrix.preMult(result, inv); // Finish computing full inverse of mat
         } else {
 
-            tx = matrix[12]; 
-            ty = matrix[13]; 
+            tx = matrix[12];
+            ty = matrix[13];
             tz = matrix[14];
 
             // Compute translation components of mat'
@@ -922,7 +929,7 @@ osg.Matrix = {
             var a01 = mat[1], a02 = mat[2], a03 = mat[3];
             var a12 = mat[6], a13 = mat[7];
             var a23 = mat[11];
-            
+
             mat[1] = mat[4];
             mat[2] = mat[8];
             mat[3] = mat[12];
@@ -1005,7 +1012,7 @@ osg.Matrix = {
     },
 
     getPerspective: function(matrix, result) {
-        var c = { 
+        var c = {
             'right' : 0,
             'left' : 0,
             'top' : 0,

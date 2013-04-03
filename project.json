@@ -20,6 +20,7 @@
 		"js/osg/BufferArray.js",
 		"js/osg/CullFace.js",
 		"js/osg/CullSettings.js",
+		"js/osg/CullStack.js",
 		"js/osg/Camera.js",
 		"js/osg/Depth.js",
 		"js/osg/ColorMask.js",
@@ -47,7 +48,6 @@
 		"js/osg/TextureCubeMap.js",
 		"js/osg/UpdateVisitor.js",
 		"js/osg/Viewport.js",
-		"js/osg/CullStack.js",
 		"js/osg/CullVisitor.js",
 
 		"js/osgAnimation/osgAnimation.js",

@@ -100,7 +100,7 @@ osg.ShadowTechniqueCVSM.prototype = osg.objectLibraryClass(osg.objectInehrit(osg
 
 		//ShadowTechniqueCVSM._enable.set([this.enable]);
 
-		this.setDirty(false);
+		this.setClean();
 	},
 
 

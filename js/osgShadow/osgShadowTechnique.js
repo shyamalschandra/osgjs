@@ -132,7 +132,7 @@ osg.ShadowTechnique.prototype = osg.objectLibraryClass(osg.objectInehrit(osg.Sta
 
 		//ShadowTechnique._enable.set([this.enable]);
 
-		this.setDirty(false);
+		this.setClean();
 	},
 
 

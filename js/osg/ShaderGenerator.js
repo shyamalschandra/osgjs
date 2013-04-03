@@ -233,6 +233,8 @@ osg.ShaderGenerator.prototype = {
             "attribute vec4 Color;",
             "attribute vec3 Normal;",
             "uniform float ArrayColorEnabled;",
+            "uniform mat4 ViewMatrix;",
+            "uniform mat4 ModelMatrix;",
             "uniform mat4 ModelViewMatrix;",
             "uniform mat4 ProjectionMatrix;",
             "uniform mat4 NormalMatrix;",
@@ -242,11 +244,21 @@ osg.ShaderGenerator.prototype = {
 
         shader += this._writeShaderFromMode(state, validAttributeKeys, validTextureAttributeKeys, modes.VertexInit);
 
-        var func = [
+        var func;
+        if (osg.oldModelViewMatrixMode) {
+            func = [
             "",
             "vec4 ftransform() {",
             "  return ProjectionMatrix * ModelViewMatrix * vec4(Vertex, 1.0);",
             "}"].join('\n');
+        }
+        else{
+            func = [
+            "",
+            "vec4 ftransform() {",
+            "  return ProjectionMatrix * ViewMatrix * ModelMatrix * vec4(Vertex, 1.0);",
+            "}"].join('\n');
+        }
 
         shader += func;
 
@@ -297,7 +309,7 @@ osg.ShaderGenerator.prototype = {
         ].join("\n");
 
         var modes = osg.ShaderGeneratorType;
-        
+
         shader += this._writeShaderFromMode(state, validAttributeKeys, validTextureAttributeKeys, modes.FragmentInit);
 
         shader += this._writeShaderFromMode(state, validAttributeKeys, validTextureAttributeKeys, modes.FragmentFunction);
