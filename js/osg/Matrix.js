@@ -1155,5 +1155,36 @@ osg.Matrix = {
             matrix[8+2] = 1.0 - (xx + yy);
         }
         return matrix;
+    },
+    //  http://users.soe.ucsc.edu/~pang/160/f98/Gems/Gems/TransBox.c
+    //  Transforms a 3D axis-aligned box via a 4x4 matrix
+    // vector and returns an axis-aligned box enclosing the result.
+    transformBbox: function(matrix,  bboxIn, bboxOut) {
+        var av, bv;
+        var i, j, k;
+
+        bboxOut._min[0] = matrix[12];
+        bboxOut._min[1] = matrix[13];
+        bboxOut._min[2] = matrix[14];
+
+        bboxOut._max[0] = matrix[12];
+        bboxOut._max[1] = matrix[13];
+        bboxOut._max[2] = matrix[14];
+
+        for (i = 0; i < 3; i++) {
+            k = i * 4;
+            for (j = 0; j < 3; j++) {
+                av = matrix[k + j] * bboxIn._min[j];
+                bv = matrix[k + j] * bboxIn._max[j];
+                if (av < bv) {
+                    bboxOut._min[i] += av;
+                    bboxOut._max[i] += bv;
+                } else {
+                    bboxOut._min[i] += bv;
+                    bboxOut._max[i] += av;
+                }
+            }
+        }
+        return bboxOut;
     }
 };

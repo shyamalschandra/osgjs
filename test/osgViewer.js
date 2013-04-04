@@ -26,7 +26,7 @@ test("Viewer", function() {
         };
         viewer.init();
         viewer.setupManipulator();
-        
+
         viewer.setSceneData(createScene());
         viewer.frame();
         var projectionMatrixClampled = viewer._cullVisitor._projectionMatrixStack[0];

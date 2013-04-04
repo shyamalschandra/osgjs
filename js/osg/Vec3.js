@@ -14,7 +14,7 @@ osg.Vec3 = {
     },
 
     cross: function(a, b, r) {
-        var x = a[1]*b[2]-a[2]*b[1]; 
+        var x = a[1]*b[2]-a[2]*b[1];
         var y = a[2]*b[0]-a[0]*b[2];
         var z = a[0]*b[1]-a[1]*b[0];
         r[0] = x;

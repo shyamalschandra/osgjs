@@ -17,6 +17,9 @@ osg.CullStack = function() {
     this._viewportStack = new Array(10);
     this._viewportCurrent = -1;
 
+    this._bboxStack = new Array(10);
+    this._bboxCurrent = -1;
+
     this._bbCornerFar = 0;
     this._bbCornerNear = 0;
 
@@ -31,6 +34,7 @@ osg.CullStack.prototype = {
         this._viewMatrixStackCurrent = -1;
         this._projectionMatrixStackCurrent = -1;
         this._viewportCurrent = -1;
+        this._bboxCurrent = -1;
 
     },
     getCurrentProjectionMatrix: function() {
@@ -45,22 +49,38 @@ osg.CullStack.prototype = {
     getCurrentViewMatrix: function() {
         return this._viewMatrixStack[this._viewMatrixStackCurrent];
     },
-    getViewport: function () {
-        if (this._viewportStackCurrent ===  -1) {
+    getCurrentBbox: function () {
+        if (this._bboxCurrent ===  -1) {
             return undefined;
         }
-        return this._viewportStack[this._viewportStackCurrent];
+        return this._bboxStack[this._bboxCurrent];
+    },
+    getViewport: function () {
+        if (this._viewportCurrent ===  -1) {
+            return undefined;
+        }
+        return this._viewportStack[this._viewportCurrent];
     },
     pushViewport: function (vp) {
-        this._viewportStackCurrent++;
+        this._viewportCurrent++;
         if (this._viewportStack.length < this._viewportCurrent)
             this._viewportStack.push(vp);
         else
-            this._viewportStack[vp] = vp;
+            this._viewportStack[this._viewportCurrent] = vp;
     },
     popViewport: function () {
         //this._viewportStack.pop();
-        this._viewportStackCurrent--;
+        this._viewportCurrent--;
+    },
+    pushBbox: function (bbox) {
+        this._bboxCurrent++;
+        if (this._bboxStack.length < this._bboxCurrent)
+            this._bboxStack.push(bbox);
+        else
+            this._bboxStack[this._bboxCurrent] = bbox;
+    },
+    popBbox: function () {
+        this._bboxCurrent--;
     },
     pushModelMatrix: function (matrix) {
         this._modelMatrixStackCurrent++;
@@ -68,24 +88,23 @@ osg.CullStack.prototype = {
             this._modelMatrixStack.push(matrix);
         else
             this._modelMatrixStack[this._modelMatrixStackCurrent] = matrix;
-       
 
-        var lookVector = this.getLookVectorLocal();
-        this._bbCornerFar = (lookVector[0]>=0?1:0) | (lookVector[1]>=0?2:0) | (lookVector[2]>=0?4:0);
-        this._bbCornerNear = (~this._bbCornerFar)&7;
+/*            var lookVector = this.getLookVectorLocal();
+            this._bbCornerFar = (lookVector[0]>=0?1:0) | (lookVector[1]>=0?2:0) | (lookVector[2]>=0?4:0);
+            this._bbCornerNear = (~this._bbCornerFar)&7;*/
     },
     popModelMatrix: function () {
         //this._modelMatrixStack.pop();
         this._modelMatrixStackCurrent--;
-        var lookVector;
 
-        if ( this._modelMatrixStackCurrent > -1) {
-            lookVector = this.getLookVectorLocal();
-        } else {
-            lookVector = [0,0,-1];
-        }
-        this._bbCornerFar = (lookVector[0]>=0?1:0) | (lookVector[1]>=0?2:0) | (lookVector[2]>=0?4:0);
-        this._bbCornerNear = (~this._bbCornerFar)&7;
+            /*var lookVector;
+            if ( this._viewMatrixStackCurrent > -1) {
+                lookVector = this.getLookVectorLocal();
+            } else {
+                lookVector = [0,0,-1];
+            }
+            this._bbCornerFar = (lookVector[0]>=0?1:0) | (lookVector[1]>=0?2:0) | (lookVector[2]>=0?4:0);
+            this._bbCornerNear = (~this._bbCornerFar)&7;*/
     },
     getLookVectorLocal: function() {
         var m = this.getCurrentViewMatrix();
@@ -126,26 +145,23 @@ osg.CullStack.prototype = {
             this._viewMatrixStack.push(matrix);
         else
             this._viewMatrixStack[this._viewMatrixStackCurrent] = matrix;
-        /*
-        if (!osg.oldModelViewMatrixMode){
-            var lookVector = this.getLookVectorLocal();
-            this._bbCornerFar = (lookVector[0]>=0?1:0) | (lookVector[1]>=0?2:0) | (lookVector[2]>=0?4:0);
-            this._bbCornerNear = (~this._bbCornerFar)&7;
-        }*/
+
+       var lookVector = this.getLookVectorLocal();
+        this._bbCornerFar = (lookVector[0]>=0?1:0) | (lookVector[1]>=0?2:0) | (lookVector[2]>=0?4:0);
+        this._bbCornerNear = (~this._bbCornerFar)&7;
     },
     popViewMatrix: function () {
         //this._viewMatrixStack.pop();
         this._viewMatrixStackCurrent--;
-        /*if (!osg.oldModelViewMatrixMode){
-            var lookVector;
-            if (this._modelMatrixStackCurrent > -1) {
-                lookVector = this.getLookVectorLocal();
-            } else {
-                lookVector = [0,0,-1];
-            }
-            this._bbCornerFar = (lookVector[0]>=0?1:0) | (lookVector[1]>=0?2:0) | (lookVector[2]>=0?4:0);
-            this._bbCornerNear = (~this._bbCornerFar)&7;
-        }*/
+
+        var lookVector;
+        if (this._viewMatrixStackCurrent > -1) {
+            lookVector = this.getLookVectorLocal();
+        } else {
+            lookVector = [0,0,-1];
+        }
+        this._bbCornerFar = (lookVector[0]>=0?1:0) | (lookVector[1]>=0?2:0) | (lookVector[2]>=0?4:0);
+        this._bbCornerNear = (~this._bbCornerFar)&7;
     },
     pushProjectionMatrix: function (matrix) {
         this._projectionMatrixStackCurrent++;

@@ -49,6 +49,17 @@ osg.Node.prototype = osg.objectLibraryClass(osg.objectInehrit(osg.Object.prototy
         }
     },
     // go up tell that local hierarchy Matrix is updated.
+    cleanMatrixAndSCeneGraph: function() {
+        if (this._dirtyMatrix) {
+            this._dirtyMatrix = false;
+            this._dirtySceneGraph = false;
+            for (var i = 0, l = this.children.length; i < l; i++) {
+                if (this.children[i].cleanMatrixAndSCeneGraph)
+                    this.children[i].cleanMatrixAndSCeneGraph();
+            }
+        }
+    },
+    // go up tell that local hierarchy Matrix is updated.
     dirtyMatrix: function() {
         this.dirtyBound();
         if (!this._dirtyMatrix) {
