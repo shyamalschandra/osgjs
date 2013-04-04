@@ -174,6 +174,7 @@ osg.CullVisitor.prototype = osg.objectInehrit(osg.CullStack.prototype ,osg.objec
     },
 
     clampProjectionMatrix: function(projection, znear, zfar, nearFarRatio, resultNearFar) {
+
         var epsilon = 1e-6;
         if (zfar<znear-epsilon) {
             osg.log("clampProjectionMatrix not applied, invalid depth range, znear = " + znear + "  zfar = " + zfar);
@@ -288,13 +289,15 @@ osg.CullVisitor.prototype = osg.objectInehrit(osg.CullStack.prototype ,osg.objec
     getCurrentRenderBin: function() { return this._currentRenderBin; },
     setCurrentRenderBin: function(rb) { this._currentRenderBin = rb; },
     addPositionedAttribute: function (attribute) {
-        var matrix;
+        var matrix = this._getReservedMatrix();
+        if (this._dirtySceneGraph || this._forceUpdate){
         //if (osg.oldModelViewMatrixMode){
         //   matrix = this.getCurrentModelviewMatrix();
         //}
         //else{
-            matrix =this.getCurrentModelMatrix();
+            matrix = osg.Matrix.mult(this.getCurrentViewMatrix(), this.getCurrentModelviewMatrix, matrix);
         //}
+        }
         this._currentRenderBin.getStage().positionedAttribute.push([matrix, attribute]);
     },
 
@@ -347,12 +350,8 @@ osg.CullVisitor.prototype = osg.objectInehrit(osg.CullStack.prototype ,osg.objec
             if (this._reserveMatrixStack.current >= this._reserveMatrixStack.length) {
                 this._reserveMatrixStack.push(osg.Matrix.makeIdentity([]));
             }
-            return this._reserveMatrixStack[this._reserveMatrixStack.current];
         }
-        else{
-            return this._reserveMatrixStack[this.matrixIndex];
-        }
-        this.matrixIndex++;
+        return this._reserveMatrixStack[this.matrixIndex++];
     },
     // faster path is stack does not change
     //  (and debug out of bounds if it changes when it should not)
@@ -362,12 +361,8 @@ osg.CullVisitor.prototype = osg.objectInehrit(osg.CullStack.prototype ,osg.objec
             if (this._reserveBBoxStack.current >= this._reserveBBoxStack.length) {
                 this._reserveBBoxStack.push(new osg.BoundingBox());
             }
-            return this._reserveBBoxStack[this._reserveBBoxStack.current];
         }
-        else{
-            return this._reserveBBoxStack[this.bboxIndex];
-        }
-        this.bboxIndex++;
+        return this._reserveBBoxStack[this.bboxIndex++];
     },
     _getCurrentBBox: function() {
         return this._reserveMatrixStack[this.bboxIndex];
@@ -380,12 +375,8 @@ osg.CullVisitor.prototype = osg.objectInehrit(osg.CullStack.prototype ,osg.objec
             if (this._reserveLeafStack.current >= this._reserveLeafStack.length) {
                 this._reserveLeafStack.push({});
             }
-            return this._reserveLeafStack[this._reserveLeafStack.current];
         }
-        else{
-            return this._reserveLeafStack[this.leafIndex];
-        }
-        this.leafIndex++;
+        return this._reserveLeafStack[this.leafIndex++];
     }
 })));
 
@@ -550,7 +541,7 @@ osg.CullVisitor.prototype[osg.MatrixTransform.prototype.objectType] = function (
     //if (osg.oldModelViewMatrixMode)
     //var matrixModelview = this._getReservedMatrix();
 
-    if (this._sceneGraphDirty || node._dirtyMatrix|| this._forceUpdate){
+    if (this._sceneGraphDirty || node._dirtyMatrix || this._forceUpdate){
         if (node.getReferenceFrame() === osg.Transform.RELATIVE_RF) {
             //if (osg.oldModelViewMatrixMode)
             //var lastmodelviewMatrixStack = this.getCurrentModelviewMatrix();
@@ -659,16 +650,13 @@ osg.CullVisitor.prototype[osg.Geometry.prototype.objectType] = function (node) {
     var localbb = node.getBoundingBox();
 
     if (node._dirtyMatrix || this._sceneGraphDirty || this._forceUpdate){
-        var min = [], max = [];
-        osg.Matrix.transformVec3( model, localbb._min, min);
-        osg.Matrix.transformVec3( model, localbb._max, max);
-        bb.init();
-        bb.expandByVec3(min);
-        bb.expandByVec3(max);
+
+        osg.Matrix.transformBbox( model, localbb,  bb);
+
         var cameraBbox = this.getCurrentBbox();
         if (cameraBbox){
-            cameraBbox.expandByVec3(min);
-            cameraBbox.expandByVec3(max);
+            cameraBbox.expandByVec3(bb._min);
+            cameraBbox.expandByVec3(bb._max);
         }
     }
 
