@@ -28,7 +28,6 @@ osg.CullVisitor = function () {
 
     this._sceneGraphDirty = true;
 
-    this._cullStackStack = [];
 
     // keep a matrix in memory to avoid to allocate/deallocate memory each frame
     // And store previous frame computations if no change in graphs
@@ -55,6 +54,7 @@ osg.CullVisitor.prototype = osg.objectInehrit(osg.CullStack.prototype ,osg.objec
 
         this.reset();
 
+        //this._forceUpdate = true;
         this._sceneGraphDirty = this._sceneGraphDirty || scene._dirtySceneGraph;
 
         var view = this._getReservedMatrix();
@@ -64,7 +64,8 @@ osg.CullVisitor.prototype = osg.objectInehrit(osg.CullStack.prototype ,osg.objec
         var projection = this._getReservedMatrix();
 
 
-        if (this._sceneGraphDirty || camera._dirtyMatrix|| this._forceUpdate){
+        var bbox = this._getReservedBBox();
+        if (this._sceneGraphDirty || camera._dirtyMatrix || this._forceUpdate){
             // absolute
             //if (osg.oldModelViewMatrixMode){
             ////   osg.Matrix.copy(camera.getViewMatrix(), modelview);
@@ -72,8 +73,8 @@ osg.CullVisitor.prototype = osg.objectInehrit(osg.CullStack.prototype ,osg.objec
             // camera matrix is inverse view
             osg.Matrix.copy(camera.getViewMatrix(), view);
             osg.Matrix.copy(camera.getProjectionMatrix(), projection);
-            osg.Matrix.inverse(camera.getViewMatrix(), model);
-            osg.Matrix.makeIdentity(model);
+            //osg.Matrix.inverse(camera.getViewMatrix(), model);
+            bbox.init();
         }
         // as matrix allocated from reserved are
         // initialiazed  to identity
@@ -89,6 +90,7 @@ osg.CullVisitor.prototype = osg.objectInehrit(osg.CullStack.prototype ,osg.objec
         // update bound
         // for what ?
         var bs = camera.getBound();
+        this.pushBbox(bbox);
         if (light) {
             this.addPositionedAttribute(light);
         }
@@ -105,6 +107,8 @@ osg.CullVisitor.prototype = osg.objectInehrit(osg.CullStack.prototype ,osg.objec
         //thid.handleCullCallbacksAndTraverse(camera);
         scene.accept(this);
 
+        this.popBbox();
+
         this.popModelMatrix();
         this.popViewMatrix();
         //if(osg.oldModelViewMatrixMode)
@@ -113,6 +117,13 @@ osg.CullVisitor.prototype = osg.objectInehrit(osg.CullStack.prototype ,osg.objec
         this.popViewport();
         this.popStateSet();
 
+        camera.near = this._computedNear;
+        camera.far = this._computedFar;
+
+        //using leaf instead of tree ?
+        //clean whole hierarchy
+        //even if no matrix computation in this node
+        scene.cleanMatrixAndSCeneGraph();
 
         this._sceneGraphDirty = false;
     },
@@ -326,10 +337,6 @@ osg.CullVisitor.prototype = osg.objectInehrit(osg.CullStack.prototype ,osg.objec
 
     apply: function( node ) {
         this[node.objectType].call(this, node);
-        //clean whole hierarchy
-        //even if no matrix computation in this node
-        node._dirtyMatrix = false;
-        node._dirtySceneGraph = false;
     },
 
     // faster path is stack does not change
@@ -412,6 +419,7 @@ osg.CullVisitor.prototype[osg.Camera.prototype.objectType] = function( camera ) 
     //  camera  getviewmatrix is inverse of matrix model view
     //  camera getmatrix is camera own model matrix
 
+    var bbox = this._getReservedBBox();
     if (this._sceneGraphDirty || camera._dirtyMatrix|| this._forceUpdate){
         if (camera.getReferenceFrame() === osg.Transform.RELATIVE_RF) {
             osg.Matrix.mult(originalProjectionMatrix, camera.getProjectionMatrix(), projection);
@@ -419,8 +427,7 @@ osg.CullVisitor.prototype[osg.Camera.prototype.objectType] = function( camera ) 
             //if (osg.oldModelViewMatrixMode){
             //osg.Matrix.mult(originalModelView, camera.getViewMatrix(), modelview);
             //}
-
-            osg.Matrix.copy(originalModel, modelview);
+            osg.Matrix.copy(originalModel, model);
             osg.Matrix.mult(originalModel, camera.getViewMatrix(), view);
 
         } else {
@@ -429,13 +436,14 @@ osg.CullVisitor.prototype[osg.Camera.prototype.objectType] = function( camera ) 
             //   osg.Matrix.copy(camera.getViewMatrix(), modelview);
             //}
             /**/
-            // camera matrix is identity  because never set/use to make camera position
-            osg.Matrix.makeIdentity(model);
-            //osg.Matrix.copy(camera.getViewMatrix(), model);
+            // camera matrix could be identity  because never set/use to make camera position
+            //sg.Matrix.makeIdentity(model);
+            //osg.Matrix.inverse(camera.getViewMatrix(), model);
             /**/
             osg.Matrix.copy(camera.getViewMatrix(), view);
             osg.Matrix.copy(camera.getProjectionMatrix(), projection);
         }
+        bbox.init();
     }
     this.pushProjectionMatrix(projection);
     this.pushViewMatrix(view);
@@ -446,6 +454,7 @@ osg.CullVisitor.prototype[osg.Camera.prototype.objectType] = function( camera ) 
     if (camera.getViewport()) {
         this.pushViewport(camera.getViewport());
     }
+    this.pushBbox(bbox);
 
     // save current state of the camera
     var previous_znear = this._computedNear;
@@ -507,6 +516,8 @@ osg.CullVisitor.prototype[osg.Camera.prototype.objectType] = function( camera ) 
         }
     }
 
+    this.popBbox(bbox);
+
     this.popModelMatrix();
     this.popViewMatrix();
     //if (osg.oldModelViewMatrixMode)
@@ -514,8 +525,9 @@ osg.CullVisitor.prototype[osg.Camera.prototype.objectType] = function( camera ) 
     this.popProjectionMatrix();
     //this.popProjectionMatrix();
 
-        camera.near = this._computedNear;
-        camera.far = this._computedFar;
+
+    camera.near = this._computedNear;
+    camera.far = this._computedFar;
 
     if (camera.getViewport()) {
         this.popViewport();
@@ -644,11 +656,22 @@ osg.CullVisitor.prototype[osg.Geometry.prototype.objectType] = function (node) {
     //var modelview = this.getCurrentModelviewMatrix();
 
     var bb = this._getReservedBBox();
+    var localbb = node.getBoundingBox();
+
     if (node._dirtyMatrix || this._sceneGraphDirty || this._forceUpdate){
-        var localbb = node.getBoundingBox();
-        osg.Matrix.transformVec3( model, localbb._min, bb._min);
-        osg.Matrix.transformVec3( model, localbb._max, bb._max);
+        var min = [], max = [];
+        osg.Matrix.transformVec3( model, localbb._min, min);
+        osg.Matrix.transformVec3( model, localbb._max, max);
+        bb.init();
+        bb.expandByVec3(min);
+        bb.expandByVec3(max);
+        var cameraBbox = this.getCurrentBbox();
+        if (cameraBbox){
+            cameraBbox.expandByVec3(min);
+            cameraBbox.expandByVec3(max);
+        }
     }
+
     if (this._computeNearFar && bb.valid()) {
         if (!this.updateCalculatedNearFar(bb, view)) {
             return;
@@ -667,6 +690,8 @@ osg.CullVisitor.prototype[osg.Geometry.prototype.objectType] = function (node) {
     }
 
     var leaf = this._getReservedLeaf();
+    leaf.node = node;
+    leaf.node = bb;
     var depth = 0;
     if (bb.valid()) {
         depth = this.distance(bb.center(), view);

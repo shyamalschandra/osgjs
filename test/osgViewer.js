@@ -25,10 +25,10 @@ test("Viewer", function() {
         };
         viewer.init();
         viewer.setupManipulator();
-        
+
         viewer.setSceneData(createScene());
         viewer.frame();
-        
+
         osg.log(viewer.getCamera().getProjectionMatrix());
         // without auto compute near far
         // [1.7320508075688774, 0, 0, 0, 0, 1.7320508075688774, 0, 0, 0, 0, -1.002002002002002, -1, 0, 0, -2.002002002002002, 0]
