@@ -202,13 +202,17 @@ function getEnvSphere(size, scene)
     var CullCallback = function() {
         this.cull = function(node, nv) {
             // overwrite matrix, remove translate so environment is always at camera origin
-            osg.Matrix.setTrans(nv.getCurrentModelviewMatrix(), 0,0,0);
-            var m = nv.getCurrentModelviewMatrix();
-            osg.Matrix.copy(m, cubemapTransform.get());
+            var v = nv.getCurrentViewMatrix();
+            var m = nv.getCurrentModelMatrix();
+            var mv = [];
+            osg.Matrix.mult(m, v, mv);
+
+            osg.Matrix.setTrans(mv, 0,0,0);
+            osg.Matrix.copy(mv, cubemapTransform.get());
             cubemapTransform.dirty();
             return true;
-        }
-    }
+        };
+    };
     mt.setCullCallback(new CullCallback());
     scene.getOrCreateStateSet().addUniform(cubemapTransform);
 
@@ -272,7 +276,7 @@ var startHDR = function() {
 
         //viewer.getManipulator().setDistance(100.0);
         //viewer.getManipulator().setTarget([0,0,0]);
-            
+
         viewer.run();
 
 
@@ -305,7 +309,7 @@ function getShader()
         "varying vec3 osg_FragNormal;",
         "varying vec3 osg_FragNormalWorld;",
         "varying vec3 osg_FragLightDirection;",
-        
+
         "void main(void) {",
         "  osg_FragEye = vec3(ModelViewMatrix * vec4(Vertex, 1.0));",
         "  osg_FragNormal = vec3(NormalMatrix * vec4(Normal, 0.0));",
@@ -321,7 +325,7 @@ function getShader()
         "precision highp float;",
         "#endif",
         "#define PI 3.14159",
-        
+
         "uniform sampler2D Texture0;",
         "uniform sampler2D Texture1;",
         "uniform float hdrExposure;",
@@ -402,7 +406,7 @@ function getShaderBackground()
         "varying vec3 osg_FragEye;",
         "varying vec3 osg_FragVertex;",
         "varying vec2 osg_TexCoord0;",
-        
+
         "void main(void) {",
         "  osg_FragVertex = Vertex;",
         "  osg_TexCoord0 = TexCoord0;",
@@ -504,7 +508,7 @@ var getModel = function(func) {
         req.send(null);
         addLoading();
     };
-    
+
     var modelName;
     modelName = 'monkey';
     //modelName = 'monkey';
@@ -574,7 +578,7 @@ function setEnvironment(name, background, ground) {
             });
 }
 
-function createScene() 
+function createScene()
 {
     var group = new osg.Node();
 

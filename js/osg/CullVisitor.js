@@ -419,7 +419,8 @@ osg.CullVisitor.prototype[osg.Camera.prototype.objectType] = function( camera ) 
             //osg.Matrix.mult(originalModelView, camera.getViewMatrix(), modelview);
             //}
             osg.Matrix.copy(originalModel, model);
-            osg.Matrix.mult(originalModel, camera.getViewMatrix(), view);
+            //osg.Matrix.mult(model, camera.getViewMatrix(), view);
+            osg.Matrix.mult(originalView, camera.getViewMatrix(), view);
 
         } else {
             // absolute
@@ -688,7 +689,7 @@ osg.CullVisitor.prototype[osg.Geometry.prototype.objectType] = function (node) {
         osg.warn("warning geometry has a NaN depth, " + modelview + " center " + bb.center());
     } else {
         // TODO reuse leafs, direclty?
-        //  for now give flicker if doing nested cameras
+        //  for now give flicker if doing nested camerastr
         //if (this._sceneGraphDirty){
             leaf.id = this.leafIndex;
             leaf.parent = this._currentStateGraph;

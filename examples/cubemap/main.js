@@ -244,9 +244,13 @@ function getCubeMap(size, scene)
         this.cull = function(node, nv) {
             // overwrite matrix, remove translate so environment is always at camera origin
             //current view Matrix
+            var v = nv.getCurrentViewMatrix();
             var m = nv.getCurrentModelMatrix();
-            osg.Matrix.copyTrans(m, nv.getCurrentViewMatrix());
-            osg.Matrix.copy(m, cubemapTransform.get());
+            var mv = [];
+            osg.Matrix.mult(v, m, mv);
+            
+            osg.Matrix.copyTrans(nv.getCurrentViewMatrix(), mv);
+            osg.Matrix.copy(mv, cubemapTransform.get());
             cubemapTransform.dirty();
             return true;
         };
