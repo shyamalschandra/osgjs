@@ -5355,9 +5355,9 @@ osg.RenderBin.prototype = {
                 normalUniform = program.uniformsCache[state.normalMatrix.name];
             }
 
-                if (modelViewUniform !== undefined || normalUniform !==  undefined) {
-                    leaf.modelview =  osg.Matrix.mult(leaf.view, leaf.model, []);
-                }
+            if (modelViewUniform !== undefined || normalUniform !==  undefined) {
+                leaf.modelview =  osg.Matrix.mult(leaf.view, leaf.model, []);
+            }
             if (modelViewUniform !== undefined) {
                 state.modelViewMatrix.set(leaf.modelview);
                 state.modelViewMatrix.apply(modelViewUniform);
@@ -8586,11 +8586,7 @@ osg.CullVisitor.prototype = osg.objectInehrit(osg.CullStack.prototype ,osg.objec
         //   matrix = this.getCurrentModelviewMatrix();
         //}
         //else{
-<<<<<<< HEAD
-            matrix = osg.Matrix.mult(this.getCurrentViewMatrix(), this.getCurrentModelviewMatrix, matrix);
-=======
             matrix = osg.Matrix.mult(this.getCurrentViewMatrix(), this.getCurrentModelviewMatrix(), matrix);
->>>>>>> 1f54466bc6e6b778bc2ab1ddc88732ea6568ca1c
         //}
         }
         this._currentRenderBin.getStage().positionedAttribute.push([matrix, attribute]);
@@ -8714,7 +8710,8 @@ osg.CullVisitor.prototype[osg.Camera.prototype.objectType] = function( camera ) 
             //osg.Matrix.mult(originalModelView, camera.getViewMatrix(), modelview);
             //}
             osg.Matrix.copy(originalModel, model);
-            osg.Matrix.mult(originalModel, camera.getViewMatrix(), view);
+            //osg.Matrix.mult(model, camera.getViewMatrix(), view);
+            osg.Matrix.mult(originalView, camera.getViewMatrix(), view);
 
         } else {
             // absolute
@@ -8944,20 +8941,12 @@ osg.CullVisitor.prototype[osg.Geometry.prototype.objectType] = function (node) {
     var bb = this._getReservedBBox();
     var localbb = node.getBoundingBox();
 
-<<<<<<< HEAD
-    if (node._dirtyMatrix || this._sceneGraphDirty || this._forceUpdate){
-=======
     if (node._dirtyMatrix || this._sceneGraphDirty || this._forceUpdate) {
->>>>>>> 1f54466bc6e6b778bc2ab1ddc88732ea6568ca1c
 
         osg.Matrix.transformBbox( model, localbb,  bb);
 
         var cameraBbox = this.getCurrentBbox();
-<<<<<<< HEAD
-        if (cameraBbox){
-=======
         if (cameraBbox) {
->>>>>>> 1f54466bc6e6b778bc2ab1ddc88732ea6568ca1c
             cameraBbox.expandByVec3(bb._min);
             cameraBbox.expandByVec3(bb._max);
         }
@@ -8993,7 +8982,7 @@ osg.CullVisitor.prototype[osg.Geometry.prototype.objectType] = function (node) {
         osg.warn("warning geometry has a NaN depth, " + modelview + " center " + bb.center());
     } else {
         // TODO reuse leafs, direclty?
-        //  for now give flicker if doing nested cameras
+        //  for now give flicker if doing nested camerastr
         //if (this._sceneGraphDirty){
             leaf.id = this.leafIndex;
             leaf.parent = this._currentStateGraph;

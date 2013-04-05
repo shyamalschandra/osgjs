@@ -205,10 +205,11 @@ function getEnvSphere(size, scene)
             var v = nv.getCurrentViewMatrix();
             var m = nv.getCurrentModelMatrix();
             var mv = [];
-            osg.Matrix.mult(m, v, mv);
+            osg.Matrix.mult(v, m, mv);
 
             osg.Matrix.setTrans(mv, 0,0,0);
             osg.Matrix.copy(mv, cubemapTransform.get());
+            //osg.Matrix.copy(v, cubemapTransform.get());
             cubemapTransform.dirty();
             return true;
         };
@@ -235,7 +236,7 @@ function getEnvSphere(size, scene)
             var proj = [];
             osg.Matrix.makePerspective(info.fovy, info.aspectRatio, 1.0, 100.0, proj);
             cam.setProjectionMatrix(proj);
-            cam.setViewMatrix(rootCam.getViewMatrix());
+            cam.setViewMatrix(rootCam.getViewMatrix(true));
 
             return true;
         };

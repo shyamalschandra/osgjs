@@ -20,6 +20,7 @@
  "postprocess_depth_of_field.frag": "examples/setup/shaders/postprocess_depth_of_field.frag",
  "object.vert": "examples/setup/shaders/object.vert",
  "object.frag": "examples/setup/shaders/object.frag",
+ "light.frag": "examples/setup/shaders/light.frag",
  "fog.vert": "examples/setup/shaders/fog.vert",
  "fog.frag": "examples/setup/shaders/fog.frag",
  "floatrgbacodec.glsl": "examples/setup/shaders/floatrgbacodec.glsl",
