@@ -16,6 +16,7 @@ test("Viewer", function() {
     })();
 
 
+    
     (function() {
         var canvas = createCanvas();
         var viewer = new osgViewer.Viewer(canvas);
@@ -28,13 +29,13 @@ test("Viewer", function() {
 
         viewer.setSceneData(createScene());
         viewer.frame();
-
-        osg.log(viewer.getCamera().getProjectionMatrix());
+        var projectionMatrixClampled = viewer._cullVisitor._projectionMatrixStack[0];
+        osg.log(projectionMatrixClampled);
         // without auto compute near far
         // [1.7320508075688774, 0, 0, 0, 0, 1.7320508075688774, 0, 0, 0, 0, -1.002002002002002, -1, 0, 0, -2.002002002002002, 0]
 
         // with auto compute near far
-        ok(check_near(viewer.getCamera().getProjectionMatrix(), [0.8660254037844387, 0, 0, 0, 0, 1.7320508075688774, 0, 0, 0, 0, -3.6948013697711914, -1, 0, 0, -86.03523882425281, 0]), "check near / far computation");
+        ok(check_near(projectionMatrixClampled, [0.8660254037844387, 0, 0, 0, 0, 1.7320508075688774, 0, 0, 0, 0, -3.6948013697711914, -1, 0, 0, -86.03523882425281, 0]), "check near / far computation");
 
         viewer._cullVisitor.reset();
         ok(viewer._cullVisitor._computedNear === Number.POSITIVE_INFINITY, "Check near after reset");
