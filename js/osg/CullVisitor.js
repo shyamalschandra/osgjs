@@ -639,12 +639,12 @@ osg.CullVisitor.prototype[osg.Geometry.prototype.objectType] = function (node) {
     var bb = this._getReservedBBox();
     var localbb = node.getBoundingBox();
 
-    if (node._dirtyMatrix || this._sceneGraphDirty || this._forceUpdate){
+    if (node._dirtyMatrix || this._sceneGraphDirty || this._forceUpdate) {
 
         osg.Matrix.transformBbox( model, localbb,  bb);
 
         var cameraBbox = this.getCurrentBbox();
-        if (cameraBbox){
+        if (cameraBbox) {
             cameraBbox.expandByVec3(bb._min);
             cameraBbox.expandByVec3(bb._max);
         }

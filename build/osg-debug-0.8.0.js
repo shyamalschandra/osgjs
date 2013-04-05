@@ -369,7 +369,7 @@ osg.Vec3 = {
     },
 
     cross: function(a, b, r) {
-        var x = a[1]*b[2]-a[2]*b[1]; 
+        var x = a[1]*b[2]-a[2]*b[1];
         var y = a[2]*b[0]-a[0]*b[2];
         var z = a[0]*b[1]-a[1]*b[0];
         r[0] = x;
@@ -1728,6 +1728,37 @@ osg.Matrix = {
             matrix[8+2] = 1.0 - (xx + yy);
         }
         return matrix;
+    },
+    //  http://users.soe.ucsc.edu/~pang/160/f98/Gems/Gems/TransBox.c
+    //  Transforms a 3D axis-aligned box via a 4x4 matrix
+    // vector and returns an axis-aligned box enclosing the result.
+    transformBbox: function(matrix,  bboxIn, bboxOut) {
+        var av, bv;
+        var i, j, k;
+
+        bboxOut._min[0] = matrix[12];
+        bboxOut._min[1] = matrix[13];
+        bboxOut._min[2] = matrix[14];
+
+        bboxOut._max[0] = matrix[12];
+        bboxOut._max[1] = matrix[13];
+        bboxOut._max[2] = matrix[14];
+
+        for (i = 0; i < 3; i++) {
+            k = i * 4;
+            for (j = 0; j < 3; j++) {
+                av = matrix[k + j] * bboxIn._min[j];
+                bv = matrix[k + j] * bboxIn._max[j];
+                if (av < bv) {
+                    bboxOut._min[i] += av;
+                    bboxOut._max[i] += bv;
+                } else {
+                    bboxOut._min[i] += bv;
+                    bboxOut._max[i] += av;
+                }
+            }
+        }
+        return bboxOut;
     }
 };
 
@@ -2833,16 +2864,16 @@ osg.BlendColor.prototype = osg.objectLibraryClass( osg.objectInehrit(osg.StateAt
 osg.BoundingBox = function() {
     this.init();
 };
-osg.BoundingBox.prototype = osg.objectLibraryClass( {
+osg.BoundingBox.prototype = osg.objectLibraryClass({
     _cache_radius2_tmp: [0, 0, 0],
 
     init: function() {
-	this._min = [Infinity, Infinity, Infinity];
-	this._max = [-Infinity, -Infinity, -Infinity];
+        this._min = [Infinity, Infinity, Infinity];
+        this._max = [-Infinity, -Infinity, -Infinity];
     },
 
     valid: function() {
-        return (this._max[0] >= this._min[0] &&  this._max[1] >= this._min[1] &&  this._max[2] >= this._min[2]);
+        return (this._max[0] >= this._min[0] && this._max[1] >= this._min[1] && this._max[2] >= this._min[2]);
     },
 
     expandBySphere: function(sh) {
@@ -2851,37 +2882,40 @@ osg.BoundingBox.prototype = osg.objectLibraryClass( {
         }
         var max = this._max;
         var min = this._min;
-        min[0] = Math.min(min[0], sh._center[0]-sh._radius);
-        min[1] = Math.min(min[1], sh._center[1]-sh._radius);
-        min[2] = Math.min(min[2], sh._center[2]-sh._radius);
+        min[0] = Math.min(min[0], sh._center[0] - sh._radius);
+        min[1] = Math.min(min[1], sh._center[1] - sh._radius);
+        min[2] = Math.min(min[2], sh._center[2] - sh._radius);
 
-        max[0] = Math.max(max[0], sh._center[0]+sh._radius);
-        max[1] = Math.max(max[1], sh._center[1]+sh._radius);
-        max[2] = Math.max(max[2], sh._center[2]+sh._radius);
+        max[0] = Math.max(max[0], sh._center[0] + sh._radius);
+        max[1] = Math.max(max[1], sh._center[1] + sh._radius);
+        max[2] = Math.max(max[2], sh._center[2] + sh._radius);
     },
 
-    expandByVec3: function(v){
+    expandByVec3: function(v) {
         var min = this._min;
         var max = this._max;
-	min[0] = Math.min(min[0], v[0]);
-	min[1] = Math.min(min[1], v[1]);
-	min[2] = Math.min(min[2], v[2]);
+        min[0] = Math.min(min[0], v[0]);
+        min[1] = Math.min(min[1], v[1]);
+        min[2] = Math.min(min[2], v[2]);
 
-	max[0] = Math.max(max[0], v[0]);
-	max[1] = Math.max(max[1], v[1]);
-	max[2] = Math.max(max[2], v[2]);
+        max[0] = Math.max(max[0], v[0]);
+        max[1] = Math.max(max[1], v[1]);
+        max[2] = Math.max(max[2], v[2]);
     },
 
     center: function() {
         var min = this._min;
         var max = this._max;
-	return [ (min[0] + max[0])*0.5,
-                 (min[1] + max[1])*0.5,
-                 (min[2] + max[2])*0.5 ];
+        return [(min[0] + max[0]) * 0.5, (min[1] + max[1]) * 0.5, (min[2] + max[2]) * 0.5];
+    },
+    halfSize: function() {
+        var min = this._min;
+        var max = this._max;
+        return [(max[0] - min[0]) * 0.5, (max[1] - min[1]) * 0.5, (max[2] - min[2]) * 0.5];
     },
 
     radius: function() {
-	return Math.sqrt(this.radius2());
+        return Math.sqrt(this.radius2());
     },
 
     radius2: function() {
@@ -2891,29 +2925,28 @@ osg.BoundingBox.prototype = osg.objectLibraryClass( {
         cache[0] = max[0] - min[0];
         cache[1] = max[1] - min[1];
         cache[2] = max[2] - min[2];
-	return 0.25*(cache[0] * cache[0] + cache[1] * cache[1] + cache[2] * cache[2]);
+        return 0.25 * (cache[0] * cache[0] + cache[1] * cache[1] + cache[2] * cache[2]);
     },
     corner: function(pos) {
-        ret = [0.0,0.0,0.0];
-        if ( pos & 1 ) {
-            ret[0]=this._max[0];
-	} else {
-            ret[0]=this._min[0];
-	}
-        if ( pos & 2 ) {
-            ret[1]=this._max[1];
-	} else {
-            ret[1]=this._min[1];
-	}
-        if ( pos & 4 ) {
-            ret[2]=this._max[2];
-	} else {
-            ret[2]=this._min[2];
-	}
+        ret = [0.0, 0.0, 0.0];
+        if (pos & 1) {
+            ret[0] = this._max[0];
+        } else {
+            ret[0] = this._min[0];
+        }
+        if (pos & 2) {
+            ret[1] = this._max[1];
+        } else {
+            ret[1] = this._min[1];
+        }
+        if (pos & 4) {
+            ret[2] = this._max[2];
+        } else {
+            ret[2] = this._min[2];
+        }
         return ret;
     }
 }, "osg", "BoundingBox");
-
 osg.BoundingSphere = function() {
     this._center = [0.0,0.0,0.0];
     this._radius = -1;
@@ -8327,21 +8360,15 @@ osg.CullVisitor.prototype = osg.objectInehrit(osg.CullStack.prototype ,osg.objec
 
         var view = this._getReservedMatrix();
         var model = this._getReservedMatrix();
-        //if(osg.oldModelViewMatrixMode)
-        ////var modelview = this._getReservedMatrix();
         var projection = this._getReservedMatrix();
 
-
         var bbox = this._getReservedBBox();
-        if (this._sceneGraphDirty || camera._dirtyMatrix || this._forceUpdate){
-            // absolute
-            //if (osg.oldModelViewMatrixMode){
-            ////   osg.Matrix.copy(camera.getViewMatrix(), modelview);
-            //}
-            // camera matrix is inverse view
+        if (this._sceneGraphDirty || camera._dirtyMatrix|| this._forceUpdate){
+            // camera matrix view is an inverse matrix
+            // like a matrix generated by osg.Matrix.lookat
             osg.Matrix.copy(camera.getViewMatrix(), view);
             osg.Matrix.copy(camera.getProjectionMatrix(), projection);
-            //osg.Matrix.inverse(camera.getViewMatrix(), model);
+            osg.Matrix.makeIdentity(model);
             bbox.init();
         }
         // as matrix allocated from reserved are
@@ -8351,8 +8378,6 @@ osg.CullVisitor.prototype = osg.objectInehrit(osg.CullStack.prototype ,osg.objec
         this.pushProjectionMatrix(projection);
         this.pushViewMatrix(view);
         this.pushModelMatrix(model);
-        //if(osg.oldModelViewMatrixMode)
-        //this.pushModelviewMatrix(modelview);
         this.pushViewport(camera.getViewport());
 
         // update bound
@@ -8379,8 +8404,6 @@ osg.CullVisitor.prototype = osg.objectInehrit(osg.CullStack.prototype ,osg.objec
 
         this.popModelMatrix();
         this.popViewMatrix();
-        //if(osg.oldModelViewMatrixMode)
-        //this.popModelviewMatrix();
         this.popProjectionMatrix();
         this.popViewport();
         this.popStateSet();
@@ -8442,6 +8465,7 @@ osg.CullVisitor.prototype = osg.objectInehrit(osg.CullStack.prototype ,osg.objec
     },
 
     clampProjectionMatrix: function(projection, znear, zfar, nearFarRatio, resultNearFar) {
+
         var epsilon = 1e-6;
         if (zfar<znear-epsilon) {
             osg.log("clampProjectionMatrix not applied, invalid depth range, znear = " + znear + "  zfar = " + zfar);
@@ -8556,13 +8580,15 @@ osg.CullVisitor.prototype = osg.objectInehrit(osg.CullStack.prototype ,osg.objec
     getCurrentRenderBin: function() { return this._currentRenderBin; },
     setCurrentRenderBin: function(rb) { this._currentRenderBin = rb; },
     addPositionedAttribute: function (attribute) {
-        var matrix;
+        var matrix = this._getReservedMatrix();
+        if (this._dirtySceneGraph || this._forceUpdate){
         //if (osg.oldModelViewMatrixMode){
         //   matrix = this.getCurrentModelviewMatrix();
         //}
         //else{
-            matrix =this.getCurrentModelMatrix();
+            matrix = osg.Matrix.mult(this.getCurrentViewMatrix(), this.getCurrentModelviewMatrix(), matrix);
         //}
+        }
         this._currentRenderBin.getStage().positionedAttribute.push([matrix, attribute]);
     },
 
@@ -8615,12 +8641,8 @@ osg.CullVisitor.prototype = osg.objectInehrit(osg.CullStack.prototype ,osg.objec
             if (this._reserveMatrixStack.current >= this._reserveMatrixStack.length) {
                 this._reserveMatrixStack.push(osg.Matrix.makeIdentity([]));
             }
-            return this._reserveMatrixStack[this._reserveMatrixStack.current];
         }
-        else{
-            return this._reserveMatrixStack[this.matrixIndex];
-        }
-        this.matrixIndex++;
+        return this._reserveMatrixStack[this.matrixIndex++];
     },
     // faster path is stack does not change
     //  (and debug out of bounds if it changes when it should not)
@@ -8630,12 +8652,8 @@ osg.CullVisitor.prototype = osg.objectInehrit(osg.CullStack.prototype ,osg.objec
             if (this._reserveBBoxStack.current >= this._reserveBBoxStack.length) {
                 this._reserveBBoxStack.push(new osg.BoundingBox());
             }
-            return this._reserveBBoxStack[this._reserveBBoxStack.current];
         }
-        else{
-            return this._reserveBBoxStack[this.bboxIndex];
-        }
-        this.bboxIndex++;
+        return this._reserveBBoxStack[this.bboxIndex++];
     },
     _getCurrentBBox: function() {
         return this._reserveMatrixStack[this.bboxIndex];
@@ -8648,12 +8666,8 @@ osg.CullVisitor.prototype = osg.objectInehrit(osg.CullStack.prototype ,osg.objec
             if (this._reserveLeafStack.current >= this._reserveLeafStack.length) {
                 this._reserveLeafStack.push({});
             }
-            return this._reserveLeafStack[this._reserveLeafStack.current];
         }
-        else{
-            return this._reserveLeafStack[this.leafIndex];
-        }
-        this.leafIndex++;
+        return this._reserveLeafStack[this.leafIndex++];
     }
 })));
 
@@ -8818,7 +8832,7 @@ osg.CullVisitor.prototype[osg.MatrixTransform.prototype.objectType] = function (
     //if (osg.oldModelViewMatrixMode)
     //var matrixModelview = this._getReservedMatrix();
 
-    if (this._sceneGraphDirty || node._dirtyMatrix|| this._forceUpdate){
+    if (this._sceneGraphDirty || node._dirtyMatrix || this._forceUpdate){
         if (node.getReferenceFrame() === osg.Transform.RELATIVE_RF) {
             //if (osg.oldModelViewMatrixMode)
             //var lastmodelviewMatrixStack = this.getCurrentModelviewMatrix();
@@ -8926,22 +8940,21 @@ osg.CullVisitor.prototype[osg.Geometry.prototype.objectType] = function (node) {
     var bb = this._getReservedBBox();
     var localbb = node.getBoundingBox();
 
-    if (node._dirtyMatrix || this._sceneGraphDirty || this._forceUpdate){
-        var min = [], max = [];
-        osg.Matrix.transformVec3( model, localbb._min, min);
-        osg.Matrix.transformVec3( model, localbb._max, max);
-        bb.init();
-        bb.expandByVec3(min);
-        bb.expandByVec3(max);
+    if (node._dirtyMatrix || this._sceneGraphDirty || this._forceUpdate) {
+
+        osg.Matrix.transformBbox( model, localbb,  bb);
+
         var cameraBbox = this.getCurrentBbox();
-        if (cameraBbox){
-            cameraBbox.expandByVec3(min);
-            cameraBbox.expandByVec3(max);
+        if (cameraBbox) {
+            cameraBbox.expandByVec3(bb._min);
+            cameraBbox.expandByVec3(bb._max);
         }
     }
 
     if (this._computeNearFar && bb.valid()) {
-        if (!this.updateCalculatedNearFar(bb, view)) {
+        var tmp = [];
+        osg.Matrix.mult(view, model, tmp);
+        if (!this.updateCalculatedNearFar(bb, tmp)) {
             return;
         }
     }

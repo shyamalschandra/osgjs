@@ -233,9 +233,9 @@ osg.RenderBin.prototype = {
                 normalUniform = program.uniformsCache[state.normalMatrix.name];
             }
 
-                if (modelViewUniform !== undefined || normalUniform !==  undefined) {
-                    leaf.modelview =  osg.Matrix.mult(leaf.view, leaf.model, []);
-                }
+            if (modelViewUniform !== undefined || normalUniform !==  undefined) {
+                leaf.modelview =  osg.Matrix.mult(leaf.view, leaf.model, []);
+            }
             if (modelViewUniform !== undefined) {
                 state.modelViewMatrix.set(leaf.modelview);
                 state.modelViewMatrix.apply(modelViewUniform);
