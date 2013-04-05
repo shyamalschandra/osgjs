@@ -77,13 +77,8 @@ osg.objectInehrit(osg.Transform.prototype, {
             osg.Matrix.inverse(matrix, this.modelMatrix);
         //}
     },
-    getViewMatrix: function(dirty) {
-        //if (osg.oldModelViewMatrixMode) {
-        //    return this.modelviewMatrix;
-        //} else {
-            if (dirty) this.dirtyMatrix();
-            return this.viewMatrix;
-        //}
+    getViewMatrix: function() {
+        return this.viewMatrix;
     },
 
     setProjectionMatrix: function(matrix) {
