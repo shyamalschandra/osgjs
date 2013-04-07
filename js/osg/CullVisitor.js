@@ -56,6 +56,8 @@ osg.CullVisitor = function () {
     // better
     this._traceNode = new TraceNodePath();
 
+    // keep nodes to clean at the end
+    this._dirtyMatrixNodes = {};
 };
 
 var ReservedStack = function(entryConstructor) {
@@ -84,21 +86,25 @@ ReservedStack.prototype = {
 
 var TraceNodePath = function() {
     this._array = [];
-    this._index = -1;
-    this._dirty = false;
+    this.reset();
 };
 TraceNodePath.prototype = {
     reset: function() {
         this._dirty = false;
         this._index = -1;
+        this._dirtyMatrixNodes = {};
     },
     checkOrTraceNode: function(node) {
         this._index++;
         var nodeID = node.getObjectID();
         var id = this._array[this._index];
 
-        if (id !== nodeID) {
+        var dirtyMatrix = node._dirtyMatrix === true;
+        if (id !== nodeID || dirtyMatrix) {
             this._dirty = true;
+        }
+        if (dirtyMatrix) {
+            this._dirtyMatrixNodes[nodeID] = node;
         }
 
         if (this._dirty) {
@@ -109,6 +115,15 @@ TraceNodePath.prototype = {
             }
         }
     },
+    cleanDirtyMatrixNodes: function() {
+        var nodes = Object.keys(this._dirtyMatrixNodes);
+        for ( var i = 0, l = nodes.length; i < l; i++) {
+            var key = nodes[i];
+            var n = this._dirtyMatrixNodes[key];
+            n._dirtyMatrix = false;
+        }
+    },
+
     isDirty: function() { return this._dirty; }
 };
 
@@ -126,6 +141,7 @@ osg.CullVisitor.prototype = osg.objectInehrit(osg.CullStack.prototype ,osg.objec
 
         this.reset();
 
+        var node = camera;
         this._traceNode.checkOrTraceNode(camera);
 
         var view = this._getReservedMatrix();
@@ -142,10 +158,11 @@ osg.CullVisitor.prototype = osg.objectInehrit(osg.CullStack.prototype ,osg.objec
 
             bbox.init();
         }
+
         // as matrix allocated from reserved are
         // initialiazed  to identity
 
-        this.pushStateSet(camera.getStateSet());
+        this.pushStateSet(node.getStateSet());
         this.pushProjectionMatrix(projection);
         this.pushViewMatrix(view);
         this.pushModelMatrix(model);
@@ -184,11 +201,11 @@ osg.CullVisitor.prototype = osg.objectInehrit(osg.CullStack.prototype ,osg.objec
 
         //using leaf instead of tree ?
         //clean whole hierarchy
-        //even if no matrix computation in this node
-        //scene.cleanMatrixAndSCeneGraph();
 
-        //this._sceneGraphDirty = false;
+        this._traceNode.cleanDirtyMatrixNodes();
     },
+
+
     //  Computes distance betwen a point and the viewpoint of a matrix  (modelview)
     distance: function(coord, matrix) {
         return -( coord[0]*matrix[2]+ coord[1]*matrix[6] + coord[2]*matrix[10] + matrix[14]);
@@ -483,19 +500,11 @@ osg.CullVisitor.prototype[osg.Camera.prototype.objectType] = function( camera ) 
         if (camera.getReferenceFrame() === osg.Transform.RELATIVE_RF) {
             osg.Matrix.mult(originalProjectionMatrix, camera.getProjectionMatrix(), projection);
 
-            //if (osg.oldModelViewMatrixMode){
-            //osg.Matrix.mult(originalModelView, camera.getViewMatrix(), modelview);
-            //}
             osg.Matrix.copy(originalModel, model);
-            //osg.Matrix.mult(model, camera.getViewMatrix(), view);
             osg.Matrix.mult(originalView, camera.getViewMatrix(), view);
-            //osg.Matrix.copy(camera.getViewMatrix(), view);
 
         } else {
             // absolute
-            //if (osg.oldModelViewMatrixMode){
-            //   osg.Matrix.copy(camera.getViewMatrix(), modelview);
-            //}
             /**/
             // camera matrix could be identity  because never set/use to make camera position
             //sg.Matrix.makeIdentity(model);
@@ -511,8 +520,6 @@ osg.CullVisitor.prototype[osg.Camera.prototype.objectType] = function( camera ) 
     this.pushProjectionMatrix(projection);
     this.pushViewMatrix(view);
     this.pushModelMatrix(model);
-    //if (osg.oldModelViewMatrixMode)
-    //this.pushModelviewMatrix(modelview);
 
     if (camera.getViewport()) {
         this.pushViewport(camera.getViewport());
@@ -616,22 +623,16 @@ osg.CullVisitor.prototype[osg.MatrixTransform.prototype.objectType] = function (
     var recompute = this._traceNode.isDirty() || this._forceUpdate;
     if (recompute) {
         if (node.getReferenceFrame() === osg.Transform.RELATIVE_RF) {
-            //if (osg.oldModelViewMatrixMode)
-            //var lastmodelviewMatrixStack = this.getCurrentModelviewMatrix();
-            //osg.Matrix.mult(lastmodelviewMatrixStack, node.getMatrix(), matrixModelview);
 
             var lastmodelmatrixStack = this.getCurrentModelMatrix();
             osg.Matrix.mult(lastmodelmatrixStack, node.getMatrix(), matrixModel);
         } else {
             // absolute
-            //osg.Matrix.copy(this.getCurrentViewMatrix(), matrixModelview);
             osg.Matrix.copy(node.getMatrix(), matrixModel);
         }
     }
-    //if (osg.oldModelViewMatrixMode)
-    //this.pushModelviewMatrix(matrixModelview);
-    this.pushModelMatrix(matrixModel);
 
+    this.pushModelMatrix(matrixModel);
 
     var stateset = node.getStateSet();
     if (stateset) {
@@ -660,6 +661,7 @@ osg.CullVisitor.prototype[osg.Projection.prototype.objectType] = function (node)
         lastMatrixStack = this.getCurrentProjectionMatrix();
         osg.Matrix.mult(lastMatrixStack, node.getProjectionMatrix(), matrix);
     }
+
     this.pushProjectionMatrix(matrix);
 
     var stateset = node.getStateSet();
