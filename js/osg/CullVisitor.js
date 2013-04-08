@@ -26,9 +26,6 @@ osg.CullVisitor = function () {
     this._bbCornerFar = (lookVector[0]>=0?1:0) | (lookVector[1]>=0?2:0) | (lookVector[2]>=0?4:0);
     this._bbCornerNear = (~this._bbCornerFar)&7;
 
-    //this._sceneGraphDirty = true;
-
-
     // keep a matrix in memory to avoid to allocate/deallocate memory each frame
     // And store previous frame computations if no change in graphs
     // that can change the ordering. (or matrix change)
@@ -36,18 +33,14 @@ osg.CullVisitor = function () {
 //    this._reserveMatrixStack.current = -1;
     this._reserveMatrixStack = new ReservedStack(function() { return osg.Matrix.makeIdentity([]); });
 
-    this._reserveBBoxStack = [];
-    this._reserveBBoxStack.current = -1;
+    this._reserveBoundingBoxStack = new ReservedStack(function() { return new osg.BoundingBox(); });
 
-    this._reserveLeafStack = [];
-    this._reserveLeafStack.current = -1;
+    this._reserveLeafStack = new ReservedStack(function() { return {};});
 
     this._renderBinStack = [];
     this._renderBinStack.current = -1;
 
     this.leafIndex = 0;
-    this.matrixIndex = 0;
-    this.bboxIndex = 0;
 
     this._forceUpdate = false;
 
@@ -56,8 +49,6 @@ osg.CullVisitor = function () {
     // better
     this._traceNode = new TraceNodePath();
 
-    // keep nodes to clean at the end
-    this._dirtyMatrixNodes = {};
 };
 
 var ReservedStack = function(entryConstructor) {
@@ -67,12 +58,10 @@ var ReservedStack = function(entryConstructor) {
     this.reset();
 };
 ReservedStack.prototype = {
-    reset: function() {
-        this._index = 0;
-    },
-    dirty: function() {
-        this._current = this._index;
-    },
+    reset: function() { this._index = this._current = 0;},
+    dirty: function() { this._current = this._index; },
+    getCurrent: function() { return this._array[this._index]; },
+    getIndex: function() { return this._index; },
     getReserved: function(dirty) {
         if (dirty) {
             if (this._current >= this._array.length) {
@@ -353,19 +342,11 @@ osg.CullVisitor.prototype = osg.objectInehrit(osg.CullStack.prototype ,osg.objec
         // (added or removed child)
         // TODO: more fine grained scenegraph dirty than whole node graph at each change...
         this.resetMatrixStacks();
-        if (this._sceneGraphDirty || this._forceUpdate ){
-            //this._reserveMatrixStack.current = -1;
-            this._reserveBBoxStack.current = -1;
-            this._reserveLeafStack.current = -1;
-            this._reserveTraceNodeIDstack.current = -1;
-        }
+        this._reserveBoundingBoxStack.reset();
         this._reserveMatrixStack.reset();
+        this._reserveLeafStack.reset();
         this._traceNode.reset();
 
-        //this.traceNodeIndex = -1;
-        this.leafIndex = 0;
-        //this.matrixIndex = 0;
-        this.bboxIndex = 0;
 
         // update those only if Scene matrix other than camera are dirty...
         this._computedNear = Number.POSITIVE_INFINITY;
@@ -427,17 +408,11 @@ osg.CullVisitor.prototype = osg.objectInehrit(osg.CullStack.prototype ,osg.objec
     //  (and debug out of bounds if it changes when it should not)
     _getReservedMatrix: function() {
         return this._reserveMatrixStack.getReserved(this._traceNode.isDirty());
-        if (this._sceneGraphDirty || this._forceUpdate) {
-            this._reserveMatrixStack.current++;
-            if (this._reserveMatrixStack.current >= this._reserveMatrixStack.length) {
-                this._reserveMatrixStack.push(osg.Matrix.makeIdentity([]));
-            }
-        }
-        return this._reserveMatrixStack[this.matrixIndex++];
     },
     // faster path is stack does not change
     //  (and debug out of bounds if it changes when it should not)
     _getReservedBBox: function() {
+        return this._reserveBoundingBoxStack.getReserved(this._traceNode.isDirty());
         var recompute = this._traceNode.isDirty() || this._forceUpdate;
         if (recompute) {
             this._reserveBBoxStack.current++;
@@ -448,11 +423,12 @@ osg.CullVisitor.prototype = osg.objectInehrit(osg.CullStack.prototype ,osg.objec
         return this._reserveBBoxStack[this.bboxIndex++];
     },
     _getCurrentBBox: function() {
-        return this._reserveMatrixStack[this.bboxIndex];
+        return this._reserveBoundingBoxStack.getCurrent();
     },
     // faster path is stack does not change
     //  (and debug out of bounds if it changes when it should not)
     _getReservedLeaf: function() {
+        return this._reserveLeafStack.getReserved(this._traceNode.isDirty());
         var recompute = this._traceNode.isDirty() || this._forceUpdate;
         if (recompute) {
             this._reserveLeafStack.current++;
@@ -774,7 +750,7 @@ osg.CullVisitor.prototype[osg.Geometry.prototype.objectType] = function (node) {
         // TODO reuse leafs, direclty?
         //  for now give flicker if doing nested camerastr
         //if (this._sceneGraphDirty){
-            leaf.id = this.leafIndex;
+            leaf.id = this._reserveLeafStack.getIndex();
             leaf.parent = this._currentStateGraph;
 
             leaf.projection = this.getCurrentProjectionMatrix();

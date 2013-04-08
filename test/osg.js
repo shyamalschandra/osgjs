@@ -767,6 +767,8 @@ test("CullVisitor", function() {
         cullVisitor.setStateGraph(stateGraph);
         cullVisitor.setRenderStage(renderStage);
 
+        ok(cullVisitor._reserveMatrixStack._array.length === 0, "check reserve matrix");
+        ok(cullVisitor._reserveBoundingBoxStack._array.length === 0, "check reserve boundingbox");
 
         cullVisitor.startCullTransformCallBacks(root, undefined, root);
         ok(cullVisitor._traceNode.isDirty() === true, "check trace is dirty");
@@ -778,6 +780,9 @@ test("CullVisitor", function() {
 
         cullVisitor.startCullTransformCallBacks(root, undefined, root);
         ok(cullVisitor._traceNode.isDirty() === true, "check trace is dirty");
+
+        ok(cullVisitor._reserveMatrixStack._array.length === 9, "check reserve matrix does not leak");
+        ok(cullVisitor._reserveBoundingBoxStack._array.length === 2, "check reserve boundingbox does not leak");
         
     })();
 
