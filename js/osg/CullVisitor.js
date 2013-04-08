@@ -29,8 +29,6 @@ osg.CullVisitor = function () {
     // keep a matrix in memory to avoid to allocate/deallocate memory each frame
     // And store previous frame computations if no change in graphs
     // that can change the ordering. (or matrix change)
-//    this._reserveMatrixStack = [];
-//    this._reserveMatrixStack.current = -1;
     this._reserveMatrixStack = new ReservedStack(function() { return osg.Matrix.makeIdentity([]); });
 
     this._reserveBoundingBoxStack = new ReservedStack(function() { return new osg.BoundingBox(); });
@@ -39,8 +37,6 @@ osg.CullVisitor = function () {
 
     this._renderBinStack = [];
     this._renderBinStack.current = -1;
-
-    this.leafIndex = 0;
 
     this._forceUpdate = false;
 
@@ -137,7 +133,7 @@ osg.CullVisitor.prototype = osg.objectInehrit(osg.CullStack.prototype ,osg.objec
         var model = this._getReservedMatrix();
         var projection = this._getReservedMatrix();
 
-        var bbox = this._getReservedBBox();
+        var boundingbox = this._getReservedBoundingbox();
         var recomputeMatrix = this._traceNode.isDirty() || this._forceUpdate;
         if (recomputeMatrix) {
             // camera matrix view is an inverse matrix
@@ -145,7 +141,7 @@ osg.CullVisitor.prototype = osg.objectInehrit(osg.CullStack.prototype ,osg.objec
             osg.Matrix.copy(camera.getViewMatrix(), view);
             osg.Matrix.copy(camera.getProjectionMatrix(), projection);
 
-            bbox.init();
+            boundingbox.init();
         }
 
         // as matrix allocated from reserved are
@@ -160,7 +156,7 @@ osg.CullVisitor.prototype = osg.objectInehrit(osg.CullStack.prototype ,osg.objec
         // update bound
         // for what ?
         var bs = camera.getBound();
-        this.pushBbox(bbox);
+        this.pushBoundingbox(boundingbox);
         if (light) {
             this.addPositionedAttribute(light);
         }
@@ -177,7 +173,7 @@ osg.CullVisitor.prototype = osg.objectInehrit(osg.CullStack.prototype ,osg.objec
         //thid.handleCullCallbacksAndTraverse(camera);
         scene.accept(this);
 
-        this.popBbox();
+        this.popBoundingbox();
 
         this.popModelMatrix();
         this.popViewMatrix();
@@ -209,7 +205,7 @@ osg.CullVisitor.prototype = osg.objectInehrit(osg.CullStack.prototype ,osg.objec
         }
         this.traverse(node);
     },
-    // distance betwen view and bbox in worldspace
+    // distance betwen view and boundingbox in worldspace
     updateCalculatedNearFar: function(bb,  matrix) {
 
         var d_near, d_far;
@@ -411,32 +407,16 @@ osg.CullVisitor.prototype = osg.objectInehrit(osg.CullStack.prototype ,osg.objec
     },
     // faster path is stack does not change
     //  (and debug out of bounds if it changes when it should not)
-    _getReservedBBox: function() {
+    _getReservedBoundingbox: function() {
         return this._reserveBoundingBoxStack.getReserved(this._traceNode.isDirty());
-        var recompute = this._traceNode.isDirty() || this._forceUpdate;
-        if (recompute) {
-            this._reserveBBoxStack.current++;
-            if (this._reserveBBoxStack.current >= this._reserveBBoxStack.length) {
-                this._reserveBBoxStack.push(new osg.BoundingBox());
-            }
-        }
-        return this._reserveBBoxStack[this.bboxIndex++];
     },
-    _getCurrentBBox: function() {
+    _getCurrentBoundingbox: function() {
         return this._reserveBoundingBoxStack.getCurrent();
     },
     // faster path is stack does not change
     //  (and debug out of bounds if it changes when it should not)
     _getReservedLeaf: function() {
         return this._reserveLeafStack.getReserved(this._traceNode.isDirty());
-        var recompute = this._traceNode.isDirty() || this._forceUpdate;
-        if (recompute) {
-            this._reserveLeafStack.current++;
-            if (this._reserveLeafStack.current >= this._reserveLeafStack.length) {
-                this._reserveLeafStack.push({});
-            }
-        }
-        return this._reserveLeafStack[this.leafIndex++];
     }
 })));
 
@@ -470,7 +450,7 @@ osg.CullVisitor.prototype[osg.Camera.prototype.objectType] = function( camera ) 
     //  camera  getviewmatrix is inverse of matrix model view
     //  camera getmatrix is camera own model matrix
 
-    var bbox = this._getReservedBBox();
+    var boundingbox = this._getReservedBoundingbox();
     var recompute = this._traceNode.isDirty() || this._forceUpdate;
     if (recompute) {
         if (camera.getReferenceFrame() === osg.Transform.RELATIVE_RF) {
@@ -491,7 +471,7 @@ osg.CullVisitor.prototype[osg.Camera.prototype.objectType] = function( camera ) 
             // not really necessary as reserverd matrix is initialized with identity
             osg.Matrix.makeIdentity(model);
         }
-        bbox.init();
+        boundingbox.init();
     }
     this.pushProjectionMatrix(projection);
     this.pushViewMatrix(view);
@@ -500,7 +480,7 @@ osg.CullVisitor.prototype[osg.Camera.prototype.objectType] = function( camera ) 
     if (camera.getViewport()) {
         this.pushViewport(camera.getViewport());
     }
-    this.pushBbox(bbox);
+    this.pushBoundingbox(boundingbox);
 
     // save current state of the camera
     var previous_znear = this._computedNear;
@@ -562,7 +542,7 @@ osg.CullVisitor.prototype[osg.Camera.prototype.objectType] = function( camera ) 
         }
     }
 
-    this.popBbox(bbox);
+    this.popBoundingbox(boundingbox);
 
     this.popModelMatrix();
     this.popViewMatrix();
@@ -698,18 +678,18 @@ osg.CullVisitor.prototype[osg.Geometry.prototype.objectType] = function (node) {
     // compute upon need
     //var modelview = this.getCurrentModelviewMatrix();
 
-    var bb = this._getReservedBBox();
+    var bb = this._getReservedBoundingbox();
     var localbb = node.getBoundingBox();
 
     var recompute = this._traceNode.isDirty() || this._forceUpdate;
     if (recompute) {
 
-        osg.Matrix.transformBbox( model, localbb,  bb);
+        osg.Matrix.transformBoundingbox( model, localbb,  bb);
 
-        var cameraBbox = this.getCurrentBbox();
-        if (cameraBbox) {
-            cameraBbox.expandByVec3(bb._min);
-            cameraBbox.expandByVec3(bb._max);
+        var cameraBoundingbox = this.getCurrentBoundingbox();
+        if (cameraBoundingbox) {
+            cameraBoundingbox.expandByVec3(bb._min);
+            cameraBoundingbox.expandByVec3(bb._max);
         }
     }
 
