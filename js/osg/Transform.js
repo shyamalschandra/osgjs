@@ -8,6 +8,7 @@
 osg.Transform = function() {
     osg.Node.call(this);
     this.referenceFrame = osg.Transform.RELATIVE_RF;
+    this._dirtyMatrix = false;
 };
 osg.Transform.RELATIVE_RF = 0;
 osg.Transform.ABSOLUTE_RF = 1;
@@ -16,7 +17,12 @@ osg.Transform.ABSOLUTE_RF = 1;
 osg.Transform.prototype = osg.objectInehrit(osg.Node.prototype, {
     setReferenceFrame: function(value) { this.referenceFrame = value; },
     getReferenceFrame: function() { return this.referenceFrame; },
-
+    dirtyMatrix: function() { 
+        this._dirtyMatrix = true; 
+        this.dirtyBound(); 
+    },
+    isDirtyMatrix: function() { return this._dirtyMatrix; },
+    setDirtyMatrix: function(bool) { this._dirtyMatrix = bool; },
     computeBound: function(bsphere) {
         osg.Node.prototype.computeBound.call(this, bsphere);
         if (!bsphere.valid()) {

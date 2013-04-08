@@ -743,6 +743,44 @@ test("CullVisitor", function() {
     root.setNodeMask(~0);
     ok(callb === 1, "Called b cull callback");
     ok(callc === 0, "Did not Call c cull callback as expected");
+
+
+    // test caching / trace path of cullvisitor
+    (function() {
+
+        var renderStage = new osg.RenderStage();
+        var stateGraph = new osg.StateGraph();
+
+        var root = new osg.Camera();
+        root.getOrCreateStateSet();
+        root.setReferenceFrame(osg.Transform.ABSOLUTE_RF);
+        var node0 = new osg.MatrixTransform();
+        var node1 = new osg.MatrixTransform();
+        root.addChild(node0);
+        root.addChild(node1);
+        node0.setMatrix(osg.Matrix.makeTranslate(-10,0,0, []));
+        node1.setMatrix(osg.Matrix.makeTranslate(10,0,0, []));
+
+
+        var cullVisitor = new osg.CullVisitor();
+
+        cullVisitor.setStateGraph(stateGraph);
+        cullVisitor.setRenderStage(renderStage);
+
+
+        cullVisitor.startCullTransformCallBacks(root, undefined, root);
+        ok(cullVisitor._traceNode.isDirty() === true, "check trace is dirty");
+        cullVisitor.startCullTransformCallBacks(root, undefined, root);
+        ok(cullVisitor._traceNode.isDirty() === false, "check trace is not dirty");
+        cullVisitor.startCullTransformCallBacks(root, undefined, root);
+        ok(cullVisitor._traceNode.isDirty() === false, "check trace is not dirty");
+        node0.dirtyMatrix();
+
+        cullVisitor.startCullTransformCallBacks(root, undefined, root);
+        ok(cullVisitor._traceNode.isDirty() === true, "check trace is dirty");
+        
+    })();
+
 });
 
 

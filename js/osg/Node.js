@@ -12,8 +12,6 @@ osg.Node = function() {
     this.nodeMask = ~0;
     this.boundingSphere = new osg.BoundingSphere();
     this.boundingSphereComputed = false;
-    this._dirtySceneGraph = false;
-    this._dirtyMatrix = false;
     this._updateCallbacks = [];
     this._cullCallback = undefined;
 };
@@ -48,39 +46,7 @@ osg.Node.prototype = osg.objectLibraryClass(osg.objectInehrit(osg.Object.prototy
             }
         }
     },
-    // go up tell that local hierarchy Matrix is updated.
-    cleanMatrixAndSCeneGraph: function() {
-        if (this._dirtyMatrix) {
-            this._dirtyMatrix = false;
-            this._dirtySceneGraph = false;
-            for (var i = 0, l = this.children.length; i < l; i++) {
-                if (this.children[i].cleanMatrixAndSCeneGraph)
-                    this.children[i].cleanMatrixAndSCeneGraph();
-            }
-        }
-    },
-    // go up tell that local hierarchy Matrix is updated.
-    dirtyMatrix: function() {
-        this.dirtyBound();
-        if (!this._dirtyMatrix) {
-            this.boundingSphereComputed = false;
-            this._dirtyMatrix = true;
-            for (var i = 0, l = this.children.length; i < l; i++) {
-                if (this.children[i].dirtyMatrix)
-                    this.children[i].dirtyMatrix();
-            }
-        }
-    },
-    dirtySceneGraph: function() {
-        if (!this._dirtySceneGraph) {
-            this._dirtySceneGraph = true;
-            this.boundingSphereComputed = false;
-            this.dirtyMatrix();
-            for (var i = 0, l = this.parents.length; i < l; i++) {
-                this.parents[i].dirtySceneGraph();
-            }
-        }
-    },
+
     setNodeMask: function(mask) {
         this.nodeMask = mask;
     },
@@ -174,7 +140,6 @@ osg.Node.prototype = osg.objectLibraryClass(osg.objectInehrit(osg.Object.prototy
     addChild: function(child) {
         var c = this.children.push(child);
         child.addParent(this);
-        this.dirtySceneGraph();
         return c;
     },
     getChildren: function() {
@@ -185,13 +150,11 @@ osg.Node.prototype = osg.objectLibraryClass(osg.objectInehrit(osg.Object.prototy
     },
     addParent: function(parent) {
         this.parents.push(parent);
-        this.dirtySceneGraph();
     },
     removeParent: function(parent) {
         for (var i = 0, l = this.parents.length, parents = this.parents; i < l; i++) {
             if (parents[i] === parent) {
                 parents.splice(i, 1);
-                this.dirtySceneGraph();
                 return;
             }
         }
@@ -203,21 +166,17 @@ osg.Node.prototype = osg.objectLibraryClass(osg.objectInehrit(osg.Object.prototy
                 children[i].removeParent(this);
             }
             this.children.splice(0, this.children.length);
-            this.dirtySceneGraph();
         }
     },
 
     // preserve order
     removeChild: function(child) {
-        var needDirtyFlag = false;
         for (var i = 0, l = this.children.length; i < l; i++) {
             if (this.children[i] === child) {
                 child.removeParent(this);
                 this.children.splice(i, 1);
-                needDirtyFlag = true;
             }
         }
-        if (needDirtyFlag) this.dirtySceneGraph();
     },
 
     traverse: function(visitor) {

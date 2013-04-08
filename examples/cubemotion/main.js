@@ -94,6 +94,7 @@ TransitionUpdateCallback.prototype = {
 
         osg.Matrix.makeRotate((t-node._start) * ratio, node._axis[0], node._axis[1], node._axis[2] ,m);
         osg.Matrix.setTrans(m, current[0], current[1], current[2]);
+        node.dirtyMatrix();
         return true;
     }
 };
