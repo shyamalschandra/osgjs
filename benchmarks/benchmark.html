@@ -5,19 +5,41 @@
 		<script src="../build/osg.include.js"></script>
 		<script type="text/javascript">
 
+				 var optionsURL = function() {
+				    var vars = [], hash;
+				    var hashes = window.location.href.slice(window.location.href.indexOf('?') + 1).split('&');
+				    for(var i = 0; i < hashes.length; i++)
+				    {
+				        hash = hashes[i].split('=');
+				        var element = hash[0].toLowerCase();
+				        vars.push(element);
+				        var result = hash[1];
+				        if (result === undefined) {
+				            result = "1";
+				        }
+				        vars[element] = result.toLowerCase();
+
+				    }
+				    return vars;
+					};
 				var Benchmark = function ( title, setup, test, end ) {
-
-					var titleEl = document.createElement( 'div' );
-					titleEl.style.fontWeight = 'bold';
-					titleEl.textContent = title;
-					document.body.appendChild( titleEl );
-
-					var infoResEl = document.createElement( 'div' );
-					document.body.appendChild( infoResEl );
-
+					this.title = title;
 					this.setup = setup;
+					this.test = test;
 					this.end = end;
+
+
 					this.run = function () {
+
+						var titleEl = document.createElement( 'div' );
+						titleEl.style.fontWeight = 'bold';
+						titleEl.innerHTML = '<a href="' + window.location.href + '?bench=' + this.title +'">' + title + '</a>';
+						document.body.appendChild( titleEl );
+
+						var infoResEl = document.createElement( 'div' );
+						document.body.appendChild( infoResEl );
+
+						
 						var context = this.setup();
 						var start = performance.now();
 						var results = test(context);
@@ -30,15 +52,27 @@
 
 				};
 				var startBench = function(){
-					for ( var i = 0, l = benchmarks.length; i < l; i ++ ) {
-						benchmarks[ i ].run();
+					var options = optionsURL();
+					if (options['benchNumber']){
+						benchmarks[ options['benchNumber'] ].run();
+					}
+					else if (options['bench']){
+						for ( var i = 0, l = benchmarks.length; i < l; i ++ ) {
+							if (benchmarks[ i ].title.toLowerCase() == options['bench'])
+								benchmarks[ i ].run();
+						}
+					}
+					else{
+						for ( var i = 0, l = benchmarks.length; i < l; i ++ ) {
+							benchmarks[ i ].run();
+						}
 					}
 				}
 				var benchmarks = [];
 
 				var pureJStestfiles = [
 					'benchmarks/cullvisitor.js',
-					'benchmarks/programUniformCache.js'
+					'benchmarks/renderBinLeaf.js'
 				];
 				var GLdependanttestfiles = [
 				];

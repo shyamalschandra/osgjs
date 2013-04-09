@@ -313,13 +313,13 @@
 				// }
 			}
 		},
-		dox: {
-			options: {
-				title: "osgjs documentation"
-			},
-			files: {
-				src: ['js'],
-				dest: 'doc/dox'
+		benchmark: {
+			culling: {
+				src: ['benchmarks/*.js'],
+				dest: 'benchmarks/results.csv',
+				options: {
+					times: 10
+				}
 			}
 		}
 	});
@@ -338,12 +338,14 @@
 	grunt.loadNpmTasks('grunt-qunit-cov'); // jscoverage
 
 
+	// benchmarks
+	//grunt.loadNpmTasks('grunt-benchmark');
 	//
 	//
 	grunt.loadTasks('tasks');
-/********* using patched version from tasks folder
-	// 
-	
+	/********* using patched version from tasks folder
+	//
+
 	// convert to amd (requirejs like) module
 	//grunt.loadNpmTasks('grunt-wrap');
 
@@ -365,8 +367,8 @@
 	//grunt.loadNpmTasks('grunt-dox');
 
 	//grunt.loadTasks('tasks'); // pure jsdoc
-	
-	// chrome dev tool for grunt 
+
+	// chrome dev tool for grunt
 	//grunt.loadNpmTasks('grunt-devtools');
 
 	grunt.registerTask('release', ['jshint:beforeconcat', 'concat', 'jshint:afterconcat', 'strip', 'uglify', 'compress', 'copy']);
