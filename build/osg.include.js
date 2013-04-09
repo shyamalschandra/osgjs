@@ -5,7 +5,7 @@
 // TODO:handle reloading
 var loadedJSONP = {};
 //
-var loadJSONP = function(script, callback, reload) {
+var loadJSONP = function(script, callback) {
     if (!reload && loadedJSONP[script]) callback(loadedJSONP[script]);
     var s = document.createElement("script");
     s.onload = function(data) {
@@ -14,13 +14,13 @@ var loadJSONP = function(script, callback, reload) {
         //document.body.removeChild(s);
     };
     s.type = "text/javascript";
-    s.src = script.replace(/\\\\|\\|\/\//g, "/");
+    s.src = script.replace(/\\\\|\\|\/\//g, "/");  
     s.src += '?rand=' + Math.round(Math.random() * 999999999);
     document.body.appendChild(s);
 };
 
 var loadedJSON = {};
-var loadJSON = function(script, callback, reload) {
+var loadJSON = function(script, callback) {
     if (!reload && loadedJSON[script]) callback();
     req = new XMLHttpRequest();
     var src = script;
