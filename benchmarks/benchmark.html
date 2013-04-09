@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+	<body>
+
+		<script src="../build/osg.include.js"></script>
+		<script type="text/javascript">
+
+				var Benchmark = function ( title, setup, test, end ) {
+
+					var titleEl = document.createElement( 'div' );
+					titleEl.style.fontWeight = 'bold';
+					titleEl.textContent = title;
+					document.body.appendChild( titleEl );
+
+					var infoResEl = document.createElement( 'div' );
+					document.body.appendChild( infoResEl );
+
+					this.setup = setup;
+					this.end = end;
+					this.run = function () {
+						var context = this.setup();
+						var start = performance.now();
+						var results = test(context);
+						var text = "<p>" + ((performance.now() - start) / results.count)+ ' ms</p>';
+						if (results.result && results.result.length > 0)
+							text += "<p>" + results.result + ' </p>';
+						infoResEl.innerHTML = text;
+						this.end(context);
+					};
+
+				};
+				var startBench = function(){
+					for ( var i = 0, l = benchmarks.length; i < l; i ++ ) {
+						benchmarks[ i ].run();
+					}
+				}
+				var benchmarks = [];
+
+				var pureJStestfiles = [
+					'benchmarks/cullvisitor.js',
+					'benchmarks/programUniformCache.js'
+				];
+				var GLdependanttestfiles = [
+				];
+				var testfiles = pureJStestfiles;
+				loadOSGJSON("../", "project.json", startBench, testfiles);
+		</script>
+
+	</body>
+</html>

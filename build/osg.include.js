@@ -15,7 +15,7 @@ var loadJSONP = function(script, callback, reload) {
     };
     s.type = "text/javascript";
     s.src = script.replace(/\\\\|\\|\/\//g, "/");
-    if (reload && window.location.href.indexOf('http') != -1) s.src += '?rand=' + Math.round(Math.random() * 999999999);
+    s.src += '?rand=' + Math.round(Math.random() * 999999999);
     document.body.appendChild(s);
 };
 
@@ -24,7 +24,7 @@ var loadJSON = function(script, callback, reload) {
     if (!reload && loadedJSON[script]) callback();
     req = new XMLHttpRequest();
     var src = script;
-    if (reload && window.location.href.indexOf('http') != -1) src += '?rand=' + Math.round(Math.random() * 999999999);
+    src += '?rand=' + Math.round(Math.random() * 999999999);
     req.open("GET", src, true);
     var loadCallBack = function(e) {
         if (e.target.status === 200) {

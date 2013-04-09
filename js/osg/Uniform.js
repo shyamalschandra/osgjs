@@ -35,14 +35,14 @@ osg.Uniform.prototype = {
             this.update.call(this.glData, this.data);
             this._dirty = false;
         }
-        this.glCall(location, this.glData);
+        this.glCall.call(gl, location, this.glData);
     },
     applyMatrix: function(location) {
         if (this._dirty) {
             this.update.call(this.glData, this.data);
             this._dirty = false;
         }
-        this.glCall(location, this.transpose, this.glData);
+        this.glCall.call(gl, location, this.transpose, this.glData);
     },
     update: function(array) {
         for (var i = 0, l = array.length; i < l; ++i ) { // FF not traced maybe short
@@ -114,9 +114,7 @@ osg.Uniform.createFloat1 = function(data, uniformName) {
     }
     var uniform = new osg.Uniform();
     uniform.data = [value];
-    uniform.glCall = function (location, glData) {
-        gl.uniform1fv(location, glData);
-    };
+    uniform.glCall = gl.uniform1fv;
     uniform.glData = new osg.Float32Array(uniform.data);
     uniform.update = osg.Uniform.prototype._updateFloat1;
     uniform.set = function(value) {
@@ -149,9 +147,7 @@ osg.Uniform.createFloat2 = function(data, uniformName) {
     }
     var uniform = new osg.Uniform();
     uniform.data = value;
-    uniform.glCall = function (location, glData) {
-        gl.uniform2fv(location, glData);
-    };
+    uniform.glCall = gl.uniform2fv;
     uniform.glData = new osg.Float32Array(uniform.data);
     uniform.update = osg.Uniform.prototype._updateFloat2;
     uniform.name = name;
@@ -174,9 +170,7 @@ osg.Uniform.createFloat3 = function(data, uniformName) {
     }
     var uniform = new osg.Uniform();
     uniform.data = value;
-    uniform.glCall = function (location, glData) {
-        gl.uniform3fv(location, glData);
-    };
+    uniform.glCall = gl.uniform3fv;
     uniform.glData = new osg.Float32Array(uniform.data);
     uniform.update = osg.Uniform.prototype._updateFloat3;
     uniform.name = name;
@@ -199,9 +193,7 @@ osg.Uniform.createFloat4 = function(data, uniformName) {
     }
     var uniform = new osg.Uniform();
     uniform.data = value;
-    uniform.glCall = function (location, glData) {
-        gl.uniform4fv(location, glData);
-    };
+    uniform.glCall = gl.uniform4fv;
     uniform.glData = new osg.Float32Array(uniform.data);
     uniform.update = osg.Uniform.prototype._updateFloat4;
     uniform.name = name;
@@ -224,9 +216,7 @@ osg.Uniform.createInt1 = function(data, uniformName) {
     }
     var uniform = new osg.Uniform();
     uniform.data = [value];
-    uniform.glCall = function (location, glData) {
-        gl.uniform1iv(location, glData);
-    };
+    uniform.glCall = gl.uniform1iv;
     uniform.set = function(value) {
         if (typeof value === "number") {
             this.data[0] = value;
@@ -259,9 +249,7 @@ osg.Uniform.createInt2 = function(data, uniformName) {
     }
     var uniform = new osg.Uniform();
     uniform.data = value;
-    uniform.glCall = function (location, glData) {
-        gl.uniform2iv(location, glData);
-    };
+    uniform.glCall = gl.uniform2iv;
     uniform.glData = new osg.Int32Array(uniform.data);
     uniform.name = name;
     uniform.type = "vec2i";
@@ -283,9 +271,7 @@ osg.Uniform.createInt3 = function(data, uniformName) {
     }
     var uniform = new osg.Uniform();
     uniform.data = value;
-    uniform.glCall = function (location, glData) {
-        gl.uniform3iv(location, glData);
-    };
+    uniform.glCall = gl.uniform3iv;
     uniform.glData = new osg.Int32Array(uniform.data);
     uniform.name = name;
     uniform.type = "vec3i";
@@ -307,9 +293,7 @@ osg.Uniform.createInt4 = function(data, uniformName) {
     }
     var uniform = new osg.Uniform();
     uniform.data = value;
-    uniform.glCall = function (location, glData) {
-        gl.uniform4iv(location, glData);
-    };
+    uniform.glCall = gl.uniform4iv;
     uniform.glData = new osg.Int32Array(uniform.data);
     uniform.name = name;
     uniform.type = "vec4i";
@@ -332,9 +316,7 @@ osg.Uniform.createMatrix2 = function(data, uniformName) {
     }
     var uniform = new osg.Uniform();
     uniform.data = value;
-    uniform.glCall = function (location, transpose, glData) {
-        gl.uniformMatrix2fv(location, transpose, glData);
-    };
+    uniform.glCall = gl.uniformMatrix2fv;
     uniform.apply = uniform.applyMatrix;
     uniform.transpose = false;
     uniform.glData = new osg.Float32Array(uniform.data);
@@ -355,9 +337,7 @@ osg.Uniform.createMatrix3 = function(data, uniformName) {
     }
     var uniform = new osg.Uniform();
     uniform.data = value;
-    uniform.glCall = function (location, transpose, glData) {
-        gl.uniformMatrix3fv(location, transpose, glData);
-    };
+    uniform.glCall = gl.uniformMatrix3fv;
     uniform.apply = uniform.applyMatrix;
     uniform.transpose = false;
     uniform.glData = new osg.Float32Array(uniform.data);
@@ -378,9 +358,7 @@ osg.Uniform.createMatrix4 = function(data, uniformName) {
     }
     var uniform = new osg.Uniform();
     uniform.data = value;
-    uniform.glCall = function (location, transpose, glData) {
-        gl.uniformMatrix4fv(location, transpose, glData);
-    };
+    uniform.glCall = gl.uniformMatrix4fv;
     uniform.apply = uniform.applyMatrix;
     uniform.transpose = false;
     uniform.glData = new osg.Float32Array(uniform.data);
