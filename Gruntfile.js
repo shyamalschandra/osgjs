@@ -337,20 +337,22 @@
 	grunt.loadNpmTasks('grunt-strip'); // remove console.log, etc
 	grunt.loadNpmTasks('grunt-qunit-cov'); // jscoverage
 
-	// watch
-	//grunt.loadNpmTasks('grunt-jsvalidate'); // check basic syntax error
 
 	//
 	//
 	grunt.loadTasks('tasks');
-
+/********* using patched version from tasks folder
+	// 
+	
 	// convert to amd (requirejs like) module
-	// patched version
 	//grunt.loadNpmTasks('grunt-wrap');
 
+	// watch
+	//grunt.loadNpmTasks('grunt-jsvalidate'); // check basic syntax error
 	//shaders
 	//grunt.loadNpmTasks('grunt-dir2json');
 	//
+*/
 	//grunt.loadNpmTasks('grunt-glslvalidator'); // GL shader validator sublime plugin ?
 	//grunt.loadNpmTasks('grunt-glsloptimizer'); // @aras_p  glsl optimizer
 	//grunt.loadNpmTasks('grunt-glslmin'); // just min
@@ -365,7 +367,7 @@
 	//grunt.loadTasks('tasks'); // pure jsdoc
 	
 	// chrome dev tool for grunt 
-	grunt.loadNpmTasks('grunt-devtools');
+	//grunt.loadNpmTasks('grunt-devtools');
 
 	grunt.registerTask('release', ['jshint:beforeconcat', 'concat', 'jshint:afterconcat', 'strip', 'uglify', 'compress', 'copy']);
 	grunt.registerTask('verify', ['jsvalidate', 'release']);
