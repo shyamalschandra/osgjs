@@ -1186,86 +1186,73 @@ test("CullVisitor", function() {
     })();
 
     // test caching / trace path of cullvisitor
+    // this test is here to check cache coherency
+
+    // camera->root-->matrixTransform1->cube
+    //             \->matrixTransform2->cube
     (function() {
 
         var renderStage = new osg.RenderStage();
         var stateGraph = new osg.StateGraph();
 
-        var root = new osg.Camera();
-        root.getOrCreateStateSet();
-        root.setReferenceFrame(osg.Transform.ABSOLUTE_RF);
+        var camera = new osg.Camera();
+        var root = new osg.Node();
+        camera.getOrCreateStateSet();
+        camera.setReferenceFrame(osg.Transform.ABSOLUTE_RF);
         var node0 = new osg.MatrixTransform();
         var node1 = new osg.MatrixTransform();
         root.addChild(node0);
         root.addChild(node1);
         node0.setMatrix(osg.Matrix.makeTranslate(-10,0,0, []));
         node1.setMatrix(osg.Matrix.makeTranslate(10,0,0, []));
+        var cube = osg.createTexturedBoxGeometry(0,0,0,
+                                                 1,1,1);
+        node0.addChild(cube);
+        node1.addChild(cube);
 
+        camera.addChild(root);
 
         var cullVisitor = new osg.CullVisitor();
 
         cullVisitor.setStateGraph(stateGraph);
         cullVisitor.setRenderStage(renderStage);
 
-        ok(cullVisitor._reserveMatrixStack._array.length === 0, "check reserve matrix");
+        // check array are empty at the beginning
+        ok(cullVisitor._reserveMatrixModelStack._array.length === 0, "check reserve model matrix");
+        ok(cullVisitor._reserveMatrixViewStack._array.length === 0, "check reserve view matrix");
         ok(cullVisitor._reserveBoundingBoxStack._array.length === 0, "check reserve boundingbox");
 
-        cullVisitor.startCullTransformCallBacks(root, undefined, root);
+        // check it invalidate paths trace the first time we traverse the tree
+        // also the first time model matrix and view matrix are new so should be dirty
+        cullVisitor.startCullTransformCallBacks(camera, undefined, root);
         ok(cullVisitor._traceNode.isDirty() === true, "check trace is dirty");
-        cullVisitor.startCullTransformCallBacks(root, undefined, root);
+        ok(cullVisitor._reserveMatrixViewStack.isDirty() === true, "check matrix view is dirty");
+        ok(cullVisitor._reserveMatrixModelStack.isDirty() === true, "check matrix model is dirty");
+
+        // try to reparse the graph
+        // this time everything should be cached because we did not changed
+        // anything
+        cullVisitor.startCullTransformCallBacks(camera, undefined, root);
         ok(cullVisitor._traceNode.isDirty() === false, "check trace is not dirty");
-        cullVisitor.startCullTransformCallBacks(root, undefined, root);
-        ok(cullVisitor._traceNode.isDirty() === false, "check trace is not dirty");
+        ok(cullVisitor._reserveMatrixViewStack.isDirty() === false, "check matrix view are cached");
+        ok(cullVisitor._reserveMatrixModelStack.isDirty() === false, "check matrix model are cached");
+        ok(cullVisitor._reserveBoundingBoxStack.isDirty() === false, "check boundingbox are cached");
+
+
+        // we touch a matrix transform, it means that the model matrix stack should be dirty but not the view stack
         node0.dirtyMatrix();
+        cullVisitor.startCullTransformCallBacks(camera, undefined, root);
+        ok(cullVisitor._reserveMatrixViewStack.isDirty() === false, "check matrix view is not dirty");
+        ok(cullVisitor._reserveMatrixModelStack.isDirty() === true, "check matrix model is dirty");
 
-        cullVisitor.startCullTransformCallBacks(root, undefined, root);
-        ok(cullVisitor._traceNode.isDirty() === true, "check trace is dirty");
 
-        ok(cullVisitor._reserveMatrixStack._array.length === 9, "check reserve matrix does not leak");
-        ok(cullVisitor._reserveBoundingBoxStack._array.length === 2, "check reserve boundingbox does not leak");
+        // check that we do not leak
+        ok(cullVisitor._reserveMatrixModelStack._array.length === 3, "check reserve model matrix does not leak");
+        ok(cullVisitor._reserveMatrixViewStack._array.length === 2, "check reserve view matrix does not leak");
+        ok(cullVisitor._reserveBoundingBoxStack._array.length === 3, "check reserve boundingbox does not leak");
         
     })();
 
-
-    (function() {
-
-        var renderStage = new osg.RenderStage();
-        var stateGraph = new osg.StateGraph();
-
-        var root = new osg.Camera();
-        root.getOrCreateStateSet();
-        root.setReferenceFrame(osg.Transform.ABSOLUTE_RF);
-        var node0 = new osg.MatrixTransform();
-        var node1 = new osg.MatrixTransform();
-        root.addChild(node0);
-        root.addChild(node1);
-        node0.setMatrix(osg.Matrix.makeTranslate(-10,0,0, []));
-        node1.setMatrix(osg.Matrix.makeTranslate(10,0,0, []));
-        var node2 = new osg.LightSource();
-        node2.setMatrix(osg.Matrix.makeTranslate(-100,0,0, []));
-        node2.setLight(new osg.Light());
-        root.addChild(node2);
-
-        var cullVisitor = new osg.CullVisitor();
-
-        cullVisitor.setStateGraph(stateGraph);
-        cullVisitor.setRenderStage(renderStage);
-
-        cullVisitor.startCullTransformCallBacks(root, undefined, root);
-        ok(cullVisitor._traceNode.isDirty() === true, "check trace is dirty");
-        cullVisitor.startCullTransformCallBacks(root, undefined, root);
-        ok(cullVisitor._traceNode.isDirty() === false, "check trace is not dirty");
-        cullVisitor.startCullTransformCallBacks(root, undefined, root);
-        ok(cullVisitor._traceNode.isDirty() === false, "check trace is not dirty");
-        node0.dirtyMatrix();
-
-        cullVisitor.startCullTransformCallBacks(root, undefined, root);
-        ok(cullVisitor._traceNode.isDirty() === true, "check trace is dirty");
-
-        ok(cullVisitor._reserveMatrixStack._array.length === 9, "check reserve matrix does not leak");
-        ok(cullVisitor._reserveBoundingBoxStack._array.length === 2, "check reserve boundingbox does not leak");
-        
-    })();
 
 
 });

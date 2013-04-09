@@ -29,7 +29,9 @@ osg.CullVisitor = function () {
     // keep a matrix in memory to avoid to allocate/deallocate memory each frame
     // And store previous frame computations if no change in graphs
     // that can change the ordering. (or matrix change)
-    this._reserveMatrixStack = new ReservedStack(function() { return osg.Matrix.makeIdentity([]); });
+    this._reserveMatrixModelStack = new ReservedStack(function() { return osg.Matrix.makeIdentity([]); });
+    this._reserveMatrixViewStack = new ReservedStack(function() { return osg.Matrix.makeIdentity([]); });
+
 
     this._reserveBoundingBoxStack = new ReservedStack(function() { return new osg.BoundingBox(); });
 
@@ -38,34 +40,57 @@ osg.CullVisitor = function () {
     this._renderBinStack = [];
     this._renderBinStack.current = -1;
 
-    this._forceUpdate = false;
-
     // keep trace of the node traversed
     // it's a first step, but a graph approach could be
     // better
     this._traceNode = new TraceNodePath();
 
+    this._dirtyMatrixNode = new NodeDirtyMatrix();
 };
 
 var ReservedStack = function(entryConstructor) {
     this._array = [];
-    this._current = 0;
     this._constructor = entryConstructor;
-    this.reset();
+    this._index = this._current = 0; this._dirty = true;
 };
 ReservedStack.prototype = {
-    reset: function() { this._index = this._current = 0;},
-    dirty: function() { this._current = this._index; },
+    reset: function() { this._index = this._current = 0; this._dirty = false;},
+    dirty: function() { this._current = this._index; this._dirty = true; },
     getCurrent: function() { return this._array[this._index]; },
     getIndex: function() { return this._index; },
-    getReserved: function(dirty) {
-        if (dirty) {
+    isDirty: function() { return this._dirty; },
+    getReserved: function() {
+        if (this._dirty) {
             if (this._current >= this._array.length) {
                 this._array.push(this._constructor());
             }
             this._current++;
         }
         return this._array[this._index++];
+    }
+};
+
+var NodeDirtyMatrix = function() {
+    this.reset();
+};
+NodeDirtyMatrix.prototype = {
+    reset: function() {
+        this._dirtyMatrixNodes = {};
+    },
+    logNode: function(node) {
+        var nodeID = node.getObjectID();
+        if (node._dirtyMatrix) {
+            this._dirtyMatrixNodes[nodeID] = node;
+        }
+        return node._dirtyMatrix;
+    },
+    cleanDirtyNodes: function() {
+        var nodes = Object.keys(this._dirtyMatrixNodes);
+        for ( var i = 0, l = nodes.length; i < l; i++) {
+            var key = nodes[i];
+            var n = this._dirtyMatrixNodes[key];
+            n._dirtyMatrix = false;
+        }
     }
 };
 
@@ -77,21 +102,15 @@ TraceNodePath.prototype = {
     reset: function() {
         this._dirty = false;
         this._index = -1;
-        this._dirtyMatrixNodes = {};
     },
     checkOrTraceNode: function(node) {
         this._index++;
         var nodeID = node.getObjectID();
         var id = this._array[this._index];
 
-        var dirtyMatrix = node._dirtyMatrix === true;
-        if (id !== nodeID || dirtyMatrix) {
+        if (id !== nodeID) {
             this._dirty = true;
         }
-        if (dirtyMatrix) {
-            this._dirtyMatrixNodes[nodeID] = node;
-        }
-
         if (this._dirty) {
             if (this._index >= this._array.length) {
                 this._array.push(nodeID);
@@ -100,15 +119,6 @@ TraceNodePath.prototype = {
             }
         }
     },
-    cleanDirtyMatrixNodes: function() {
-        var nodes = Object.keys(this._dirtyMatrixNodes);
-        for ( var i = 0, l = nodes.length; i < l; i++) {
-            var key = nodes[i];
-            var n = this._dirtyMatrixNodes[key];
-            n._dirtyMatrix = false;
-        }
-    },
-
     isDirty: function() { return this._dirty; }
 };
 
@@ -129,13 +139,21 @@ osg.CullVisitor.prototype = osg.objectInehrit(osg.CullStack.prototype ,osg.objec
         var node = camera;
         this._traceNode.checkOrTraceNode(camera);
 
-        var view = this._getReservedMatrix();
-        var model = this._getReservedMatrix();
-        var projection = this._getReservedMatrix();
+        // if path changed view is dirty for sure
+        if (this._traceNode.isDirty() || this._reserveMatrixViewStack.isDirty() || node.isDirtyMatrix()) {
+            this._reserveMatrixViewStack.dirty();
+            this._reserveMatrixModelStack.dirty();
+            this._reserveBoundingBoxStack.dirty();
+            this._dirtyMatrixNode.logNode(node);
+        }
+        var view = this._reserveMatrixViewStack.getReserved();
+        var projection = this._reserveMatrixViewStack.getReserved();
+        var model = this._reserveMatrixModelStack.getReserved();
 
-        var boundingbox = this._getReservedBoundingbox();
-        var recomputeMatrix = this._traceNode.isDirty() || this._forceUpdate;
-        if (recomputeMatrix) {
+        var boundingbox = this._reserveBoundingBoxStack.getReserved();
+
+        var recompute = this._reserveMatrixViewStack.isDirty();
+        if (recompute) {
             // camera matrix view is an inverse matrix
             // like a matrix generated by osg.Matrix.lookat
             osg.Matrix.copy(camera.getViewMatrix(), view);
@@ -187,7 +205,7 @@ osg.CullVisitor.prototype = osg.objectInehrit(osg.CullStack.prototype ,osg.objec
         //using leaf instead of tree ?
         //clean whole hierarchy
 
-        this._traceNode.cleanDirtyMatrixNodes();
+        this._dirtyMatrixNode.cleanDirtyNodes();
     },
 
 
@@ -339,10 +357,11 @@ osg.CullVisitor.prototype = osg.objectInehrit(osg.CullStack.prototype ,osg.objec
         // TODO: more fine grained scenegraph dirty than whole node graph at each change...
         this.resetMatrixStacks();
         this._reserveBoundingBoxStack.reset();
-        this._reserveMatrixStack.reset();
+        this._reserveMatrixViewStack.reset();
+        this._reserveMatrixModelStack.reset();
         this._reserveLeafStack.reset();
         this._traceNode.reset();
-
+        this._dirtyMatrixNode.reset();
 
         // update those only if Scene matrix other than camera are dirty...
         this._computedNear = Number.POSITIVE_INFINITY;
@@ -351,8 +370,11 @@ osg.CullVisitor.prototype = osg.objectInehrit(osg.CullStack.prototype ,osg.objec
     getCurrentRenderBin: function() { return this._currentRenderBin; },
     setCurrentRenderBin: function(rb) { this._currentRenderBin = rb; },
     addPositionedAttribute: function (attribute) {
-        var matrix = this._getReservedMatrix();
-        var recomputeMatrix = this._traceNode.isDirty() || this._forceUpdate;
+        if (this._traceNode.isDirty()) {
+            this._reserveMatrixModelStack.dirty();
+        }
+        var matrix = this._reserveMatrixModelStack.getReserved();
+        var recomputeMatrix = this._reserveMatrixModelStack.isDirty();
         if (recomputeMatrix) {
             //matrix = osg.Matrix.mult(this.getCurrentViewMatrix(), this.getCurrentModelviewMatrix(), matrix);
         }
@@ -402,21 +424,11 @@ osg.CullVisitor.prototype = osg.objectInehrit(osg.CullStack.prototype ,osg.objec
 
     // faster path is stack does not change
     //  (and debug out of bounds if it changes when it should not)
-    _getReservedMatrix: function() {
-        return this._reserveMatrixStack.getReserved(this._traceNode.isDirty());
-    },
-    // faster path is stack does not change
-    //  (and debug out of bounds if it changes when it should not)
-    _getReservedBoundingbox: function() {
-        return this._reserveBoundingBoxStack.getReserved(this._traceNode.isDirty());
-    },
-    _getCurrentBoundingbox: function() {
-        return this._reserveBoundingBoxStack.getCurrent();
-    },
-    // faster path is stack does not change
-    //  (and debug out of bounds if it changes when it should not)
     _getReservedLeaf: function() {
-        return this._reserveLeafStack.getReserved(this._traceNode.isDirty());
+        if (this._traceNode.isDirty()) {
+            this._reserveLeafStack.dirty();
+        }
+        return this._reserveLeafStack.getReserved();
     }
 })));
 
@@ -430,49 +442,44 @@ osg.CullVisitor.prototype[osg.Camera.prototype.objectType] = function( camera ) 
     if (camera.light) {
         this.addPositionedAttribute(camera.light);
     }
+
     var OldtraversalMask = this.traversalMask;
     if (camera.traversalMask) {
         this.traversalMask = camera.traversalMask & this.traversalMask;
     }
     var originalView = this.getCurrentViewMatrix();
     var originalModel = this.getCurrentModelMatrix();
-    //if (osg.oldModelViewMatrixMode)
-    //var originalModelView = this.getCurrentModelviewMatrix();
     var originalProjectionMatrix = this.getCurrentProjectionMatrix();
 
-    //this._reserveMatrixStack = this.camera._reserveMatrixStack;
-    var view = this._getReservedMatrix();
-    var model = this._getReservedMatrix();
-    var modelview = this._getReservedMatrix();
-    var projection = this._getReservedMatrix();
+    if (this._traceNode.isDirty() || camera.isDirtyMatrix() || this._reserveMatrixViewStack.isDirty()) {
+        this._reserveMatrixViewStack.dirty();
+        this._reserveBoundingBoxStack.dirty();
+        this._dirtyMatrixNode.logNode(camera);
+    }
 
-    // note:
-    //  camera  getviewmatrix is inverse of matrix model view
-    //  camera getmatrix is camera own model matrix
+    var view = this._reserveMatrixViewStack.getReserved();
+    var model = this._reserveMatrixModelStack.getReserved();
+    var projection =this._reserveMatrixViewStack.getReserved();
 
-    var boundingbox = this._getReservedBoundingbox();
-    var recompute = this._traceNode.isDirty() || this._forceUpdate;
+    var boundingbox = this._reserveBoundingBoxStack.getReserved();
+    var recompute = this._reserveMatrixViewStack.isDirty();
     if (recompute) {
         if (camera.getReferenceFrame() === osg.Transform.RELATIVE_RF) {
-            osg.Matrix.mult(originalProjectionMatrix, camera.getProjectionMatrix(), projection);
+            this._reserveMatrixModelStack.dirty();
 
-            osg.Matrix.copy(originalModel, model);
-            osg.Matrix.mult(originalView, camera.getViewMatrix(), view);
+            osg.Matrix.mult(originalProjectionMatrix, camera.getProjectionMatrix(), projection);
+            osg.Matrix.makeIdentity(model);
+            osg.Matrix.mult(originalView, originalModel, view);
+            osg.Matrix.mult(view, camera.getViewMatrix(), view);
 
         } else {
             // absolute
-            /**/
-            // camera matrix could be identity  because never set/use to make camera position
-            //sg.Matrix.makeIdentity(model);
-            //osg.Matrix.inverse(camera.getViewMatrix(), model);
-            /**/
             osg.Matrix.copy(camera.getViewMatrix(), view);
             osg.Matrix.copy(camera.getProjectionMatrix(), projection);
-            // not really necessary as reserverd matrix is initialized with identity
-            osg.Matrix.makeIdentity(model);
         }
         boundingbox.init();
     }
+
     this.pushProjectionMatrix(projection);
     this.pushViewMatrix(view);
     this.pushModelMatrix(model);
@@ -546,10 +553,7 @@ osg.CullVisitor.prototype[osg.Camera.prototype.objectType] = function( camera ) 
 
     this.popModelMatrix();
     this.popViewMatrix();
-    //if (osg.oldModelViewMatrixMode)
-    //this.popModelviewMatrix();
     this.popProjectionMatrix();
-    //this.popProjectionMatrix();
 
 
     camera.near = this._computedNear;
@@ -572,11 +576,15 @@ osg.CullVisitor.prototype[osg.Camera.prototype.objectType] = function( camera ) 
 };
 
 osg.CullVisitor.prototype[osg.MatrixTransform.prototype.objectType] = function (node) {
-    var matrixModel = this._getReservedMatrix();
-    //if (osg.oldModelViewMatrixMode)
-    //var matrixModelview = this._getReservedMatrix();
 
-    var recompute = this._traceNode.isDirty() || this._forceUpdate;
+    if (this._traceNode.isDirty() || node.isDirtyMatrix()) {
+        this._reserveMatrixModelStack.dirty();
+        this._dirtyMatrixNode.logNode(node);
+    }
+
+    var matrixModel = this._reserveMatrixModelStack.getReserved();
+
+    var recompute = this._reserveMatrixModelStack.isDirty();
     if (recompute) {
         if (node.getReferenceFrame() === osg.Transform.RELATIVE_RF) {
 
@@ -596,7 +604,8 @@ osg.CullVisitor.prototype[osg.MatrixTransform.prototype.objectType] = function (
     }
 
     if (node.light) {
-        this.addPositionedAttribute(node.light);
+        osg.warn("using node.light is deprecated, using LightSource node instead");
+        //this.addPositionedAttribute(node.light);
     }
 
     this.handleCullCallbacksAndTraverse(node);
@@ -606,13 +615,17 @@ osg.CullVisitor.prototype[osg.MatrixTransform.prototype.objectType] = function (
     }
 
     this.popModelMatrix();
-    //if (osg.oldModelViewMatrixMode)
-    //this.popModelviewMatrix();
 };
 
 osg.CullVisitor.prototype[osg.Projection.prototype.objectType] = function (node) {
-    var matrix = this._getReservedMatrix();
-    var recompute = this._traceNode.isDirty() || this._forceUpdate;
+
+    if (this._traceNode.isDirty()) {
+        this._reserveMatrixViewStack.dirty();
+        this._dirtyMatrixNode.logNode(node);
+    }
+
+    var matrix = this._reserveMatrixViewStack();
+    var recompute = this._reserveMatrixViewStack.isDirty();
     if (recompute) {
         lastMatrixStack = this.getCurrentProjectionMatrix();
         osg.Matrix.mult(lastMatrixStack, node.getProjectionMatrix(), matrix);
@@ -641,8 +654,10 @@ osg.CullVisitor.prototype[osg.Node.prototype.objectType] = function (node) {
     if (stateset) {
         this.pushStateSet(stateset);
     }
+
     if (node.light) {
-        this.addPositionedAttribute(node.light);
+        osg.warn("using node.light is deprecated, using LightSource node instead");
+        //this.addPositionedAttribute(node.light);
     }
 
     this.handleCullCallbacksAndTraverse(node);
@@ -675,15 +690,14 @@ osg.CullVisitor.prototype[osg.Geometry.prototype.objectType] = function (node) {
 
     var view = this.getCurrentViewMatrix();
     var model = this.getCurrentModelMatrix();
-    // compute upon need
-    //var modelview = this.getCurrentModelviewMatrix();
 
-    var bb = this._getReservedBoundingbox();
+    var recompute = this._traceNode.isDirty() || this._reserveMatrixModelStack.isDirty();
+    if (recompute) {
+        this._reserveBoundingBoxStack.dirty();
+    }
+    var bb = this._reserveBoundingBoxStack.getReserved();
     var localbb = node.getBoundingBox();
 
-    var modelView = this._getReservedMatrix();
-
-    var recompute = this._traceNode.isDirty() || this._forceUpdate;
     if (recompute) {
 
         osg.Matrix.transformBoundingbox( model, localbb,  bb);
