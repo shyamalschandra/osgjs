@@ -697,11 +697,7 @@ osg.CullVisitor.prototype[osg.Geometry.prototype.objectType] = function (node) {
 
     if (this._computeNearFar && bb.valid()) {
 
-        if (recompute) {
-            osg.Matrix.mult(view, model, modelView);
-        }
-
-        if (!this.updateCalculatedNearFar(localbb, modelView)) {
+        if (!this.updateCalculatedNearFar(bb, view)) {
             return;
         }
     }

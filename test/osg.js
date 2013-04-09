@@ -1227,6 +1227,47 @@ test("CullVisitor", function() {
     })();
 
 
+    (function() {
+
+        var renderStage = new osg.RenderStage();
+        var stateGraph = new osg.StateGraph();
+
+        var root = new osg.Camera();
+        root.getOrCreateStateSet();
+        root.setReferenceFrame(osg.Transform.ABSOLUTE_RF);
+        var node0 = new osg.MatrixTransform();
+        var node1 = new osg.MatrixTransform();
+        root.addChild(node0);
+        root.addChild(node1);
+        node0.setMatrix(osg.Matrix.makeTranslate(-10,0,0, []));
+        node1.setMatrix(osg.Matrix.makeTranslate(10,0,0, []));
+        var node2 = new osg.LightSource();
+        node2.setMatrix(osg.Matrix.makeTranslate(-100,0,0, []));
+        node2.setLight(new osg.Light());
+        root.addChild(node2);
+
+        var cullVisitor = new osg.CullVisitor();
+
+        cullVisitor.setStateGraph(stateGraph);
+        cullVisitor.setRenderStage(renderStage);
+
+        cullVisitor.startCullTransformCallBacks(root, undefined, root);
+        ok(cullVisitor._traceNode.isDirty() === true, "check trace is dirty");
+        cullVisitor.startCullTransformCallBacks(root, undefined, root);
+        ok(cullVisitor._traceNode.isDirty() === false, "check trace is not dirty");
+        cullVisitor.startCullTransformCallBacks(root, undefined, root);
+        ok(cullVisitor._traceNode.isDirty() === false, "check trace is not dirty");
+        node0.dirtyMatrix();
+
+        cullVisitor.startCullTransformCallBacks(root, undefined, root);
+        ok(cullVisitor._traceNode.isDirty() === true, "check trace is dirty");
+
+        ok(cullVisitor._reserveMatrixStack._array.length === 9, "check reserve matrix does not leak");
+        ok(cullVisitor._reserveBoundingBoxStack._array.length === 2, "check reserve boundingbox does not leak");
+        
+    })();
+
+
 });
 
 

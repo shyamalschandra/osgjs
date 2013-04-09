@@ -15,7 +15,8 @@ var loadJSONP = function(script, callback, reload) {
     };
     s.type = "text/javascript";
     s.src = script.replace(/\\\\|\\|\/\//g, "/");
-    if (reload && window.location.href.indexOf('http') != -1) s.src += '?rand=' + Math.round(Math.random() * 999999999);
+    //if (reload && window.location.href.indexOf('http') != -1)
+    s.src += '?rand=' + Math.round(Math.random() * 999999999);
     document.body.appendChild(s);
 };
 
