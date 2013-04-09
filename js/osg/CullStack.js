@@ -17,8 +17,8 @@ osg.CullStack = function() {
     this._viewportStack = new Array(10);
     this._viewportCurrent = -1;
 
-    this._bboxStack = new Array(10);
-    this._bboxCurrent = -1;
+    this._boundingboxStack = new Array(10);
+    this._boundingboxCurrent = -1;
 
     this._bbCornerFar = 0;
     this._bbCornerNear = 0;
@@ -34,7 +34,7 @@ osg.CullStack.prototype = {
         this._viewMatrixStackCurrent = -1;
         this._projectionMatrixStackCurrent = -1;
         this._viewportCurrent = -1;
-        this._bboxCurrent = -1;
+        this._boundingboxCurrent = -1;
 
     },
     getCurrentProjectionMatrix: function() {
@@ -49,11 +49,11 @@ osg.CullStack.prototype = {
     getCurrentViewMatrix: function() {
         return this._viewMatrixStack[this._viewMatrixStackCurrent];
     },
-    getCurrentBbox: function () {
-        if (this._bboxCurrent ===  -1) {
+    getCurrentBoundingbox: function () {
+        if (this._boundingboxCurrent ===  -1) {
             return undefined;
         }
-        return this._bboxStack[this._bboxCurrent];
+        return this._boundingboxStack[this._boundingboxCurrent];
     },
     getViewport: function () {
         if (this._viewportCurrent ===  -1) {
@@ -72,15 +72,15 @@ osg.CullStack.prototype = {
         //this._viewportStack.pop();
         this._viewportCurrent--;
     },
-    pushBbox: function (bbox) {
-        this._bboxCurrent++;
-        if (this._bboxStack.length < this._bboxCurrent)
-            this._bboxStack.push(bbox);
+    pushBoundingbox: function (boundingbox) {
+        this._boundingboxCurrent++;
+        if (this._boundingboxStack.length < this._boundingboxCurrent)
+            this._boundingboxStack.push(boundingbox);
         else
-            this._bboxStack[this._bboxCurrent] = bbox;
+            this._boundingboxStack[this._boundingboxCurrent] = boundingbox;
     },
-    popBbox: function () {
-        this._bboxCurrent--;
+    popBoundingbox: function () {
+        this._boundingboxCurrent--;
     },
     pushModelMatrix: function (matrix) {
         this._modelMatrixStackCurrent++;

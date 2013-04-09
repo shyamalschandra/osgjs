@@ -140,6 +140,7 @@ osg.Node.prototype = osg.objectLibraryClass(osg.objectInehrit(osg.Object.prototy
     addChild: function(child) {
         var c = this.children.push(child);
         child.addParent(this);
+        this.dirtyBound();
         return c;
     },
     getChildren: function() {

@@ -1159,7 +1159,7 @@ osg.Matrix = {
     //  http://users.soe.ucsc.edu/~pang/160/f98/Gems/Gems/TransBox.c
     //  Transforms a 3D axis-aligned box via a 4x4 matrix
     // vector and returns an axis-aligned box enclosing the result.
-    transformBbox: function(matrix,  bboxIn, bboxOut) {
+    transformBoundingbox: function(matrix,  bboxIn, bboxOut) {
         var av, bv;
         var i, j, k;
 
