@@ -1227,44 +1227,6 @@ test("CullVisitor", function() {
     })();
 
 
-
-    // test computing of projection with scene and matrix transform
-    (function() {
-
-        var renderStage = new osg.RenderStage();
-        var stateGraph = new osg.StateGraph();
-
-        var root = new osg.Camera();
-        osg.Matrix.makePerspective(60, 16/9.0, 1.0, 1000.0, root.getProjectionMatrix());
-        osg.Matrix.makeLookAt(0,0,-1000, 
-                              0,0,0, 
-                              0,1,0,
-                              root.getViewMatrix());
-        root.dirtyMatrix();
-        root.getOrCreateStateSet();
-        root.setReferenceFrame(osg.Transform.ABSOLUTE_RF);
-        var node0 = new osg.MatrixTransform();
-        var node1 = new osg.MatrixTransform();
-        root.addChild(node0);
-        root.addChild(node1);
-        node0.setMatrix(osg.Matrix.makeTranslate(-10,0,0, []));
-        node1.setMatrix(osg.Matrix.makeTranslate(10,0,0, []));
-        var cube = new osg.createTexturedBoxGeometry(0,0,0,
-                                                     1, 1, 1 );
-        node0.addChild(cube);
-        node1.addChild(cube);
-
-        var cullVisitor = new osg.CullVisitor();
-
-        cullVisitor.setStateGraph(stateGraph);
-        cullVisitor.setRenderStage(renderStage);
-
-        cullVisitor.startCullTransformCallBacks(root, undefined, root);
-        
-        ok(check_near(cullVisitor._projectionMatrixStack[1], [0.9742785792574936, 0, 0, 0, 0, 1.7320508075688774, 0, 0, 0, 0, -1.0098522167487685, -1, 0, 0, -0.005024630541871921, 0]), "check projection with cube and node transformed");
-        
-    })();
-
 });
 
 

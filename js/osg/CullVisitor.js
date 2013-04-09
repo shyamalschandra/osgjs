@@ -696,21 +696,14 @@ osg.CullVisitor.prototype[osg.Geometry.prototype.objectType] = function (node) {
     }
 
     if (this._computeNearFar && bb.valid()) {
-        // it does not compute well the near/fear if not using
-        // view and model
-        // to validate this try example performance with both version
-        // the one in comment and the current with view*model
+
         if (recompute) {
             osg.Matrix.mult(view, model, modelView);
         }
+
         if (!this.updateCalculatedNearFar(localbb, modelView)) {
             return;
         }
-        // same resutls as tested per unit tests
-        /*
-        if (!this.updateCalculatedNearFar(bb, view)) {
-            return;
-        }*/
     }
 
     var stateset = node.getStateSet();
