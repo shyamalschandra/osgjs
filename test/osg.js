@@ -700,95 +700,6 @@ test("UpdateVisitor", function() {
 });
 
 
-test("CullVisitor", function() {
-
-    var uv = new osg.CullVisitor();
-
-    var root = new osg.Node();
-    root.setName("a");
-    var b = new osg.Node();
-    b.setName("b");
-    var c = new osg.Node();
-    c.setName("c");
-    root.addChild(b);
-    b.addChild(c);
-
-    var callb = 0;
-    var callc = 0;
-
-    var fb = function() {};
-    fb.prototype = {
-        cull: function(node, nv) {
-            callb = 1;
-            return false;
-        }
-    };
-
-    var fc = function() {};
-    fc.prototype = {
-        cull: function(node, nv) {
-            callc = 1;
-            return true;
-        }
-    };
-
-    b.setCullCallback(new fb());
-    c.setCullCallback(new fc());
-
-    uv.apply(root);
-
-    ok(callb === 1, "Called b cull callback");
-    ok(callc === 0, "Did not Call c cull callback as expected");
-
-    root.setNodeMask(~0);
-    ok(callb === 1, "Called b cull callback");
-    ok(callc === 0, "Did not Call c cull callback as expected");
-
-
-    // test caching / trace path of cullvisitor
-    (function() {
-
-        var renderStage = new osg.RenderStage();
-        var stateGraph = new osg.StateGraph();
-
-        var root = new osg.Camera();
-        root.getOrCreateStateSet();
-        root.setReferenceFrame(osg.Transform.ABSOLUTE_RF);
-        var node0 = new osg.MatrixTransform();
-        var node1 = new osg.MatrixTransform();
-        root.addChild(node0);
-        root.addChild(node1);
-        node0.setMatrix(osg.Matrix.makeTranslate(-10,0,0, []));
-        node1.setMatrix(osg.Matrix.makeTranslate(10,0,0, []));
-
-
-        var cullVisitor = new osg.CullVisitor();
-
-        cullVisitor.setStateGraph(stateGraph);
-        cullVisitor.setRenderStage(renderStage);
-
-        ok(cullVisitor._reserveMatrixStack._array.length === 0, "check reserve matrix");
-        ok(cullVisitor._reserveBoundingBoxStack._array.length === 0, "check reserve boundingbox");
-
-        cullVisitor.startCullTransformCallBacks(root, undefined, root);
-        ok(cullVisitor._traceNode.isDirty() === true, "check trace is dirty");
-        cullVisitor.startCullTransformCallBacks(root, undefined, root);
-        ok(cullVisitor._traceNode.isDirty() === false, "check trace is not dirty");
-        cullVisitor.startCullTransformCallBacks(root, undefined, root);
-        ok(cullVisitor._traceNode.isDirty() === false, "check trace is not dirty");
-        node0.dirtyMatrix();
-
-        cullVisitor.startCullTransformCallBacks(root, undefined, root);
-        ok(cullVisitor._traceNode.isDirty() === true, "check trace is dirty");
-
-        ok(cullVisitor._reserveMatrixStack._array.length === 9, "check reserve matrix does not leak");
-        ok(cullVisitor._reserveBoundingBoxStack._array.length === 2, "check reserve boundingbox does not leak");
-        
-    })();
-
-});
-
-
 test("ShaderGenerator", function() {
     var state = new osg.State();
     state.setGraphicContext(createFakeRenderer());
@@ -1227,6 +1138,133 @@ test("CullVisitor", function() {
         rs.draw(state);
 
     })();
+
+
+    (function() {
+        var uv = new osg.CullVisitor();
+
+        var root = new osg.Node();
+        root.setName("a");
+        var b = new osg.Node();
+        b.setName("b");
+        var c = new osg.Node();
+        c.setName("c");
+        root.addChild(b);
+        b.addChild(c);
+
+        var callb = 0;
+        var callc = 0;
+
+        var fb = function() {};
+        fb.prototype = {
+            cull: function(node, nv) {
+                callb = 1;
+                return false;
+            }
+        };
+
+        var fc = function() {};
+        fc.prototype = {
+            cull: function(node, nv) {
+                callc = 1;
+                return true;
+            }
+        };
+
+        b.setCullCallback(new fb());
+        c.setCullCallback(new fc());
+
+        uv.apply(root);
+
+        ok(callb === 1, "Called b cull callback");
+        ok(callc === 0, "Did not Call c cull callback as expected");
+
+        root.setNodeMask(~0);
+        ok(callb === 1, "Called b cull callback");
+        ok(callc === 0, "Did not Call c cull callback as expected");
+
+    })();
+
+    // test caching / trace path of cullvisitor
+    (function() {
+
+        var renderStage = new osg.RenderStage();
+        var stateGraph = new osg.StateGraph();
+
+        var root = new osg.Camera();
+        root.getOrCreateStateSet();
+        root.setReferenceFrame(osg.Transform.ABSOLUTE_RF);
+        var node0 = new osg.MatrixTransform();
+        var node1 = new osg.MatrixTransform();
+        root.addChild(node0);
+        root.addChild(node1);
+        node0.setMatrix(osg.Matrix.makeTranslate(-10,0,0, []));
+        node1.setMatrix(osg.Matrix.makeTranslate(10,0,0, []));
+
+
+        var cullVisitor = new osg.CullVisitor();
+
+        cullVisitor.setStateGraph(stateGraph);
+        cullVisitor.setRenderStage(renderStage);
+
+        ok(cullVisitor._reserveMatrixStack._array.length === 0, "check reserve matrix");
+        ok(cullVisitor._reserveBoundingBoxStack._array.length === 0, "check reserve boundingbox");
+
+        cullVisitor.startCullTransformCallBacks(root, undefined, root);
+        ok(cullVisitor._traceNode.isDirty() === true, "check trace is dirty");
+        cullVisitor.startCullTransformCallBacks(root, undefined, root);
+        ok(cullVisitor._traceNode.isDirty() === false, "check trace is not dirty");
+        cullVisitor.startCullTransformCallBacks(root, undefined, root);
+        ok(cullVisitor._traceNode.isDirty() === false, "check trace is not dirty");
+        node0.dirtyMatrix();
+
+        cullVisitor.startCullTransformCallBacks(root, undefined, root);
+        ok(cullVisitor._traceNode.isDirty() === true, "check trace is dirty");
+
+        ok(cullVisitor._reserveMatrixStack._array.length === 9, "check reserve matrix does not leak");
+        ok(cullVisitor._reserveBoundingBoxStack._array.length === 2, "check reserve boundingbox does not leak");
+        
+    })();
+
+
+
+    // test computing of projection with scene and matrix transform
+    (function() {
+
+        var renderStage = new osg.RenderStage();
+        var stateGraph = new osg.StateGraph();
+
+        var root = new osg.Camera();
+        osg.Matrix.makePerspective(60, 16/9.0, 1.0, 1000.0, root.getProjectionMatrix());
+        osg.Matrix.makeLookAt(0,0,-1000, 
+                              0,0,0, 
+                              0,1,0,
+                              root.getViewMatrix());
+        root.dirtyMatrix();
+        root.getOrCreateStateSet();
+        root.setReferenceFrame(osg.Transform.ABSOLUTE_RF);
+        var node0 = new osg.MatrixTransform();
+        var node1 = new osg.MatrixTransform();
+        root.addChild(node0);
+        root.addChild(node1);
+        node0.setMatrix(osg.Matrix.makeTranslate(-10,0,0, []));
+        node1.setMatrix(osg.Matrix.makeTranslate(10,0,0, []));
+        var cube = new osg.createTexturedBoxGeometry(0,0,0,
+                                                     1, 1, 1 );
+        node0.addChild(cube);
+        node1.addChild(cube);
+
+        var cullVisitor = new osg.CullVisitor();
+
+        cullVisitor.setStateGraph(stateGraph);
+        cullVisitor.setRenderStage(renderStage);
+
+        cullVisitor.startCullTransformCallBacks(root, undefined, root);
+        
+        ok(check_near(cullVisitor._projectionMatrixStack[1], [0.9742785792574936, 0, 0, 0, 0, 1.7320508075688774, 0, 0, 0, 0, -1.0098522167487685, -1, 0, 0, -0.005024630541871921, 0]), "check projection with cube and node transformed");
+        
+    })();
+
 });
 
 

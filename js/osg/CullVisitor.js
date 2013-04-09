@@ -681,6 +681,8 @@ osg.CullVisitor.prototype[osg.Geometry.prototype.objectType] = function (node) {
     var bb = this._getReservedBoundingbox();
     var localbb = node.getBoundingBox();
 
+    var modelView = this._getReservedMatrix();
+
     var recompute = this._traceNode.isDirty() || this._forceUpdate;
     if (recompute) {
 
@@ -694,9 +696,14 @@ osg.CullVisitor.prototype[osg.Geometry.prototype.objectType] = function (node) {
     }
 
     if (this._computeNearFar && bb.valid()) {
-        var tmp = [];
-        osg.Matrix.mult(view, model, tmp);
-        if (!this.updateCalculatedNearFar(localbb, tmp)) {
+        // it does not compute well the near/fear if not using
+        // view and model
+        // to validate this try example performance with both version
+        // the one in comment and the current with view*model
+        if (recompute) {
+            osg.Matrix.mult(view, model, modelView);
+        }
+        if (!this.updateCalculatedNearFar(localbb, modelView)) {
             return;
         }
         // same resutls as tested per unit tests
