@@ -18,6 +18,7 @@
  *
  */
 
+var viewer;
 var start = function() {
 
     var canvas = document.getElementById("3DView");
@@ -29,7 +30,6 @@ var start = function() {
     canvas.width = w;
     canvas.height = h;
 
-    var viewer;
     viewer = new osgViewer.Viewer(canvas, {antialias : true });
     Viewer = viewer;
     viewer.init();
@@ -56,6 +56,14 @@ var getModel = function() {
     node.addChild(cube);
     return node;
 };
+
+window.addEventListener("keydown", function(ev) {
+    var keycode = ev.keyCode;
+    if (keycode === 13) {
+        osg.log("view " + viewer.getCamera().getViewMatrix().toString());
+        osg.log("projection " + viewer.getCamera().getProjectionMatrix().toString());
+    }
+}, false);
 
 if (!window.multidemo) {
     window.addEventListener("load", function() {

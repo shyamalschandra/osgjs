@@ -92,14 +92,15 @@ extensions = [
 if (!window.multidemo) {
     window.addEventListener("load", function() {
         if (window.location.href.indexOf("debug") !== -1) {
-            loadOSGJSON("../../", "project.json", startPerformance, extensions);
+            loadOSGJSON("../../", "project.json", startPerformance);
         } else if (window.location.href.indexOf("concat") !== -1) {
-            loadOSGJS("../../", "build/osg.debug.js", startPerformance, extensions);
+            loadOSGJS("../../", "build/osg.debug.js", startPerformance);
         } else {
-            loadOSGJS("../../", "build/osg.min.js", startPerformance, extensions);
+            loadOSGJS("../../", "build/osg.min.js", startPerformance);
         }
     }, true);
 }
+
 </script>
 </head>
 
