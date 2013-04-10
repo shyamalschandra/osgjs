@@ -16,3 +16,7 @@ test/lighting
 *.log
 *.c
 *.orig
+docs/docco/
+docs/dox/
+*.sublime-project
+*.sublime-workspace

@@ -1,12 +1,12 @@
 //load scripts from project.json, for now synchronously
-// TODO: allow for async script loading 
+// TODO: allow for async script loading
 // TODO:means solving dependencies (osg.exten, osg.inherits, etc.)
 // TODO:handle cache
 // TODO:handle reloading
 var loadedJSONP = {};
 //
-var loadJSONP = function(script, callback, reload) {
-    if (!reload && loadedJSONP[script]) callback(loadedJSONP[script]);
+var loadJSONP = function(script, callback) {
+    if (loadedJSONP[script]) callback(loadedJSONP[script]);
     var s = document.createElement("script");
     s.onload = function(data) {
         loadedJSONP[script] = data;
@@ -21,11 +21,11 @@ var loadJSONP = function(script, callback, reload) {
 };
 
 var loadedJSON = {};
-var loadJSON = function(script, callback, reload) {
-    if (!reload && loadedJSON[script]) callback();
+var loadJSON = function(script, callback) {
+    if (loadedJSON[script]) callback();
     req = new XMLHttpRequest();
     var src = script;
-    if (reload && window.location.href.indexOf('http') != -1) src += '?rand=' + Math.round(Math.random() * 999999999);
+    src += '?rand=' + Math.round(Math.random() * 999999999);
     req.open("GET", src, true);
     var loadCallBack = function(e) {
         if (e.target.status === 200) {

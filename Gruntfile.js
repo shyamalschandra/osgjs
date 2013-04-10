@@ -313,13 +313,13 @@
 				// }
 			}
 		},
-		dox: {
-			options: {
-				title: "osgjs documentation"
-			},
-			files: {
-				src: ['js'],
-				dest: 'doc/dox'
+		benchmark: {
+			culling: {
+				src: ['benchmarks/*.js'],
+				dest: 'benchmarks/results.csv',
+				options: {
+					times: 10
+				}
 			}
 		}
 	});
@@ -337,20 +337,24 @@
 	grunt.loadNpmTasks('grunt-strip'); // remove console.log, etc
 	grunt.loadNpmTasks('grunt-qunit-cov'); // jscoverage
 
-	// watch
-	//grunt.loadNpmTasks('grunt-jsvalidate'); // check basic syntax error
 
+	// benchmarks
+	//grunt.loadNpmTasks('grunt-benchmark');
 	//
 	//
 	grunt.loadTasks('tasks');
+	/********* using patched version from tasks folder
+	//
 
 	// convert to amd (requirejs like) module
-	// patched version
 	//grunt.loadNpmTasks('grunt-wrap');
 
+	// watch
+	//grunt.loadNpmTasks('grunt-jsvalidate'); // check basic syntax error
 	//shaders
 	//grunt.loadNpmTasks('grunt-dir2json');
 	//
+*/
 	//grunt.loadNpmTasks('grunt-glslvalidator'); // GL shader validator sublime plugin ?
 	//grunt.loadNpmTasks('grunt-glsloptimizer'); // @aras_p  glsl optimizer
 	//grunt.loadNpmTasks('grunt-glslmin'); // just min
@@ -363,9 +367,9 @@
 	//grunt.loadNpmTasks('grunt-dox');
 
 	//grunt.loadTasks('tasks'); // pure jsdoc
-	
-	// chrome dev tool for grunt 
-	grunt.loadNpmTasks('grunt-devtools');
+
+	// chrome dev tool for grunt
+	//grunt.loadNpmTasks('grunt-devtools');
 
 	grunt.registerTask('release', ['jshint:beforeconcat', 'concat', 'jshint:afterconcat', 'strip', 'uglify', 'compress', 'copy']);
 	grunt.registerTask('verify', ['jsvalidate', 'release']);
