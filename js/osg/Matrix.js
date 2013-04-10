@@ -1186,5 +1186,16 @@ osg.Matrix = {
             }
         }
         return bboxOut;
-    }
+    },
+    // matrix invalidation for uniform update or cache invalidation
+    // Constraints: matrix1 & matrix2 are matrices.
+    isEqual: function(matrix1, matrix2){
+        var i =  matrix1.length;
+        while(i-- > 0){
+            if (Math.abs(matrix1[i]  - matrix2[i]) > 0.00001) {
+                return false;
+            }
+        }
+        return true;
+  }
 };

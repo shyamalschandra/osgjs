@@ -142,7 +142,7 @@ test("Quat.mult", function() {
     osg.Matrix.makeRotateFromQuat(q1, m1);
     osg.Matrix.makeRotateFromQuat(q0, m0);
     osg.Matrix.mult(m1, m0, mr);
-    
+
     var qr2 = [];
     osg.Matrix.getRotate(mr, qr2);
     near( qr, qr2);
@@ -269,7 +269,7 @@ test("Matrix.computeFrustrumCornersVectors", function() {
     var ymin = -ymax;
     var xmin = ymin * ratio;
     var xmax = ymax * ratio;
-    
+
     var corners = [];
     corners.push( [xmin, ymax, 1.0]);
     corners.push( [xmin, ymin, 1.0]);
@@ -448,24 +448,24 @@ test("Matrix.inverse4x3", function() {
 
     var m1 = [ 0.0011258089383161401, 0.00131216109033401, -0.0012747534698732, 0,
                -0.0002278837182292197, 0.0015857257043203033, 0.0014309996929286388, 0,
-               0.0018151705324519383, -0.0006147558241282602, 0.0009702887644753271, 0, 
+               0.0018151705324519383, -0.0006147558241282602, 0.0009702887644753271, 0,
                0, 0, 0, 1];
     var m1result = [];
     var ok1 = osg.Matrix.inverse4x3(m1, m1result);
-    near(m1result, [ 243.988, -49.3875, 393.386, 0, 
-	             284.374, 343.661, -133.23, 0, 
-	             -276.267, 310.128, 210.282, 0, 
+    near(m1result, [ 243.988, -49.3875, 393.386, 0,
+	             284.374, 343.661, -133.23, 0,
+	             -276.267, 310.128, 210.282, 0,
 	             -0, -0, -0, 1 ], 1e-3);
-    
+
     var m2 = [0.0011258089383161401, -0.0002278837182292197, 0.0018151705324519383, 0,
               0.00131216109033401  ,  0.0015857257043203033, -0.0006147558241282602, 0,
-              -0.0012747534698732  ,  0.0014309996929286388, 0.0009702887644753271, 0, 
+              -0.0012747534698732  ,  0.0014309996929286388, 0.0009702887644753271, 0,
               0                    ,  0                    , 0                    , 1 ];
     var m2result = [];
     var ok2 = osg.Matrix.inverse4x3(m2, m2result);
-    near( m2result, [ 243.988, 284.374, -276.267, 0, 
-                      -49.3875, 343.661, 310.128, 0, 
-                      393.386, -133.23, 210.282, 0, 
+    near( m2result, [ 243.988, 284.374, -276.267, 0,
+                      -49.3875, 343.661, 310.128, 0,
+                      393.386, -133.23, 210.282, 0,
                       -0, -0, -0, 1 ], 1e-3);
 
 });
@@ -497,7 +497,7 @@ test("Matrix.inverse", function() {
     ok(true, valid);
     osg.log("inverse " + result2.toString());
 //    ok(true, valid);
-    
+
 
 });
 
@@ -549,7 +549,7 @@ test("NodeVisitor", function() {
     ok(v.result.length === 0, "Should not find item named 'c' because of node mask");
 
 
-    (function() { 
+    (function() {
         // test visit parents
         var GetRootItem = function() {
             osg.NodeVisitor.call(this, osg.NodeVisitor.TRAVERSE_PARENTS);
@@ -574,9 +574,9 @@ test("NodeVisitor", function() {
 
         var visit = new GetRootItem();
         child2.accept(visit);
-        
+
         ok(visit.node.getName() === "root", "Should get the root node");
-        
+
     })();
 });
 
@@ -602,7 +602,7 @@ test("BufferArray", function() {
 
 test("computeLocalToWorld", function() {
 
-    (function() { 
+    (function() {
         // test visit parents
         var GetRootItem = function() {
             osg.NodeVisitor.call(this, osg.NodeVisitor.TRAVERSE_PARENTS);
@@ -703,7 +703,7 @@ test("UpdateVisitor", function() {
 test("ShaderGenerator", function() {
     var state = new osg.State();
     state.setGraphicContext(createFakeRenderer());
-    
+
     var stateSet0 = new osg.StateSet();
     stateSet0.setAttributeAndMode(new osg.Material());
 
@@ -779,7 +779,7 @@ test("CullVisitor", function() {
         //cull.pushModelviewMatrix(osg.Matrix.makeIdentity([]));
         cull.pushModelMatrix(osg.Matrix.makeIdentity([]));
         camera0.accept(cull);
-        
+
         ok(cull.rootRenderStage === cull.currentRenderBin, "renderStage should stay the render bin and id " ); //+ cull.rootRenderStage === cull.currentRenderBin
     })();
 
@@ -823,7 +823,7 @@ test("CullVisitor", function() {
     // check the computation of nearfar
     (function() {
         var camera0 = new osg.Camera();
-        
+
         var mt = new osg.MatrixTransform();
         mt.setMatrix(osg.Matrix.makeTranslate(0,0, 10));
         var geom = osg.createTexturedQuadGeometry(-5.0, -5, 0,
@@ -871,7 +871,7 @@ test("CullVisitor", function() {
     // check the computation of nearfar with camera in position that it reverses near far
     (function() {
         var camera0 = new osg.Camera();
-        
+
         var mt = new osg.MatrixTransform();
         mt.setMatrix(osg.Matrix.makeTranslate(0,0, 10));
         var geom = osg.createTexturedQuadGeometry(-5.0, -5, 0,
@@ -922,7 +922,7 @@ test("CullVisitor", function() {
 
     (function() {
         var camera0 = new osg.Camera();
-        
+
         var geom = osg.createTexturedQuadGeometry(-5.0, -5, 0,
                                           10, 0, 0,
                                           0, 10 , 0,
@@ -1023,17 +1023,17 @@ test("CullVisitor", function() {
         node1.setMatrix(osg.Matrix.makeTranslate(0,0,5, []));
         node1.getOrCreateStateSet().setName("Node1");
         node1.addChild(q);
-        
+
         var node2 = new osg.MatrixTransform();
         node2.setMatrix(osg.Matrix.makeTranslate(0,0,-20, []));
         node2.getOrCreateStateSet().setRenderBinDetails(0,"RenderBin");
         node2.getOrCreateStateSet().setName("Node2");
         node2.addChild(q);
-        
+
         node3.addChild(node0);
         node0.addChild(node1);
         node1.addChild(node2);
-        
+
         var cull = new osg.CullVisitor();
         var rs = new osg.RenderStage();
         var sg = new osg.StateGraph();
@@ -1047,7 +1047,7 @@ test("CullVisitor", function() {
 
         node3.accept(cull);
         rs.sort();
-        
+
         ok(rs._bins['0']._leafs[2].depth === -15,"Check depth of leaf 0");
         ok(rs._bins['0']._leafs[1].depth === -10,"Check depth of leaf 1");
         ok(rs._bins['0']._leafs[0].depth === 5,"Check depth of leaf 2");
@@ -1075,7 +1075,7 @@ test("CullVisitor", function() {
         var root = new osg.Node();
         root.addChild(node1);
         root.addChild(node0);
-        
+
         var cull = new osg.CullVisitor();
         var rs = new osg.RenderStage();
         var sg = new osg.StateGraph();
@@ -1089,7 +1089,7 @@ test("CullVisitor", function() {
 
         root.accept(cull);
         rs.sort();
-        
+
         ok(rs._bins['10']._leafs[0].depth === 10,"Check transparent bin");
         ok(rs._bins['10'].getStateGraphList().length === 0,"Check transparent bin StateGraphList");
         ok(rs._leafs.length === 0,"Check leafs for normal rendering bin");
@@ -1117,7 +1117,7 @@ test("CullVisitor", function() {
         var root = new osg.Node();
         root.addChild(node1);
         root.addChild(node0);
-        
+
         var cull = new osg.CullVisitor();
         var rs = new osg.RenderStage();
         var sg = new osg.StateGraph();
@@ -1250,7 +1250,89 @@ test("CullVisitor", function() {
         ok(cullVisitor._reserveMatrixModelStack._array.length === 3, "check reserve model matrix does not leak");
         ok(cullVisitor._reserveMatrixViewStack._array.length === 2, "check reserve view matrix does not leak");
         ok(cullVisitor._reserveBoundingBoxStack._array.length === 3, "check reserve boundingbox does not leak");
-        
+
+    })();
+
+
+    // test near/far of cullvisitor
+    // with rotations
+    // camera->rootmatrixTransform-->matrixTransform1->cube
+    //                            \->matrixTransform2->cube
+    (function() {
+        var root = new osg.MatrixTransform();
+        var node0 = new osg.MatrixTransform();
+        var node1 = new osg.MatrixTransform();
+        var rootRotate = osg.Matrix.makeRotate(Math.PI, 0, 1, 0, []);
+        root.setMatrix(rootRotate);
+        root.addChild(node0);
+        root.addChild(node1);
+        node1.addChild(node0); // double parent node
+        var matrixTranslate0 = osg.Matrix.makeTranslate(-10,0,0, []);
+        node0.setMatrix(matrixTranslate0);
+        var matrixRotate1 = osg.Matrix.makeRotate(Math.PI, 1, 0, 0, []);
+        node1.setMatrix(matrixRotate1);
+        var cube = osg.createTexturedBoxGeometry(0,0,0,
+                                                 1,1,1);
+        node0.addChild(cube);
+        node1.addChild(cube);
+
+        var matrix0 = new Array(16);
+        matrix0[0] = 594040;
+        var matrix1 = new Array(16);
+        var matrix2 = new Array(16);
+        var matrixRes = new Array(16);
+        var f0 = function() {};
+        f0.prototype = {
+            cull: function(node, nv) {
+                if (matrix0[0] === 594040)
+                    osg.Matrix.copy(nv.getCurrentModelMatrix(), matrix0);
+                else
+                    osg.Matrix.copy(nv.getCurrentModelMatrix(), matrix2);
+                return true;
+            }
+        };
+        var f1 = function() {};
+        f1.prototype = {
+            cull: function(node, nv) {
+                osg.Matrix.copy(nv.getCurrentModelMatrix(), matrix1);
+                return true;
+            }
+        };
+
+        node0.setCullCallback(new f0());
+        node1.setCullCallback(new f1());
+
+        var canvas = createCanvas();
+        var viewer = new osgViewer.Viewer(canvas);
+        viewer.init();
+        viewer.setSceneData(root);
+        viewer.cull();
+        osg.Matrix.mult(rootRotate, matrixTranslate0, matrixRes);
+        ok(osg.Matrix.isEqual(matrixRes, matrix0), "check matrix model computations (rotation.translation) [" + matrixRes.toString() + "] == [" + matrix0 + "]");
+
+        osg.Matrix.mult(rootRotate, matrixRotate1, matrixRes);
+        ok(osg.Matrix.isEqual(matrixRes, matrix1), "check matrix model computations (rotation.rotation)  [" + matrixRes.toString() + "] == [" + matrix1.toString() + "]");
+
+        osg.Matrix.mult(matrixRes, matrixTranslate0, matrixRes);
+        ok(osg.Matrix.isEqual(matrixRes, matrix2), "check matrix model computations (rotation.rotation.translation)  [" + matrixRes.toString() + "] == [" + matrix2.toString() + "]");
+
+        node3.addChild(cube);
+        node0.addChild(node3);
+        // try to reparse the graph
+        // this time everything should not be cached because we did change
+        // things
+        cullVisitor.startCullTransformCallBacks(camera, undefined, root);
+        ok(cullVisitor._reserveMatrixModelStack.isDirty() === true, "check matrix model are not cached when adding new nodes");
+        node3.removeChildren();
+        cullVisitor.startCullTransformCallBacks(camera, undefined, root);
+        ok(cullVisitor._reserveMatrixModelStack.isDirty() === true, "check matrix model are not cached when removing nodes");
+        node1.removeChild(node3);
+        cullVisitor.startCullTransformCallBacks(camera, undefined, root);
+        ok(cullVisitor._reserveMatrixModelStack.isDirty() === true, "check matrix model are not cached when remove transform nodes");
+        node1.addChild(cube);
+        cullVisitor.startCullTransformCallBacks(camera, undefined, root);
+        ok(cullVisitor._reserveMatrixModelStack.isDirty() === true, "check matrix model are cached when adding geom nodes");
+
     })();
 
 
@@ -1277,7 +1359,7 @@ test("Node", function() {
     n.getBound();
     ok( n.boundingSphereComputed === true, "boundingSphereComputed must be true after calling getBound");
 
-    
+
     n1.dirtyBound();
     ok( n.boundingSphereComputed === false, "boundingSphereComputed must be true if a child call dirtyBound");
 
@@ -1288,7 +1370,7 @@ test("Node", function() {
 
 test("Texture", function() {
     stop();
-    
+
     var ready = undefined;
     var loadingComplete = function() {
         loadingComplete.nbLoad--;
@@ -1349,7 +1431,7 @@ test("Texture", function() {
         ok( greyscale._textureObject !== undefined, "texture object");
         ok( greyscale.isDirty() === false, "dirty is false");
 
-        
+
         //rgb24.apply(state);
         //rgba32.apply(state);
         //tcanvas.apply(state);
@@ -1360,7 +1442,7 @@ test("Texture", function() {
 });
 
 test("TextureCubeMap", function() {
-    
+
     var ready = undefined;
     var loadingComplete = function() {
         loadingComplete.nbLoad--;
@@ -1411,10 +1493,10 @@ test("MatrixTransform", function() {
     var scene = osgDB.parseSceneGraph(getBoxScene());
     n.setMatrix(osg.Matrix.makeTranslate(100,0,0));
     n.addChild(scene);
-    var bs = n.getBound(); 
+    var bs = n.getBound();
     near( bs.center(), [100,0,0]);
     near( bs.radius(), 2.414213562373095);
-    
+
 });
 
 
@@ -1428,9 +1510,9 @@ test("Depth", function() {
 
     var state = new osg.State();
     state.setGraphicContext(createFakeRenderer());
-    
+
     n.apply(state);
-    
+
     n = new osg.Depth(osg.Depth.DISABLE);
     n.apply(state);
 
@@ -1446,9 +1528,9 @@ test("ColorMask", function() {
 
     var state = new osg.State();
     state.setGraphicContext(createFakeRenderer());
-    
+
     n.apply(state);
-    
+
     n = new osg.ColorMask([false, false, false, false]);
     n.apply(state);
 
@@ -1461,9 +1543,9 @@ test("CullFace", function() {
 
     var state = new osg.State();
     state.setGraphicContext(createFakeRenderer());
-    
+
     n.apply(state);
-    
+
     n = new osg.CullFace(osg.CullFace.DISABLE);
     n.apply(state);
 
@@ -1475,22 +1557,22 @@ test("CullFace", function() {
 test("BlendColor", function() {
 
     var n = new osg.BlendColor();
-    ok(n.getConstantColor()[0] === 1.0 && 
-       n.getConstantColor()[1] === 1.0 && 
-       n.getConstantColor()[2] === 1.0 && 
+    ok(n.getConstantColor()[0] === 1.0 &&
+       n.getConstantColor()[1] === 1.0 &&
+       n.getConstantColor()[2] === 1.0 &&
        n.getConstantColor()[3] === 1.0
        , "Check default constantColor");
 
     n.setConstantColor([0,0.5,0,0.5]);
-    ok(n.getConstantColor()[0] === 0.0 && 
-       n.getConstantColor()[1] === 0.5 && 
-       n.getConstantColor()[2] === 0.0 && 
+    ok(n.getConstantColor()[0] === 0.0 &&
+       n.getConstantColor()[1] === 0.5 &&
+       n.getConstantColor()[2] === 0.0 &&
        n.getConstantColor()[3] === 0.5
        , "Check set constant color");
 
     var state = new osg.State();
     state.setGraphicContext(createFakeRenderer());
-    
+
     n.apply(state);
 });
 
@@ -1534,7 +1616,7 @@ test("Light", function() {
         l0.setLightNumber(0);
         l0.setName("enableLight0");
         node0.getOrCreateStateSet().setAttributeAndMode(l0);
-        
+
         var l1 = new osg.Light();
         l1.setLightNumber(1);
         l1.setName("enableLight1");
@@ -1545,7 +1627,7 @@ test("Light", function() {
                                        0, 50 ,0);
 
         var ld0 = new osg.Light();
-        ld0.setLightNumber(0); 
+        ld0.setLightNumber(0);
         ld0.setName("disableLight0");
 
         var ld1 = new osg.Light();
@@ -1567,7 +1649,7 @@ test("Light", function() {
        cull.pushModelMatrix(osg.Matrix.makeIdentity([]));
         cull.setRenderStage(rs);
         cull.setStateGraph(sg);
-        
+
         root.accept(cull);
     })();
 

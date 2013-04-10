@@ -389,7 +389,7 @@ osgViewer.Viewer.prototype = osg.objectInehrit(osgViewer.View.prototype, {
         // this part of code should be called for each view
         // right now, we dont support multi view
         this._stateGraph.setClean();
-        this._renderStage.reset();
+            this._renderStage.reset();
 
        //this._cullVisitor._forceUpdate = true;
 
@@ -438,8 +438,10 @@ osgViewer.Viewer.prototype = osg.objectInehrit(osgViewer.View.prototype, {
         // should be merged with the update of game pad below
         if (this.getManipulator()) {
             this.getManipulator().update(this._updateVisitor);
-            osg.Matrix.copy(this.getManipulator().getInverseMatrix(), this.getCamera().getViewMatrix());
-            this.getCamera().dirtyMatrix();
+            if (!osg.Matrix.isEqual(this.getManipulator().getInverseMatrix(), this.getCamera().getViewMatrix())){
+                osg.Matrix.copy(this.getManipulator().getInverseMatrix(), this.getCamera().getViewMatrix());
+                this.getCamera().dirtyMatrix();
+            }
         }
 
         //TODO: does this belong here?

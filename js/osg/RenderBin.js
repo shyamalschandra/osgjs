@@ -176,6 +176,21 @@ osg.RenderBin.prototype = {
         var modelViewUniform;
         var projectionUniform;
         var program;
+
+        var programPrevious;
+
+        var viewUniformUpdate;
+        var normalUniformUpdate;
+        var modelUniformUpdate;
+        var modelViewUniformUpdate;
+        var projectionUniformUpdate;
+
+        var viewPrevious;
+        var normalPrevious;
+        var modelPrevious;
+        var modelViewPrevious;
+        var projectionPrevious;
+
         var stateset;
         var previousLeaf = previousRenderLeaf;
         var normal = [];
@@ -314,36 +329,59 @@ osg.RenderBin.prototype = {
                     //state.pushGeneratedProgram();
                     state.apply();
                     program = state.getLastProgramApplied();
+                }
+                viewUniformUpdate = false;
+                normalUniformUpdate = false;
+                modelUniformUpdate = false;
+                modelViewUniformUpdate = false;
+                projectionUniformUpdate = false;
 
-                    modelViewUniform = program.uniformsCache[state.modelViewMatrix.name];
-                    modelUniform = program.uniformsCache[state.modelMatrix.name];
-                    viewUniform = program.uniformsCache[state.viewMatrix.name];
-                    projectionUniform = program.uniformsCache[state.projectionMatrix.name];
-                    normalUniform = program.uniformsCache[state.normalMatrix.name];
+                if (program !== programPrevious){
+                    modelViewUniform    = program.uniformsCache[state.modelViewMatrix.name];
+                    modelUniform        = program.uniformsCache[state.modelMatrix.name];
+                    viewUniform         = program.uniformsCache[state.viewMatrix.name];
+                    projectionUniform   = program.uniformsCache[state.projectionMatrix.name];
+                    normalUniform       = program.uniformsCache[state.normalMatrix.name];
+
+                    viewUniformUpdate           = viewUniform       !== undefined;
+                    projectionUniformUpdate     = projectionUniform !== undefined;
+                    modelUniformUpdate          = modelUniform      !== undefined;
+                    modelViewUniformUpdate      = modelViewUniform  !== undefined;
+                    normalUniformUpdate         = normalUniform     !== undefined;
+                }
+                else{
+                    // samee program, check changes.
+                    viewUniformUpdate           = viewUniform       !== undefined && (!viewPrevious         || leaf.view        !== viewPrevious);
+                    projectionUniformUpdate     = projectionUniform !== undefined && (!projectionPrevious   || leaf.projection  !== projectionPrevious);
+                    modelUniformUpdate          = modelUniform      !== undefined && (!modelPrevious        || leaf.model       !== modelPrevious);
+                    modelViewUniformUpdate      = modelViewUniform  !== undefined && (modelUniformUpdate    || viewUniformUpdate);
+                    normalUniformUpdate         = normalUniform     !== undefined && (modelUniformUpdate    || viewUniformUpdate);
                 }
 
-
-                if (viewUniform !== undefined) {
+                if (viewUniformUpdate) {
                     state.viewMatrix.set(leaf.view);
                     state.viewMatrix.apply(viewUniform);
+                    viewPrevious = leaf.view;
                 }
-                if (modelUniform !== undefined) {
-                    state.modelMatrix.set(leaf.model);
-                    state.modelMatrix.apply(modelUniform);
+                if (projectionUniformUpdate) {
+                    state.projectionMatrix.set(leaf.projection);
+                    state.projectionMatrix.apply(projectionUniform);
+                    projectionPrevious = leaf.projection;
                 }
 
-                if (modelViewUniform !== undefined || normalUniform !==  undefined) {
+                if (modelUniformUpdate) {
+                    state.modelMatrix.set(leaf.model);
+                    state.modelMatrix.apply(modelUniform);
+                    modelPrevious = leaf.model;
+                }
+                if (modelViewUniformUpdate || normalUniformUpdate) {
                     leaf.modelview =  osg.Matrix.mult(leaf.view, leaf.model, []);
                 }
-                if (modelViewUniform !== undefined) {
+                if (modelViewUniformUpdate) {
                     state.modelViewMatrix.set(leaf.modelview);
                     state.modelViewMatrix.apply(modelViewUniform);
                 }
-                if (projectionUniform !== undefined) {
-                    state.projectionMatrix.set(leaf.projection);
-                    state.projectionMatrix.apply(projectionUniform);
-                }
-                if (normalUniform !== undefined) {
+                if (normalUniformUpdate) {
                     Matrix.copy(leaf.modelview, normal);
                     //Matrix.setTrans(normal, 0, 0, 0);
                     normal[12] = 0;
@@ -363,6 +401,8 @@ osg.RenderBin.prototype = {
                     state.popStateSet();
                 }
 
+
+                programPrevious = program;
                 previousLeaf = leaf;
             }
         }

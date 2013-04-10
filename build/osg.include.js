@@ -5,8 +5,8 @@
 // TODO:handle reloading
 var loadedJSONP = {};
 //
-var loadJSONP = function(script, callback) {
-    if (loadedJSONP[script]) callback(loadedJSONP[script]);
+var loadJSONP = function(script, callback, reload) {
+    if (!reload && loadedJSONP[script]) callback(loadedJSONP[script]);
     var s = document.createElement("script");
     s.onload = function(data) {
         loadedJSONP[script] = data;
@@ -15,17 +15,18 @@ var loadJSONP = function(script, callback) {
     };
     s.type = "text/javascript";
     s.src = script.replace(/\\\\|\\|\/\//g, "/");
-    if (reload && window.location.href.indexOf('http') != -1)
+    if (reload && window.location.href.indexOf('http') !== -1)
         s.src += '?rand=' + Math.round(Math.random() * 999999999);
     document.body.appendChild(s);
 };
 
 var loadedJSON = {};
-var loadJSON = function(script, callback) {
-    if (loadedJSON[script]) callback();
+var loadJSON = function(script, callback, reload) {
+    if (!reload && loadedJSON[script]) callback();
     req = new XMLHttpRequest();
     var src = script;
-    src += '?rand=' + Math.round(Math.random() * 999999999);
+    if (reload && window.location.href.indexOf('http') !== -1)
+        src += '?rand=' + Math.round(Math.random() * 999999999);
     req.open("GET", src, true);
     var loadCallBack = function(e) {
         if (e.target.status === 200) {
@@ -43,16 +44,6 @@ var loadJSON = function(script, callback) {
         console.error("Cannot Load");
     }, false);
     req.send(null);
-};
-
-var convertObjToArray = function(obj) {
-    var arr = [];
-    for (var key in obj) {
-        if (obj.hasOwnProperty(key)) {
-            arr.push(obj[key]);
-        }
-    }
-    return arr;
 };
 
 var loadOSGJSON = function(prefix, jsonlib, loadCallBack, extensions) {

@@ -39,11 +39,17 @@
 						var infoResEl = document.createElement( 'div' );
 						document.body.appendChild( infoResEl );
 
-						
 						var context = this.setup();
-						var start = performance.now();
+						if (console && console.profile)
+							console.profile(this.title);
+						var startTime = performance.now();
 						var results = test(context);
-						var text = "<p>" + ((performance.now() - start) / results.count)+ ' ms</p>';
+						var endTime = performance.now();
+						if (console && console.profileEnd)
+  							console.profileEnd();
+
+						var text = "<p>" + ((endTime - startTime) / results.count)+ ' ms</p>';
+
 						if (results.result && results.result.length > 0)
 							text += "<p>" + results.result + ' </p>';
 						infoResEl.innerHTML = text;

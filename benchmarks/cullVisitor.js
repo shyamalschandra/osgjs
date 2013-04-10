@@ -61,46 +61,32 @@ function() {
         return root;
     }
     // setup
-    var camera0 = new osg.Camera();
-    camera0.setRenderOrder(osg.Transform.NESTED_RENDER);
-    var node0 = new osg.Node();
-    var node1 = new osg.Node();
-    camera0.addChild(node0);
-    camera0.addChild(node1);
+    var canvas, viewer;
+    // setup a  canvas
 
-    var camera1 = new osg.Camera();
-    camera1.setRenderOrder(osg.Transform.NESTED_RENDER);
-    var node00 = new osg.Node();
-    var node10 = new osg.Node();
-    camera1.addChild(node00);
-    camera1.addChild(node10);
-
-    camera0.addChild(camera1);
-
-    camera1.addChild(createItems(Deep));
-
-    var cull = new osg.CullVisitor();
-    var rs = new osg.RenderStage();
-    var sg = new osg.StateGraph();
-    cull.setRenderStage(rs);
-    cull.setStateGraph(sg);
-
-    cull.pushProjectionMatrix(osg.Matrix.makeIdentity([]));
-    cull.pushViewMatrix(osg.Matrix.makeIdentity([]));
-    //cull.pushModelviewMatrix(osg.Matrix.makeIdentity([]));
-    cull.pushModelMatrix(osg.Matrix.makeIdentity([]));
+    canvas = document.createElement('canvas');
+    canvas.id = "3dView";
+    document.body.appendChild(canvas);
+    // setup a simple scene, but with lots of instance of the exact same object
+    viewer = new osgViewer.Viewer(canvas);
+    viewer.init();
+    viewer.setSceneData(createItems(Deep));
+    viewer.setupManipulator();
+    viewer.getManipulator().computeHomePosition();
+    // update/cull/draw the frame once  (warming the cache)
+    viewer.frame();
     return {
-        camera: camera0,
-        cull: cull,
+        canvas: canvas,
+        viewer: viewer,
         NbTotalItems: NbTotalItems,
         NbTotalNodes: NbTotalNodes,
-        runCount: 10
+        runCount: 1000
     };
 },
 
 function(context) {
     for (var i = 0; i < context.runCount; i++)
-    context.camera.accept(context.cull);
+        context.viewer.cull();
 
     return {
         "count": context.runCount,
@@ -109,5 +95,6 @@ function(context) {
 },
 
 function(context) {
-    //end;
+    //remove context.canvas;
+    context.canvas.parentNode.removeChild(context.canvas);
 }));

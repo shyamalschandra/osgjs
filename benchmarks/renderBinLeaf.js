@@ -73,11 +73,11 @@ function() {
 	viewer.setSceneData(createItems(Deep));
 	viewer.setupManipulator();
 	viewer.getManipulator().computeHomePosition();
-	// update/cull/draw the frame once
+    // update/cull/draw the frame once  (warming the cache)
 	viewer.frame();
 
 	return {
-		runCount: 10,
+		runCount: 100,
         NbTotalItems: NbTotalItems,
         NbTotalNodes: NbTotalNodes,
 		canvas: canvas,

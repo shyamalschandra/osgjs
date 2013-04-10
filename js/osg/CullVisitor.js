@@ -696,10 +696,10 @@ osg.CullVisitor.prototype[osg.Geometry.prototype.objectType] = function (node) {
         this._reserveBoundingBoxStack.dirty();
     }
     var bb = this._reserveBoundingBoxStack.getReserved();
-    var localbb = node.getBoundingBox();
 
     if (recompute) {
 
+        var localbb = node.getBoundingBox();
         osg.Matrix.transformBoundingbox( model, localbb,  bb);
 
         var cameraBoundingbox = this.getCurrentBoundingbox();
@@ -709,8 +709,9 @@ osg.CullVisitor.prototype[osg.Geometry.prototype.objectType] = function (node) {
         }
     }
 
-    if (this._computeNearFar && bb.valid()) {
-
+    var validBB = bb.valid();
+    if (this._computeNearFar && validBB) {
+        // could do that and get depth at once.
         if (!this.updateCalculatedNearFar(bb, view)) {
             return;
         }
@@ -729,14 +730,15 @@ osg.CullVisitor.prototype[osg.Geometry.prototype.objectType] = function (node) {
 
     var leaf = this._getReservedLeaf();
     leaf.node = node;
-    leaf.node = bb;
+    leaf.bb = bb;
     var depth = 0;
-    if (bb.valid()) {
+    if (validBB) {
+        // cache center ?
         depth = this.distance(bb.center(), view);
     }
     if (isNaN(depth)) {
-        osg.warn("warning geometry has a NaN depth, " + modelview + " center " + bb.center());
-    } else {
+        osg.warn("warning geometry has a NaN depth, " + model + " center " + bb.center());
+    } else  {
         // TODO reuse leafs, direclty?
         //  for now give flicker if doing nested camerastr
         //if (this._sceneGraphDirty){
@@ -744,7 +746,7 @@ osg.CullVisitor.prototype[osg.Geometry.prototype.objectType] = function (node) {
             leaf.parent = this._currentStateGraph;
 
             leaf.projection = this.getCurrentProjectionMatrix();
-            leaf.view = this.getCurrentViewMatrix();
+            leaf.view = view;
             leaf.model = model;
             //if (node.modelview)
              //   leaf.modelview = modelview;
