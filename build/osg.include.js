@@ -11,13 +11,13 @@ var loadJSONP = function(script, callback, reload) {
     s.onload = function(data) {
         loadedJSONP[script] = data;
         if (callback) callback(data);
-        //document.body.removeChild(s);
+        //document.body.headremoveChild(s);
     };
     s.type = "text/javascript";
     s.src = script.replace(/\\\\|\\|\/\//g, "/");
     if (reload && window.location.href.indexOf('http') !== -1)
         s.src += '?rand=' + Math.round(Math.random() * 999999999);
-    document.body.appendChild(s);
+    document.head.appendChild(s);
 };
 
 var loadedJSON = {};
@@ -46,7 +46,19 @@ var loadJSON = function(script, callback, reload) {
     req.send(null);
 };
 
+var osg = osg || {};
+
+// either all js file are loaded before DOMcontentloaded 
+// and then we must wait
+// or it's not loaded and loadcallback will be called by 
+// doActload
+var loadComplete = function(){
+    if (osg.jsLoaded)
+        this.loadCallBack();
+};
+
 var loadOSGJSON = function(prefix, jsonlib, loadCallBack, extensions) {
+    this.loadCallBack = loadCallBack;
     var doActload = function() {
         var loader = loadJSON;
         if (window.location.href.indexOf('file://') != -1) {
@@ -65,8 +77,9 @@ var loadOSGJSON = function(prefix, jsonlib, loadCallBack, extensions) {
                 num++;
 
                 //console.log("loaded " + src);
-                if (num >= numTotal) {
+                if (num >= numTotal && document.readyState === "complete") {
                     console.log("Osg loaded");
+                    osg.jsLoaded = true;
                     if (loadCallBack) loadCallBack();
                 } else {
                     loadJSONP(prefix + loadList[num], loadCountAndLog);
@@ -75,14 +88,12 @@ var loadOSGJSON = function(prefix, jsonlib, loadCallBack, extensions) {
             loadJSONP(prefix + loadList[num], loadCountAndLog);
         });
     };
-    if (document.readyState === "complete") {
-        doActload();
-    } else {
-        window.addEventListener("load", doActload.bind(this), false);
-    }
+    doActload();
+    window.addEventListener("load", loadComplete.bind(this), false);
 };
 
 var loadOSGJS = function(prefix, libjs, loadCallBack, extensions) {
+    this.loadCallBack = loadCallBack;
     var doActload = function() {
         var loadList = [libjs];
         loadList = extensions ? loadList.concat(extensions) : loadList;
@@ -92,8 +103,9 @@ var loadOSGJS = function(prefix, libjs, loadCallBack, extensions) {
             num++;
 
             //console.log("loaded " + src);
-            if (num >= numTotal) {
+            if (num >= numTotal && document.readyState === "complete") {
                 console.log("Osg loaded");
+                osg.jsLoaded = true;
                 if (loadCallBack) loadCallBack();
             } else {
                 loadJSONP(prefix + loadList[num], loadCountAndLog);
@@ -101,9 +113,6 @@ var loadOSGJS = function(prefix, libjs, loadCallBack, extensions) {
         };
         loadJSONP(prefix + loadList[num], loadCountAndLog);
     };
-    if (document.readyState === "complete") {
-        doActload();
-    } else {
-        window.addEventListener("load", doActload.bind(this), false);
-    }
+    doActload();
+    window.addEventListener("load", loadComplete.bind(this), false);
 };

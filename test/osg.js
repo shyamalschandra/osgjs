@@ -1254,7 +1254,7 @@ test("CullVisitor", function() {
     })();
 
 
-    // test near/far of cullvisitor
+    // test tranformation, near/far, cache invalidation of cullvisitor
     // with rotations
     // camera->rootmatrixTransform-->matrixTransform1->cube
     //                            \->matrixTransform2->cube
@@ -1306,32 +1306,48 @@ test("CullVisitor", function() {
         var viewer = new osgViewer.Viewer(canvas);
         viewer.init();
         viewer.setSceneData(root);
+        viewer.getCamera().addChild(root);
         viewer.cull();
         osg.Matrix.mult(rootRotate, matrixTranslate0, matrixRes);
         ok(osg.Matrix.isEqual(matrixRes, matrix0), "check matrix model computations (rotation.translation) [" + matrixRes.toString() + "] == [" + matrix0 + "]");
+        MatrixRes = [-1,0,1.2246063538223773e-16,0,0,1,0,0,-1.2246063538223773e-16,0,-1,0,10,0,-1.7763568394002505e-15,1];
+        ok(osg.Matrix.isEqual(matrixRes, matrix0), "check matrix model computations (rotation.translation) old osg [" + matrixRes.toString() + "] == [" + matrix0 + "]");
 
         osg.Matrix.mult(rootRotate, matrixRotate1, matrixRes);
         ok(osg.Matrix.isEqual(matrixRes, matrix1), "check matrix model computations (rotation.rotation)  [" + matrixRes.toString() + "] == [" + matrix1.toString() + "]");
+        MatrixRes = [-1,0,1.2246063538223773e-16,0,1.4996607218221374e-32,-1,1.2246063538223773e-16,0,1.2246063538223773e-16,1.2246063538223773e-16,1,0,0,0,0,1 ];
+        ok(osg.Matrix.isEqual(matrixRes, matrix1), "check matrix model computations (rotation.translation) old osg [" + matrixRes.toString() + "] == [" + matrix0 + "]");
 
         osg.Matrix.mult(matrixRes, matrixTranslate0, matrixRes);
         ok(osg.Matrix.isEqual(matrixRes, matrix2), "check matrix model computations (rotation.rotation.translation)  [" + matrixRes.toString() + "] == [" + matrix2.toString() + "]");
+        MatrixRes = [-1,0,1.2246063538223773e-16,0,1.4996607218221374e-32,-1,1.2246063538223773e-16,0,1.2246063538223773e-16,1.2246063538223773e-16,1,0,10,0,-1.7763568394002505e-15,1];
+        ok(osg.Matrix.isEqual(matrixRes, matrix2), "check matrix model computations (rotation.translation) old osg [" + matrixRes.toString() + "] == [" + matrix0 + "]");
 
+
+     //
+        var bs = viewer.getCamera().getBound();
+        console.log("BS c: " + bs._center.toString());
+        console.log("BS r: " + bs._radius.toString());
+        ok(bs._center[0]=== -5 && bs._center[2]=== 0 && bs._center[2]=== -10, "check boundingsphere computation " + bs._center.toString() + " === [-5,0,10]" );
+        ok(bs._radius === 5.866025403784439 , "check boundingsphere computation radius: " + bs._radius.toString() + " === " + 5.866025403784439);
+
+        var node3 = new osg.MatrixTransform();
         node3.addChild(cube);
         node0.addChild(node3);
         // try to reparse the graph
         // this time everything should not be cached because we did change
         // things
-        cullVisitor.startCullTransformCallBacks(camera, undefined, root);
-        ok(cullVisitor._reserveMatrixModelStack.isDirty() === true, "check matrix model are not cached when adding new nodes");
+        viewer.cull();
+        ok(viewer._cullVisitor._reserveMatrixModelStack.isDirty() === true, "check matrix model are not cached when adding new nodes");
         node3.removeChildren();
-        cullVisitor.startCullTransformCallBacks(camera, undefined, root);
-        ok(cullVisitor._reserveMatrixModelStack.isDirty() === true, "check matrix model are not cached when removing nodes");
+        viewer.cull();
+        ok(viewer._cullVisitor._reserveMatrixModelStack.isDirty() === true, "check matrix model are not cached when removing nodes");
         node1.removeChild(node3);
-        cullVisitor.startCullTransformCallBacks(camera, undefined, root);
-        ok(cullVisitor._reserveMatrixModelStack.isDirty() === true, "check matrix model are not cached when remove transform nodes");
+        viewer.cull();
+        ok(viewer._cullVisitor._reserveMatrixModelStack.isDirty() === true, "check matrix model are not cached when remove transform nodes");
         node1.addChild(cube);
-        cullVisitor.startCullTransformCallBacks(camera, undefined, root);
-        ok(cullVisitor._reserveMatrixModelStack.isDirty() === true, "check matrix model are cached when adding geom nodes");
+        viewer.cull();
+        ok(viewer._cullVisitor._reserveMatrixModelStack.isDirty() === true, "check matrix model are cached when adding geom nodes");
 
     })();
 

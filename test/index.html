@@ -5,17 +5,6 @@
 	<link rel="stylesheet" href="qunit/qunit/qunit.css" type="text/css" media="screen">
 	<!--<link rel="stylesheet" href="qunit/addons/themes/ninja.css" type="text/css" media="screen">!-->
 
-
-</head>
-<body>
-        <canvas id="3DView" style="border: none;" width="1" height="1"></canvas>
-	<h1 id="qunit-header">QUnit Test Suite</h1>
-	<h2 id="qunit-banner"></h2>
-	<div id="qunit-testrunner-toolbar"></div>
-	<h2 id="qunit-userAgent"></h2>
-	<ol id="qunit-tests"></ol>
-
-	
 	<script type="text/javascript" src="qunit/qunit/qunit.js"></script>
 	<!--
 	<script type="text/javascript" src="qunit/addons/close-enough/qunit-close-enough.js"></script>
@@ -36,12 +25,12 @@
 			"test/osgViewer.js",
 			"test/osg.js",
 			"test/osgAnimation.js",
-			"test/shader.js",
 			"test/memorypool.js",
-			"test/shaderloader.js",
 			"test/shadows.js"
 		];
 		var GLdependanttestfiles = [
+			"test/shader.js",
+			"test/shaderloader.js"
 		];
 		var testfiles = pureJStestfiles;
 		var userAgent = (window && window.navigator && window.navigator.userAgent) ? window.navigator.userAgent : undefined;
@@ -49,17 +38,26 @@
 			var hasGLcontext = !userAgent.match(/phantomjs\/(\d+(\.\d+)+)/i);
 			// if phantomjs, doesn't run tests needing webgl context.serAgent.match(/phantomjs\/(\d+(\.\d+)+)/i)
 			if (hasGLcontext){
-				testfiles = testfiles.concat(GLdependanttestfiles)
+				testfiles = testfiles.concat(GLdependanttestfiles);
+	    		QUnit.config.autostart = false;
 			}
 		}
 		var startTest = function(){
           var viewer = new osgViewer.Viewer(document.getElementById("3DView"));
-     
           QUnit.start();
 		}
-
-	    QUnit.config.autostart = false;
 	    loadOSGJSON("../", "project.json", startTest, testfiles);
 	</script>
+
+</head>
+<body>
+        <canvas id="3DView" style="border: none;" width="1" height="1"></canvas>
+	<h1 id="qunit-header">QUnit Test Suite</h1>
+	<h2 id="qunit-banner"></h2>
+	<div id="qunit-testrunner-toolbar"></div>
+	<h2 id="qunit-userAgent"></h2>
+	<ol id="qunit-tests"></ol>
+
+	
 </body>
 </html>

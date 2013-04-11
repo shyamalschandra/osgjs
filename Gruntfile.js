@@ -106,7 +106,11 @@
 			}
 		},
 		qunit: {
-			all: ['test/index.html']
+			options: {
+				timeout: 10000
+			},
+			base: ['test/index.html'],
+			require: ['test/testRequire.html']
 		},
 		concat: {
 			build: {
@@ -374,6 +378,5 @@
 	grunt.registerTask('release', ['jshint:beforeconcat', 'concat', 'jshint:afterconcat', 'strip', 'uglify', 'compress', 'copy']);
 	grunt.registerTask('verify', ['jsvalidate', 'release']);
 	grunt.registerTask('default', ['concat', 'strip', 'uglify', 'compress', 'copy', 'wrap', 'dir2json']);
-
 
 };

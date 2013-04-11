@@ -529,48 +529,53 @@ osg.Vec4 = {
  *  @class Object
  */
 osg.Object = function() {
-	this._name = undefined;
-	this._userdata = undefined;
+    this._name = undefined;
+    this._userdata = undefined;
     this._dirty = true;
+    this._objectID = osg.Object.objectInstance++;
 };
-
+osg.Object.objectInstance = 0;
 /** @lends osg.Object.prototype */
 osg.Object.prototype = osg.objectLibraryClass({
-	setName: function(name) {
-		this._name = name;
-	},
-	getName: function() {
-		return this._name;
-	},
-	dirty: function() {
-		this._dirty = true;
-	},
-	setClean: function() {
-		this._dirty = false;
-	},
-	isDirty: function() {
-		return this._dirty;
-	},
-	setUserData: function(data) {
-		this._userdata = data;
-	},
-	getUserData: function() {
-		return this._userdata;
-	},
-	toString: function() {
-		return JSON.stringify(this.toObject());
-	},
-	toJSON: function() {
-		return JSON.stringify(this.toObject());
-	},
-	toObject: function() {
-		var object = {
-			_name: this._name,
-			_userdata: this._userdata
-		};
-		return object;
-	}
+    getObjectID: function() { 
+        return this._objectID; 
+    },
+    setName: function(name) {
+	this._name = name;
+    },
+    getName: function() {
+	return this._name;
+    },
+    dirty: function() {
+	this._dirty = true;
+    },
+    setClean: function() {
+	this._dirty = false;
+    },
+    isDirty: function() {
+	return this._dirty;
+    },
+    setUserData: function(data) {
+	this._userdata = data;
+    },
+    getUserData: function() {
+	return this._userdata;
+    },
+    toString: function() {
+	return JSON.stringify(this.toObject());
+    },
+    toJSON: function() {
+	return JSON.stringify(this.toObject());
+    },
+    toObject: function() {
+	var object = {
+	    _name: this._name,
+	    _userdata: this._userdata
+	};
+	return object;
+    }
 }, "osg", "Object");
+
 
 
 /** @class Matrix Operations */
@@ -1732,7 +1737,7 @@ osg.Matrix = {
     //  http://users.soe.ucsc.edu/~pang/160/f98/Gems/Gems/TransBox.c
     //  Transforms a 3D axis-aligned box via a 4x4 matrix
     // vector and returns an axis-aligned box enclosing the result.
-    transformBbox: function(matrix,  bboxIn, bboxOut) {
+    transformBoundingbox: function(matrix,  bboxIn, bboxOut) {
         var av, bv;
         var i, j, k;
 
@@ -1759,7 +1764,18 @@ osg.Matrix = {
             }
         }
         return bboxOut;
-    }
+    },
+    // matrix invalidation for uniform update or cache invalidation
+    // Constraints: matrix1 & matrix2 are matrices.
+    isEqual: function(matrix1, matrix2){
+        var i =  matrix1.length;
+        while(i-- > 0){
+            if (Math.abs(matrix1[i]  - matrix2[i]) > 0.00001) {
+                return false;
+            }
+        }
+        return true;
+  }
 };
 
 osg.ShaderGeneratorType = {
@@ -1954,7 +1970,9 @@ osg.Uniform.createFloat1 = function(data, uniformName) {
     }
     var uniform = new osg.Uniform();
     uniform.data = [value];
-    uniform.glCall = gl.uniform1fv.bind(gl);
+    uniform.glCall = function (location, glData) {
+        gl.uniform1fv(location, glData);
+    };
     uniform.glData = new osg.Float32Array(uniform.data);
     uniform.update = osg.Uniform.prototype._updateFloat1;
     uniform.set = function(value) {
@@ -1987,7 +2005,9 @@ osg.Uniform.createFloat2 = function(data, uniformName) {
     }
     var uniform = new osg.Uniform();
     uniform.data = value;
-    uniform.glCall = gl.uniform2fv.bind(gl);
+    uniform.glCall = function (location, glData) {
+        gl.uniform2fv(location, glData);
+    };
     uniform.glData = new osg.Float32Array(uniform.data);
     uniform.update = osg.Uniform.prototype._updateFloat2;
     uniform.name = name;
@@ -2010,7 +2030,9 @@ osg.Uniform.createFloat3 = function(data, uniformName) {
     }
     var uniform = new osg.Uniform();
     uniform.data = value;
-    uniform.glCall = gl.uniform3fv.bind(gl);
+    uniform.glCall = function (location, glData) {
+        gl.uniform3fv(location, glData);
+    };
     uniform.glData = new osg.Float32Array(uniform.data);
     uniform.update = osg.Uniform.prototype._updateFloat3;
     uniform.name = name;
@@ -2033,7 +2055,9 @@ osg.Uniform.createFloat4 = function(data, uniformName) {
     }
     var uniform = new osg.Uniform();
     uniform.data = value;
-    uniform.glCall = gl.uniform4fv.bind(gl);
+    uniform.glCall = function (location, glData) {
+        gl.uniform4fv(location, glData);
+    };
     uniform.glData = new osg.Float32Array(uniform.data);
     uniform.update = osg.Uniform.prototype._updateFloat4;
     uniform.name = name;
@@ -2056,7 +2080,9 @@ osg.Uniform.createInt1 = function(data, uniformName) {
     }
     var uniform = new osg.Uniform();
     uniform.data = [value];
-    uniform.glCall = gl.uniform1iv.bind(gl);
+    uniform.glCall = function (location, glData) {
+        gl.uniform1iv(location, glData);
+    };
     uniform.set = function(value) {
         if (typeof value === "number") {
             this.data[0] = value;
@@ -2071,7 +2097,7 @@ osg.Uniform.createInt1 = function(data, uniformName) {
     uniform.type = "int";
     return uniform;
 };
-osg.Uniform.int = osg.Uniform.createInt1;
+osg.Uniform['int'] = osg.Uniform.createInt1;
 osg.Uniform.createInt = osg.Uniform.createInt1;
 osg.Uniform.createIntArray = function(array , name) {
     var u = osg.Uniform.createInt.call(this, array, name);
@@ -2089,7 +2115,9 @@ osg.Uniform.createInt2 = function(data, uniformName) {
     }
     var uniform = new osg.Uniform();
     uniform.data = value;
-    uniform.glCall = gl.uniform2iv.bind(gl);
+    uniform.glCall = function (location, glData) {
+        gl.uniform2iv(location, glData);
+    };
     uniform.glData = new osg.Int32Array(uniform.data);
     uniform.name = name;
     uniform.type = "vec2i";
@@ -2111,7 +2139,9 @@ osg.Uniform.createInt3 = function(data, uniformName) {
     }
     var uniform = new osg.Uniform();
     uniform.data = value;
-    uniform.glCall = gl.uniform3iv.bind(gl);
+    uniform.glCall = function (location, glData) {
+        gl.uniform3iv(location, glData);
+    };
     uniform.glData = new osg.Int32Array(uniform.data);
     uniform.name = name;
     uniform.type = "vec3i";
@@ -2133,7 +2163,9 @@ osg.Uniform.createInt4 = function(data, uniformName) {
     }
     var uniform = new osg.Uniform();
     uniform.data = value;
-    uniform.glCall = gl.uniform4iv.bind(gl);
+    uniform.glCall = function (location, glData) {
+        gl.uniform4iv(location, glData);
+    };
     uniform.glData = new osg.Int32Array(uniform.data);
     uniform.name = name;
     uniform.type = "vec4i";
@@ -2156,7 +2188,9 @@ osg.Uniform.createMatrix2 = function(data, uniformName) {
     }
     var uniform = new osg.Uniform();
     uniform.data = value;
-    uniform.glCall = gl.uniformMatrix2fv.bind(gl);
+    uniform.glCall = function (location, transpose, glData) {
+        gl.uniformMatrix2fv(location, transpose, glData);
+    };
     uniform.apply = uniform.applyMatrix;
     uniform.transpose = false;
     uniform.glData = new osg.Float32Array(uniform.data);
@@ -2177,7 +2211,9 @@ osg.Uniform.createMatrix3 = function(data, uniformName) {
     }
     var uniform = new osg.Uniform();
     uniform.data = value;
-    uniform.glCall = gl.uniformMatrix3fv.bind(gl);
+    uniform.glCall = function (location, transpose, glData) {
+        gl.uniformMatrix3fv(location, transpose, glData);
+    };
     uniform.apply = uniform.applyMatrix;
     uniform.transpose = false;
     uniform.glData = new osg.Float32Array(uniform.data);
@@ -2198,7 +2234,9 @@ osg.Uniform.createMatrix4 = function(data, uniformName) {
     }
     var uniform = new osg.Uniform();
     uniform.data = value;
-    uniform.glCall = gl.uniformMatrix4fv.bind(gl);
+    uniform.glCall = function (location, transpose, glData) {
+        gl.uniformMatrix4fv(location, transpose, glData);
+    };
     uniform.apply = uniform.applyMatrix;
     uniform.transpose = false;
     uniform.glData = new osg.Float32Array(uniform.data);
@@ -2209,7 +2247,6 @@ osg.Uniform.createMatrix4 = function(data, uniformName) {
 };
 osg.Uniform.createMat4 = osg.Uniform.createMatrix4;
 osg.Uniform.mat4 = osg.Uniform.createMatrix4;
-
 /** -*- compile-command: "jslint-cli Node.js" -*- */
 
 /**
@@ -2224,8 +2261,6 @@ osg.Node = function() {
     this.nodeMask = ~0;
     this.boundingSphere = new osg.BoundingSphere();
     this.boundingSphereComputed = false;
-    this._dirtySceneGraph = false;
-    this._dirtyMatrix = false;
     this._updateCallbacks = [];
     this._cullCallback = undefined;
 };
@@ -2260,39 +2295,7 @@ osg.Node.prototype = osg.objectLibraryClass(osg.objectInehrit(osg.Object.prototy
             }
         }
     },
-    // go up tell that local hierarchy Matrix is updated.
-    cleanMatrixAndSCeneGraph: function() {
-        if (this._dirtyMatrix) {
-            this._dirtyMatrix = false;
-            this._dirtySceneGraph = false;
-            for (var i = 0, l = this.children.length; i < l; i++) {
-                if (this.children[i].cleanMatrixAndSCeneGraph)
-                    this.children[i].cleanMatrixAndSCeneGraph();
-            }
-        }
-    },
-    // go up tell that local hierarchy Matrix is updated.
-    dirtyMatrix: function() {
-        this.dirtyBound();
-        if (!this._dirtyMatrix) {
-            this.boundingSphereComputed = false;
-            this._dirtyMatrix = true;
-            for (var i = 0, l = this.children.length; i < l; i++) {
-                if (this.children[i].dirtyMatrix)
-                    this.children[i].dirtyMatrix();
-            }
-        }
-    },
-    dirtySceneGraph: function() {
-        if (!this._dirtySceneGraph) {
-            this._dirtySceneGraph = true;
-            this.boundingSphereComputed = false;
-            this.dirtyMatrix();
-            for (var i = 0, l = this.parents.length; i < l; i++) {
-                this.parents[i].dirtySceneGraph();
-            }
-        }
-    },
+
     setNodeMask: function(mask) {
         this.nodeMask = mask;
     },
@@ -2386,7 +2389,7 @@ osg.Node.prototype = osg.objectLibraryClass(osg.objectInehrit(osg.Object.prototy
     addChild: function(child) {
         var c = this.children.push(child);
         child.addParent(this);
-        this.dirtySceneGraph();
+        this.dirtyBound();
         return c;
     },
     getChildren: function() {
@@ -2397,13 +2400,11 @@ osg.Node.prototype = osg.objectLibraryClass(osg.objectInehrit(osg.Object.prototy
     },
     addParent: function(parent) {
         this.parents.push(parent);
-        this.dirtySceneGraph();
     },
     removeParent: function(parent) {
         for (var i = 0, l = this.parents.length, parents = this.parents; i < l; i++) {
             if (parents[i] === parent) {
                 parents.splice(i, 1);
-                this.dirtySceneGraph();
                 return;
             }
         }
@@ -2415,21 +2416,17 @@ osg.Node.prototype = osg.objectLibraryClass(osg.objectInehrit(osg.Object.prototy
                 children[i].removeParent(this);
             }
             this.children.splice(0, this.children.length);
-            this.dirtySceneGraph();
         }
     },
 
     // preserve order
     removeChild: function(child) {
-        var needDirtyFlag = false;
         for (var i = 0, l = this.children.length; i < l; i++) {
             if (this.children[i] === child) {
                 child.removeParent(this);
                 this.children.splice(i, 1);
-                needDirtyFlag = true;
             }
         }
-        if (needDirtyFlag) this.dirtySceneGraph();
     },
 
     traverse: function(visitor) {
@@ -2513,6 +2510,7 @@ osg.Node.prototype = osg.objectLibraryClass(osg.objectInehrit(osg.Object.prototy
 
 }), "osg", "Node");
 osg.Node.prototype.objectType = osg.objectType.generate("Node");
+
 osg.NodeVisitor = function (traversalMode) {
     this.traversalMask = ~0x0;
     this.nodeMaskOverride = 0;
@@ -2573,6 +2571,7 @@ osg.NodeVisitor.prototype = {
 osg.Transform = function() {
     osg.Node.call(this);
     this.referenceFrame = osg.Transform.RELATIVE_RF;
+    this._dirtyMatrix = false;
 };
 osg.Transform.RELATIVE_RF = 0;
 osg.Transform.ABSOLUTE_RF = 1;
@@ -2581,7 +2580,12 @@ osg.Transform.ABSOLUTE_RF = 1;
 osg.Transform.prototype = osg.objectInehrit(osg.Node.prototype, {
     setReferenceFrame: function(value) { this.referenceFrame = value; },
     getReferenceFrame: function() { return this.referenceFrame; },
-
+    dirtyMatrix: function() { 
+        this._dirtyMatrix = true; 
+        this.dirtyBound(); 
+    },
+    isDirtyMatrix: function() { return this._dirtyMatrix; },
+    setDirtyMatrix: function(bool) { this._dirtyMatrix = bool; },
     computeBound: function(bsphere) {
         osg.Node.prototype.computeBound.call(this, bsphere);
         if (!bsphere.valid()) {
@@ -3286,8 +3290,8 @@ osg.CullStack = function() {
     this._viewportStack = new Array(10);
     this._viewportCurrent = -1;
 
-    this._bboxStack = new Array(10);
-    this._bboxCurrent = -1;
+    this._boundingboxStack = new Array(10);
+    this._boundingboxCurrent = -1;
 
     this._bbCornerFar = 0;
     this._bbCornerNear = 0;
@@ -3303,7 +3307,7 @@ osg.CullStack.prototype = {
         this._viewMatrixStackCurrent = -1;
         this._projectionMatrixStackCurrent = -1;
         this._viewportCurrent = -1;
-        this._bboxCurrent = -1;
+        this._boundingboxCurrent = -1;
 
     },
     getCurrentProjectionMatrix: function() {
@@ -3318,11 +3322,11 @@ osg.CullStack.prototype = {
     getCurrentViewMatrix: function() {
         return this._viewMatrixStack[this._viewMatrixStackCurrent];
     },
-    getCurrentBbox: function () {
-        if (this._bboxCurrent ===  -1) {
+    getCurrentBoundingbox: function () {
+        if (this._boundingboxCurrent ===  -1) {
             return undefined;
         }
-        return this._bboxStack[this._bboxCurrent];
+        return this._boundingboxStack[this._boundingboxCurrent];
     },
     getViewport: function () {
         if (this._viewportCurrent ===  -1) {
@@ -3341,15 +3345,15 @@ osg.CullStack.prototype = {
         //this._viewportStack.pop();
         this._viewportCurrent--;
     },
-    pushBbox: function (bbox) {
-        this._bboxCurrent++;
-        if (this._bboxStack.length < this._bboxCurrent)
-            this._bboxStack.push(bbox);
+    pushBoundingbox: function (boundingbox) {
+        this._boundingboxCurrent++;
+        if (this._boundingboxStack.length < this._boundingboxCurrent)
+            this._boundingboxStack.push(boundingbox);
         else
-            this._bboxStack[this._bboxCurrent] = bbox;
+            this._boundingboxStack[this._boundingboxCurrent] = boundingbox;
     },
-    popBbox: function () {
-        this._bboxCurrent--;
+    popBoundingbox: function () {
+        this._boundingboxCurrent--;
     },
     pushModelMatrix: function (matrix) {
         this._modelMatrixStackCurrent++;
@@ -3524,13 +3528,8 @@ osg.objectInehrit(osg.Transform.prototype, {
             osg.Matrix.inverse(matrix, this.modelMatrix);
         //}
     },
-    getViewMatrix: function(dirty) {
-        //if (osg.oldModelViewMatrixMode) {
-        //    return this.modelviewMatrix;
-        //} else {
-            if (dirty) this.dirtyMatrix();
-            return this.viewMatrix;
-        //}
+    getViewMatrix: function() {
+        return this.viewMatrix;
     },
 
     setProjectionMatrix: function(matrix) {
@@ -3609,6 +3608,7 @@ osg.objectInehrit(osg.Transform.prototype, {
 
 }))), "osg", "Camera");
 osg.Camera.prototype.objectType = osg.objectType.generate("Camera");
+
 osg.Depth = function (func, near, far, writeMask) {
     osg.StateAttribute.call(this);
 
@@ -4244,7 +4244,8 @@ osg.Light.prototype._shaderCommon[osg.ShaderGeneratorType.VertexFunction] = func
          else{
     return [ "",
              "vec3 computeNormal() {",
-             "   return vec3(NormalMatrix * vec4(Normal, 0.0));",
+            "   return vec3(NormalMatrix * vec4(Normal, 0.0));",
+              //"   return vec3(ViewMatrix * ModelMatrix * vec4(Normal, 0.0));",
              "}",
              "",
              "vec3 computeEyeVertex() {",
@@ -5298,6 +5299,21 @@ osg.RenderBin.prototype = {
         var modelViewUniform;
         var projectionUniform;
         var program;
+
+        var programPrevious;
+
+        var viewUniformUpdate;
+        var normalUniformUpdate;
+        var modelUniformUpdate;
+        var modelViewUniformUpdate;
+        var projectionUniformUpdate;
+
+        var viewPrevious;
+        var normalPrevious;
+        var modelPrevious;
+        var modelViewPrevious;
+        var projectionPrevious;
+
         var stateset;
         var previousLeaf = previousRenderLeaf;
         var normal = [];
@@ -5436,36 +5452,59 @@ osg.RenderBin.prototype = {
                     //state.pushGeneratedProgram();
                     state.apply();
                     program = state.getLastProgramApplied();
+                }
+                viewUniformUpdate = false;
+                normalUniformUpdate = false;
+                modelUniformUpdate = false;
+                modelViewUniformUpdate = false;
+                projectionUniformUpdate = false;
 
-                    modelViewUniform = program.uniformsCache[state.modelViewMatrix.name];
-                    modelUniform = program.uniformsCache[state.modelMatrix.name];
-                    viewUniform = program.uniformsCache[state.viewMatrix.name];
-                    projectionUniform = program.uniformsCache[state.projectionMatrix.name];
-                    normalUniform = program.uniformsCache[state.normalMatrix.name];
+                if (program !== programPrevious){
+                    modelViewUniform    = program.uniformsCache[state.modelViewMatrix.name];
+                    modelUniform        = program.uniformsCache[state.modelMatrix.name];
+                    viewUniform         = program.uniformsCache[state.viewMatrix.name];
+                    projectionUniform   = program.uniformsCache[state.projectionMatrix.name];
+                    normalUniform       = program.uniformsCache[state.normalMatrix.name];
+
+                    viewUniformUpdate           = viewUniform       !== undefined;
+                    projectionUniformUpdate     = projectionUniform !== undefined;
+                    modelUniformUpdate          = modelUniform      !== undefined;
+                    modelViewUniformUpdate      = modelViewUniform  !== undefined;
+                    normalUniformUpdate         = normalUniform     !== undefined;
+                }
+                else{
+                    // samee program, check changes.
+                    viewUniformUpdate           = viewUniform       !== undefined && (!viewPrevious         || leaf.view        !== viewPrevious);
+                    projectionUniformUpdate     = projectionUniform !== undefined && (!projectionPrevious   || leaf.projection  !== projectionPrevious);
+                    modelUniformUpdate          = modelUniform      !== undefined && (!modelPrevious        || leaf.model       !== modelPrevious);
+                    modelViewUniformUpdate      = modelViewUniform  !== undefined && (modelUniformUpdate    || viewUniformUpdate);
+                    normalUniformUpdate         = normalUniform     !== undefined && (modelUniformUpdate    || viewUniformUpdate);
                 }
 
-
-                if (viewUniform !== undefined) {
+                if (viewUniformUpdate) {
                     state.viewMatrix.set(leaf.view);
                     state.viewMatrix.apply(viewUniform);
+                    viewPrevious = leaf.view;
                 }
-                if (modelUniform !== undefined) {
-                    state.modelMatrix.set(leaf.model);
-                    state.modelMatrix.apply(modelUniform);
+                if (projectionUniformUpdate) {
+                    state.projectionMatrix.set(leaf.projection);
+                    state.projectionMatrix.apply(projectionUniform);
+                    projectionPrevious = leaf.projection;
                 }
 
-                if (modelViewUniform !== undefined || normalUniform !==  undefined) {
+                if (modelUniformUpdate) {
+                    state.modelMatrix.set(leaf.model);
+                    state.modelMatrix.apply(modelUniform);
+                    modelPrevious = leaf.model;
+                }
+                if (modelViewUniformUpdate || normalUniformUpdate) {
                     leaf.modelview =  osg.Matrix.mult(leaf.view, leaf.model, []);
                 }
-                if (modelViewUniform !== undefined) {
+                if (modelViewUniformUpdate) {
                     state.modelViewMatrix.set(leaf.modelview);
                     state.modelViewMatrix.apply(modelViewUniform);
                 }
-                if (projectionUniform !== undefined) {
-                    state.projectionMatrix.set(leaf.projection);
-                    state.projectionMatrix.apply(projectionUniform);
-                }
-                if (normalUniform !== undefined) {
+                if (normalUniformUpdate) {
                     Matrix.copy(leaf.modelview, normal);
                     //Matrix.setTrans(normal, 0, 0, 0);
                     normal[12] = 0;
@@ -5485,6 +5524,8 @@ osg.RenderBin.prototype = {
                     state.popStateSet();
                 }
 
+
+                programPrevious = program;
                 previousLeaf = leaf;
             }
         }
@@ -8327,54 +8368,146 @@ osg.CullVisitor = function () {
     this._bbCornerFar = (lookVector[0]>=0?1:0) | (lookVector[1]>=0?2:0) | (lookVector[2]>=0?4:0);
     this._bbCornerNear = (~this._bbCornerFar)&7;
 
-    this._sceneGraphDirty = true;
-
-
     // keep a matrix in memory to avoid to allocate/deallocate memory each frame
     // And store previous frame computations if no change in graphs
     // that can change the ordering. (or matrix change)
-    this._reserveMatrixStack = [];
-    this._reserveMatrixStack.current = -1;
+    this._reserveMatrixModelStack = new ReservedStack(function() { return osg.Matrix.makeIdentity([]); });
+    this._reserveMatrixViewStack = new ReservedStack(function() { return osg.Matrix.makeIdentity([]); });
 
-    this._reserveBBoxStack = [];
-    this._reserveBBoxStack.current = -1;
 
-    this._reserveLeafStack = [];
-    this._reserveLeafStack.current = -1;
+    this._reserveBoundingBoxStack = new ReservedStack(function() { return new osg.BoundingBox(); });
+
+    this._reserveLeafStack = new ReservedStack(function() { return {};});
 
     this._renderBinStack = [];
     this._renderBinStack.current = -1;
 
-    this._forceUpdate = false;
+    // keep trace of the node traversed
+    // it's a first step, but a graph approach could be
+    // better
+    this._traceNode = new TraceNodePath();
+
+    this._dirtyMatrixNode = new NodeDirtyMatrix();
+};
+
+var ReservedStack = function(entryConstructor) {
+    this._array = [];
+    this._constructor = entryConstructor;
+    this._index = this._current = 0; this._dirty = true;
+};
+ReservedStack.prototype = {
+    reset: function() { this._index = this._current = 0; this._dirty = false;},
+    dirty: function() { this._current = this._index; this._dirty = true; },
+    getCurrent: function() { return this._array[this._index]; },
+    getIndex: function() { return this._index; },
+    isDirty: function() { return this._dirty; },
+    getReserved: function() {
+        if (this._dirty) {
+            if (this._current >= this._array.length) {
+                this._array.push(this._constructor());
+            }
+            this._current++;
+        }
+        return this._array[this._index++];
+    }
+};
+
+var NodeDirtyMatrix = function() {
+    this.reset();
+};
+NodeDirtyMatrix.prototype = {
+    reset: function() {
+        this._dirtyMatrixNodes = {};
+    },
+    logNode: function(node) {
+        var nodeID = node.getObjectID();
+        if (node._dirtyMatrix) {
+            this._dirtyMatrixNodes[nodeID] = node;
+        }
+        return node._dirtyMatrix;
+    },
+    cleanDirtyNodes: function() {
+        var nodes = Object.keys(this._dirtyMatrixNodes);
+        for ( var i = 0, l = nodes.length; i < l; i++) {
+            var key = nodes[i];
+            var n = this._dirtyMatrixNodes[key];
+            n._dirtyMatrix = false;
+        }
+    }
+};
+
+var TraceNodePath = function() {
+    this._array = [];
+    this.reset();
+};
+TraceNodePath.prototype = {
+    reset: function() {
+        this._dirty = false;
+        this._index = -1;
+    },
+    checkOrTraceNode: function(node) {
+        this._index++;
+        var nodeID = node.getObjectID();
+        var id = this._array[this._index];
+
+        if (id !== nodeID) {
+            this._dirty = true;
+        }
+        if (this._dirty) {
+            if (this._index >= this._array.length) {
+                this._array.push(nodeID);
+            } else {
+                this._array[this._index] = nodeID;
+            }
+        }
+    },
+    isDirty: function() { return this._dirty; }
 };
 
 /** @lends osg.CullVisitor.prototype */
 osg.CullVisitor.prototype = osg.objectInehrit(osg.CullStack.prototype ,osg.objectInehrit(osg.CullSettings.prototype, osg.objectInehrit(osg.NodeVisitor.prototype, {
 
-    startCullTransformCallBacks: function(camera, light, scene){
+    pushOntoNodePath: function(node) {
+        this._traceNode.checkOrTraceNode(node);
+        osg.NodeVisitor.prototype.pushOntoNodePath.call(this, node);
+    },
+
+
+    // TODO: merge most parts node cullvisitor functor.
+    startCullTransformCallBacks: function(camera, light, scene) {
 
         this.reset();
 
-        //this._forceUpdate = true;
-        this._sceneGraphDirty = this._sceneGraphDirty || scene._dirtySceneGraph;
+        var node = camera;
+        this._traceNode.checkOrTraceNode(camera);
 
-        var view = this._getReservedMatrix();
-        var model = this._getReservedMatrix();
-        var projection = this._getReservedMatrix();
+        // if path changed view is dirty for sure
+        if (this._traceNode.isDirty() || this._reserveMatrixViewStack.isDirty() || node.isDirtyMatrix()) {
+            this._reserveMatrixViewStack.dirty();
+            this._reserveMatrixModelStack.dirty();
+            this._reserveBoundingBoxStack.dirty();
+            this._dirtyMatrixNode.logNode(node);
+        }
+        var view = this._reserveMatrixViewStack.getReserved();
+        var projection = this._reserveMatrixViewStack.getReserved();
+        var model = this._reserveMatrixModelStack.getReserved();
 
-        var bbox = this._getReservedBBox();
-        if (this._sceneGraphDirty || camera._dirtyMatrix|| this._forceUpdate){
+        var boundingbox = this._reserveBoundingBoxStack.getReserved();
+
+        var recompute = this._reserveMatrixViewStack.isDirty();
+        if (recompute) {
             // camera matrix view is an inverse matrix
             // like a matrix generated by osg.Matrix.lookat
             osg.Matrix.copy(camera.getViewMatrix(), view);
             osg.Matrix.copy(camera.getProjectionMatrix(), projection);
-            osg.Matrix.makeIdentity(model);
-            bbox.init();
+
+            boundingbox.init();
         }
+
         // as matrix allocated from reserved are
         // initialiazed  to identity
 
-        this.pushStateSet(camera.getStateSet());
+        this.pushStateSet(node.getStateSet());
         this.pushProjectionMatrix(projection);
         this.pushViewMatrix(view);
         this.pushModelMatrix(model);
@@ -8383,7 +8516,7 @@ osg.CullVisitor.prototype = osg.objectInehrit(osg.CullStack.prototype ,osg.objec
         // update bound
         // for what ?
         var bs = camera.getBound();
-        this.pushBbox(bbox);
+        this.pushBoundingbox(boundingbox);
         if (light) {
             this.addPositionedAttribute(light);
         }
@@ -8400,7 +8533,7 @@ osg.CullVisitor.prototype = osg.objectInehrit(osg.CullStack.prototype ,osg.objec
         //thid.handleCullCallbacksAndTraverse(camera);
         scene.accept(this);
 
-        this.popBbox();
+        this.popBoundingbox();
 
         this.popModelMatrix();
         this.popViewMatrix();
@@ -8413,11 +8546,11 @@ osg.CullVisitor.prototype = osg.objectInehrit(osg.CullStack.prototype ,osg.objec
 
         //using leaf instead of tree ?
         //clean whole hierarchy
-        //even if no matrix computation in this node
-        scene.cleanMatrixAndSCeneGraph();
 
-        this._sceneGraphDirty = false;
+        this._dirtyMatrixNode.cleanDirtyNodes();
     },
+
+
     //  Computes distance betwen a point and the viewpoint of a matrix  (modelview)
     distance: function(coord, matrix) {
         return -( coord[0]*matrix[2]+ coord[1]*matrix[6] + coord[2]*matrix[10] + matrix[14]);
@@ -8432,7 +8565,7 @@ osg.CullVisitor.prototype = osg.objectInehrit(osg.CullStack.prototype ,osg.objec
         }
         this.traverse(node);
     },
-    // distance betwen view and bbox in worldspace
+    // distance betwen view and boundingbox in worldspace
     updateCalculatedNearFar: function(bb,  matrix) {
 
         var d_near, d_far;
@@ -8558,20 +8691,19 @@ osg.CullVisitor.prototype = osg.objectInehrit(osg.CullStack.prototype ,osg.objec
         this._rootRenderStage = rg;
         this._currentRenderBin = rg;
     },
+
     reset: function () {
 
         // they are now kept between frames, unless the scene changes.
         // (added or removed child)
         // TODO: more fine grained scenegraph dirty than whole node graph at each change...
-        this.resetMatrixStacks(this._sceneGraphDirty || this._forceUpdate);
-        if (this._sceneGraphDirty || this._forceUpdate ){
-            this._reserveMatrixStack.current = -1;
-            this._reserveBBoxStack.current = -1;
-            this._reserveLeafStack.current = -1;
-        }
-        this.leafIndex = 0;
-        this.matrixIndex = 0;
-        this.bboxIndex = 0;
+        this.resetMatrixStacks();
+        this._reserveBoundingBoxStack.reset();
+        this._reserveMatrixViewStack.reset();
+        this._reserveMatrixModelStack.reset();
+        this._reserveLeafStack.reset();
+        this._traceNode.reset();
+        this._dirtyMatrixNode.reset();
 
         // update those only if Scene matrix other than camera are dirty...
         this._computedNear = Number.POSITIVE_INFINITY;
@@ -8580,14 +8712,13 @@ osg.CullVisitor.prototype = osg.objectInehrit(osg.CullStack.prototype ,osg.objec
     getCurrentRenderBin: function() { return this._currentRenderBin; },
     setCurrentRenderBin: function(rb) { this._currentRenderBin = rb; },
     addPositionedAttribute: function (attribute) {
-        var matrix = this._getReservedMatrix();
-        if (this._dirtySceneGraph || this._forceUpdate){
-        //if (osg.oldModelViewMatrixMode){
-        //   matrix = this.getCurrentModelviewMatrix();
-        //}
-        //else{
-            matrix = osg.Matrix.mult(this.getCurrentViewMatrix(), this.getCurrentModelviewMatrix(), matrix);
-        //}
+        if (this._traceNode.isDirty()) {
+            this._reserveMatrixModelStack.dirty();
+        }
+        var matrix = this._reserveMatrixModelStack.getReserved();
+        var recomputeMatrix = this._reserveMatrixModelStack.isDirty();
+        if (recomputeMatrix) {
+            //matrix = osg.Matrix.mult(this.getCurrentViewMatrix(), this.getCurrentModelviewMatrix(), matrix);
         }
         this._currentRenderBin.getStage().positionedAttribute.push([matrix, attribute]);
     },
@@ -8635,39 +8766,11 @@ osg.CullVisitor.prototype = osg.objectInehrit(osg.CullStack.prototype ,osg.objec
 
     // faster path is stack does not change
     //  (and debug out of bounds if it changes when it should not)
-    _getReservedMatrix: function() {
-        if (this._sceneGraphDirty || this._forceUpdate){
-            this._reserveMatrixStack.current++;
-            if (this._reserveMatrixStack.current >= this._reserveMatrixStack.length) {
-                this._reserveMatrixStack.push(osg.Matrix.makeIdentity([]));
-            }
-        }
-        return this._reserveMatrixStack[this.matrixIndex++];
-    },
-    // faster path is stack does not change
-    //  (and debug out of bounds if it changes when it should not)
-    _getReservedBBox: function() {
-        if (this._sceneGraphDirty || this._forceUpdate){
-            this._reserveBBoxStack.current++;
-            if (this._reserveBBoxStack.current >= this._reserveBBoxStack.length) {
-                this._reserveBBoxStack.push(new osg.BoundingBox());
-            }
-        }
-        return this._reserveBBoxStack[this.bboxIndex++];
-    },
-    _getCurrentBBox: function() {
-        return this._reserveMatrixStack[this.bboxIndex];
-    },
-    // faster path is stack does not change
-    //  (and debug out of bounds if it changes when it should not)
     _getReservedLeaf: function() {
-        if (this._sceneGraphDirty || this._forceUpdate){
-            this._reserveLeafStack.current++;
-            if (this._reserveLeafStack.current >= this._reserveLeafStack.length) {
-                this._reserveLeafStack.push({});
-            }
+        if (this._traceNode.isDirty()) {
+            this._reserveLeafStack.dirty();
         }
-        return this._reserveLeafStack[this.leafIndex++];
+        return this._reserveLeafStack.getReserved();
     }
 })));
 
@@ -8681,63 +8784,52 @@ osg.CullVisitor.prototype[osg.Camera.prototype.objectType] = function( camera ) 
     if (camera.light) {
         this.addPositionedAttribute(camera.light);
     }
+
     var OldtraversalMask = this.traversalMask;
     if (camera.traversalMask) {
         this.traversalMask = camera.traversalMask & this.traversalMask;
     }
     var originalView = this.getCurrentViewMatrix();
     var originalModel = this.getCurrentModelMatrix();
-    //if (osg.oldModelViewMatrixMode)
-    //var originalModelView = this.getCurrentModelviewMatrix();
     var originalProjectionMatrix = this.getCurrentProjectionMatrix();
 
-    //this._reserveMatrixStack = this.camera._reserveMatrixStack;
-    var view = this._getReservedMatrix();
-    var model = this._getReservedMatrix();
-    var modelview = this._getReservedMatrix();
-    var projection = this._getReservedMatrix();
+    if (this._traceNode.isDirty() || camera.isDirtyMatrix() || this._reserveMatrixViewStack.isDirty()) {
+        this._reserveMatrixViewStack.dirty();
+        this._reserveBoundingBoxStack.dirty();
+        this._dirtyMatrixNode.logNode(camera);
+    }
 
-    // note:
-    //  camera  getviewmatrix is inverse of matrix model view
-    //  camera getmatrix is camera own model matrix
+    var view = this._reserveMatrixViewStack.getReserved();
+    var model = this._reserveMatrixModelStack.getReserved();
+    var projection =this._reserveMatrixViewStack.getReserved();
 
-    var bbox = this._getReservedBBox();
-    if (this._sceneGraphDirty || camera._dirtyMatrix|| this._forceUpdate){
+    var boundingbox = this._reserveBoundingBoxStack.getReserved();
+    var recompute = this._reserveMatrixViewStack.isDirty();
+    if (recompute) {
         if (camera.getReferenceFrame() === osg.Transform.RELATIVE_RF) {
-            osg.Matrix.mult(originalProjectionMatrix, camera.getProjectionMatrix(), projection);
+            this._reserveMatrixModelStack.dirty();
 
-            //if (osg.oldModelViewMatrixMode){
-            //osg.Matrix.mult(originalModelView, camera.getViewMatrix(), modelview);
-            //}
-            osg.Matrix.copy(originalModel, model);
-            //osg.Matrix.mult(model, camera.getViewMatrix(), view);
-            osg.Matrix.mult(originalView, camera.getViewMatrix(), view);
+            osg.Matrix.mult(originalProjectionMatrix, camera.getProjectionMatrix(), projection);
+            osg.Matrix.makeIdentity(model);
+            osg.Matrix.mult(originalView, originalModel, view);
+            osg.Matrix.mult(view, camera.getViewMatrix(), view);
 
         } else {
             // absolute
-            //if (osg.oldModelViewMatrixMode){
-            //   osg.Matrix.copy(camera.getViewMatrix(), modelview);
-            //}
-            /**/
-            // camera matrix could be identity  because never set/use to make camera position
-            //sg.Matrix.makeIdentity(model);
-            //osg.Matrix.inverse(camera.getViewMatrix(), model);
-            /**/
             osg.Matrix.copy(camera.getViewMatrix(), view);
             osg.Matrix.copy(camera.getProjectionMatrix(), projection);
         }
-        bbox.init();
+        boundingbox.init();
     }
+
     this.pushProjectionMatrix(projection);
     this.pushViewMatrix(view);
     this.pushModelMatrix(model);
-    //if (osg.oldModelViewMatrixMode)
-    //this.pushModelviewMatrix(modelview);
 
     if (camera.getViewport()) {
         this.pushViewport(camera.getViewport());
     }
-    this.pushBbox(bbox);
+    this.pushBoundingbox(boundingbox);
 
     // save current state of the camera
     var previous_znear = this._computedNear;
@@ -8799,14 +8891,11 @@ osg.CullVisitor.prototype[osg.Camera.prototype.objectType] = function( camera ) 
         }
     }
 
-    this.popBbox(bbox);
+    this.popBoundingbox(boundingbox);
 
     this.popModelMatrix();
     this.popViewMatrix();
-    //if (osg.oldModelViewMatrixMode)
-    //this.popModelviewMatrix();
     this.popProjectionMatrix();
-    //this.popProjectionMatrix();
 
 
     camera.near = this._computedNear;
@@ -8829,28 +8918,27 @@ osg.CullVisitor.prototype[osg.Camera.prototype.objectType] = function( camera ) 
 };
 
 osg.CullVisitor.prototype[osg.MatrixTransform.prototype.objectType] = function (node) {
-    var matrixModel = this._getReservedMatrix();
-    //if (osg.oldModelViewMatrixMode)
-    //var matrixModelview = this._getReservedMatrix();
 
-    if (this._sceneGraphDirty || node._dirtyMatrix || this._forceUpdate){
+    if (this._traceNode.isDirty() || node.isDirtyMatrix()) {
+        this._reserveMatrixModelStack.dirty();
+        this._dirtyMatrixNode.logNode(node);
+    }
+
+    var matrixModel = this._reserveMatrixModelStack.getReserved();
+
+    var recompute = this._reserveMatrixModelStack.isDirty();
+    if (recompute) {
         if (node.getReferenceFrame() === osg.Transform.RELATIVE_RF) {
-            //if (osg.oldModelViewMatrixMode)
-            //var lastmodelviewMatrixStack = this.getCurrentModelviewMatrix();
-            //osg.Matrix.mult(lastmodelviewMatrixStack, node.getMatrix(), matrixModelview);
 
             var lastmodelmatrixStack = this.getCurrentModelMatrix();
             osg.Matrix.mult(lastmodelmatrixStack, node.getMatrix(), matrixModel);
         } else {
             // absolute
-            //osg.Matrix.copy(this.getCurrentViewMatrix(), matrixModelview);
             osg.Matrix.copy(node.getMatrix(), matrixModel);
         }
     }
-    //if (osg.oldModelViewMatrixMode)
-    //this.pushModelviewMatrix(matrixModelview);
-    this.pushModelMatrix(matrixModel);
 
+    this.pushModelMatrix(matrixModel);
 
     var stateset = node.getStateSet();
     if (stateset) {
@@ -8858,7 +8946,8 @@ osg.CullVisitor.prototype[osg.MatrixTransform.prototype.objectType] = function (
     }
 
     if (node.light) {
-        this.addPositionedAttribute(node.light);
+        osg.warn("using node.light is deprecated, using LightSource node instead");
+        //this.addPositionedAttribute(node.light);
     }
 
     this.handleCullCallbacksAndTraverse(node);
@@ -8868,16 +8957,22 @@ osg.CullVisitor.prototype[osg.MatrixTransform.prototype.objectType] = function (
     }
 
     this.popModelMatrix();
-    //if (osg.oldModelViewMatrixMode)
-    //this.popModelviewMatrix();
 };
 
 osg.CullVisitor.prototype[osg.Projection.prototype.objectType] = function (node) {
-    var matrix = this._getReservedMatrix();
-    if (this._sceneGraphDirty || node.__dirtyMatrix|| this._forceUpdate){
+
+    if (this._traceNode.isDirty()) {
+        this._reserveMatrixViewStack.dirty();
+        this._dirtyMatrixNode.logNode(node);
+    }
+
+    var matrix = this._reserveMatrixViewStack();
+    var recompute = this._reserveMatrixViewStack.isDirty();
+    if (recompute) {
         lastMatrixStack = this.getCurrentProjectionMatrix();
         osg.Matrix.mult(lastMatrixStack, node.getProjectionMatrix(), matrix);
     }
+
     this.pushProjectionMatrix(matrix);
 
     var stateset = node.getStateSet();
@@ -8901,8 +8996,10 @@ osg.CullVisitor.prototype[osg.Node.prototype.objectType] = function (node) {
     if (stateset) {
         this.pushStateSet(stateset);
     }
+
     if (node.light) {
-        this.addPositionedAttribute(node.light);
+        osg.warn("using node.light is deprecated, using LightSource node instead");
+        //this.addPositionedAttribute(node.light);
     }
 
     this.handleCullCallbacksAndTraverse(node);
@@ -8935,27 +9032,29 @@ osg.CullVisitor.prototype[osg.Geometry.prototype.objectType] = function (node) {
 
     var view = this.getCurrentViewMatrix();
     var model = this.getCurrentModelMatrix();
-    // compute upon need
-    //var modelview = this.getCurrentModelviewMatrix();
 
-    var bb = this._getReservedBBox();
-    var localbb = node.getBoundingBox();
+    var recompute = this._traceNode.isDirty() || this._reserveMatrixModelStack.isDirty();
+    if (recompute) {
+        this._reserveBoundingBoxStack.dirty();
+    }
+    var bb = this._reserveBoundingBoxStack.getReserved();
 
-    if (node._dirtyMatrix || this._sceneGraphDirty || this._forceUpdate) {
+    if (recompute) {
 
-        osg.Matrix.transformBbox( model, localbb,  bb);
+        var localbb = node.getBoundingBox();
+        osg.Matrix.transformBoundingbox( model, localbb,  bb);
 
-        var cameraBbox = this.getCurrentBbox();
-        if (cameraBbox) {
-            cameraBbox.expandByVec3(bb._min);
-            cameraBbox.expandByVec3(bb._max);
+        var cameraBoundingbox = this.getCurrentBoundingbox();
+        if (cameraBoundingbox) {
+            cameraBoundingbox.expandByVec3(bb._min);
+            cameraBoundingbox.expandByVec3(bb._max);
         }
     }
 
-    if (this._computeNearFar && bb.valid()) {
-        var tmp = [];
-        osg.Matrix.mult(view, model, tmp);
-        if (!this.updateCalculatedNearFar(bb, tmp)) {
+    var validBB = bb.valid();
+    if (this._computeNearFar && validBB) {
+        // could do that and get depth at once.
+        if (!this.updateCalculatedNearFar(bb, view)) {
             return;
         }
     }
@@ -8973,22 +9072,23 @@ osg.CullVisitor.prototype[osg.Geometry.prototype.objectType] = function (node) {
 
     var leaf = this._getReservedLeaf();
     leaf.node = node;
-    leaf.node = bb;
+    leaf.bb = bb;
     var depth = 0;
-    if (bb.valid()) {
+    if (validBB) {
+        // cache center ?
         depth = this.distance(bb.center(), view);
     }
     if (isNaN(depth)) {
-        osg.warn("warning geometry has a NaN depth, " + modelview + " center " + bb.center());
-    } else {
+        osg.warn("warning geometry has a NaN depth, " + model + " center " + bb.center());
+    } else  {
         // TODO reuse leafs, direclty?
         //  for now give flicker if doing nested camerastr
         //if (this._sceneGraphDirty){
-            leaf.id = this.leafIndex;
+            leaf.id = this._reserveLeafStack.getIndex();
             leaf.parent = this._currentStateGraph;
 
             leaf.projection = this.getCurrentProjectionMatrix();
-            leaf.view = this.getCurrentViewMatrix();
+            leaf.view = view;
             leaf.model = model;
             //if (node.modelview)
              //   leaf.modelview = modelview;
@@ -15081,7 +15181,6 @@ if (!window.cancelRequestAnimFrame) {
     } )();
 }
 
-
 if(!Date.now) {
     Date.now = function now() {
         return new Date().getTime();
@@ -16568,7 +16667,7 @@ osgViewer.Viewer.prototype = osg.objectInehrit(osgViewer.View.prototype, {
         // this part of code should be called for each view
         // right now, we dont support multi view
         this._stateGraph.setClean();
-        this._renderStage.reset();
+            this._renderStage.reset();
 
        //this._cullVisitor._forceUpdate = true;
 
@@ -16617,7 +16716,10 @@ osgViewer.Viewer.prototype = osg.objectInehrit(osgViewer.View.prototype, {
         // should be merged with the update of game pad below
         if (this.getManipulator()) {
             this.getManipulator().update(this._updateVisitor);
-            osg.Matrix.copy(this.getManipulator().getInverseMatrix(), this.getCamera().getViewMatrix(true));
+            if (!osg.Matrix.isEqual(this.getManipulator().getInverseMatrix(), this.getCamera().getViewMatrix())){
+                osg.Matrix.copy(this.getManipulator().getInverseMatrix(), this.getCamera().getViewMatrix());
+                this.getCamera().dirtyMatrix();
+            }
         }
 
         //TODO: does this belong here?
