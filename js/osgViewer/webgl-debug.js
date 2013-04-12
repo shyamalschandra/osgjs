@@ -3,8 +3,8 @@
 //found in the LICENSE file.
 
 // Various functions for helping debug WebGL apps.
-
-WebGLDebugUtils = function() {
+/*jshint boss:true*/
+WebGLDebugUtils = function() { 
 
 /**
  * Wrapped logging function.

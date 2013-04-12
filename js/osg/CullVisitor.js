@@ -7,6 +7,7 @@
  /**
   * @class CullVisitor
   */
+/*jshint latedef: false*/
 osg.CullVisitor = function () {
     osg.NodeVisitor.call(this);
     osg.CullSettings.call(this);

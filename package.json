@@ -25,6 +25,7 @@
     "grunt-cli": "~0.1.6",
     "unzip": "~0.1.5",
     "grunt-contrib-uglify": "~0.2.0",
-    "esprima": "~1.0.2"
+    "esprima": "~1.0.2",
+    "grunt-concurrent": "~0.1.1"
   }
 }

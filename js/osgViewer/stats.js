@@ -153,4 +153,4 @@ Stats.Stats.prototype = {
             this.last_update = t;
         }
     }
-}
+};

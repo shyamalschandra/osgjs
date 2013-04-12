@@ -1,4 +1,60 @@
 ﻿module.exports = function(grunt) {
+
+	// usual suspects
+	grunt.loadNpmTasks('grunt-contrib-uglify'); // todo : use the if(debug){} and deadcode removal
+	grunt.loadNpmTasks('grunt-contrib-jshint'); // promises...
+	grunt.loadNpmTasks('grunt-contrib-qunit'); // todo: separate gl dependant test and pure js tests, add visual diff, have a mock gl context ?
+	grunt.loadNpmTasks('grunt-contrib-watch');
+	grunt.loadNpmTasks('grunt-contrib-concat');
+
+
+	grunt.loadNpmTasks('grunt-contrib-compress'); // get idea of compressed server size in gz
+	grunt.loadNpmTasks('grunt-contrib-copy'); // copy file builds
+	grunt.loadNpmTasks('grunt-strip'); // remove console.log, etc
+	grunt.loadNpmTasks('grunt-qunit-cov'); // jscoverage
+
+
+	// benchmarks
+	//grunt.loadNpmTasks('grunt-benchmark');
+	//
+	//
+	grunt.loadTasks('tasks');
+	/********* using patched version from tasks folder
+		//
+
+		// convert to amd (requirejs like) module
+		//grunt.loadNpmTasks('grunt-wrap');
+
+		// watch
+		//grunt.loadNpmTasks('grunt-jsvalidate'); // check basic syntax error
+		//shaders
+		//grunt.loadNpmTasks('grunt-dir2json');
+		//
+	*/
+
+	// non patched
+
+	// faster build using parallel task
+	grunt.loadNpmTasks('grunt-concurrent');
+	//grunt.loadNpmTasks('grunt-glslvalidator'); // GL shader validator sublime plugin ?
+	//grunt.loadNpmTasks('grunt-glsloptimizer'); // @aras_p  glsl optimizer
+	//grunt.loadNpmTasks('grunt-glslmin'); // just min
+
+
+	// docs
+	grunt.loadNpmTasks('grunt-plato'); // bug prediction
+	//
+	grunt.loadNpmTasks('grunt-docco'); // nice docs. https://bitbucket.org/doklovic_atlassian/atlassian-docco/wiki/writing-docco-comments
+	//grunt.loadNpmTasks('grunt-docco-husky');
+	//grunt.loadNpmTasks('grunt-dox');
+
+	//grunt.loadTasks('tasks'); // pure jsdoc
+
+	// chrome dev tool for grunt
+	//grunt.loadNpmTasks('grunt-devtools');
+	//
+
+
 	// project files
 	var projectJson = grunt.file.read("project.json");
 	var project = JSON.parse(projectJson);
@@ -33,16 +89,6 @@
 		pkg: grunt.file.readJSON('package.json'),
 		meta: {
 			banner: '/*! <%= pkg.name %> - v<%= pkg.version %> - ' + '<%= grunt.template.today("yyyy-mm-dd") %>\n' + '<%= pkg.homepage ? "* " + pkg.homepage + "\n" : "" %>' + '* Copyright (c) <%= grunt.template.today("yyyy") %> <%= pkg.author.name %>;' + ' Licensed <%= _.pluck(pkg.licenses, "type").join(", ") %> */'
-		},
-		watch: {
-			error: {
-				files: [project.scripts, 'examples/*/*.js', 'sandbox/*/*.js', 'test/*.js'],
-				tasks: ['jsvalidate']
-			},
-			syntax: {
-				files: project.scripts,
-				tasks: ['jsvalidate', 'jshint:beforeconcat']
-			}
 		},
 		jshint: {
 			options: {
@@ -93,6 +139,10 @@
 					WebGLTexture: true,
 					WebGLShader: true
 				}
+				//, force: true,
+				//ignores: [
+				//    'js/osgDB/Promise.js'
+				//]
 			},
 			beforeconcat: project.scripts,
 			afterconcat: 'build/<%= pkg.name %>-debug.js'
@@ -181,10 +231,14 @@
 			}
 		},
 		copy: {
-			dist: {
+			min: {
 				files: {
-					'build/<%= pkg.name %>-debug-<%= pkg.version %>.js': 'build/<%= pkg.name %>-debug.js',
 					'build/<%= pkg.name %>-<%= pkg.version %>.js': 'build/<%= pkg.name %>.min.js'
+				}
+			},
+			debug: {
+				files: {
+					'build/<%= pkg.name %>-debug-<%= pkg.version %>.js': 'build/<%= pkg.name %>-debug.js'
 				}
 			}
 		},
@@ -325,58 +379,33 @@
 					times: 10
 				}
 			}
+		},
+		concurrent: {
+			target1: ['jsvalidate', 'jshint:beforeconcat', 'release_main', 'release_side'],
+			target2: ['jsvalidate', 'jshint:beforeconcat']
+		},
+		watch: {
+			syntax: {
+				files: [project.scripts,
+					'examples/*/*.js',
+					'sandbox/*/*.js',
+					'test/*.js'],
+				tasks: ['jsvalidate', 'jshint:beforeconcat']
+			}
 		}
 	});
 
-	// usual suspects
-	grunt.loadNpmTasks('grunt-contrib-uglify'); // todo : use the if(debug){} and deadcode removal
-	grunt.loadNpmTasks('grunt-contrib-jshint'); // promises...
-	grunt.loadNpmTasks('grunt-contrib-qunit'); // todo: separate gl dependant test and pure js tests, add visual diff, have a mock gl context ?
-	grunt.loadNpmTasks('grunt-contrib-watch');
-	grunt.loadNpmTasks('grunt-contrib-concat');
+	grunt.registerTask('gzTest', ['compress']);
+	grunt.registerTask('release_side', ['docco', 'plato', 'dir2json']);
+	grunt.registerTask('release_main', ['jshint:beforeconcat', 'concat', 'jshint:afterconcat', 'strip', 'uglify', 'copy', 'wrap']);
 
+	grunt.registerTask('release_concurrent', ['concurrent:target1']);
+	grunt.registerTask('release', ['release_main', 'release_side', 'gzTest']);
 
-	grunt.loadNpmTasks('grunt-contrib-compress'); // get idea of compressed server size in gz
-	grunt.loadNpmTasks('grunt-contrib-copy'); // copy file builds
-	grunt.loadNpmTasks('grunt-strip'); // remove console.log, etc
-	grunt.loadNpmTasks('grunt-qunit-cov'); // jscoverage
-
-
-	// benchmarks
-	//grunt.loadNpmTasks('grunt-benchmark');
-	//
-	//
-	grunt.loadTasks('tasks');
-	/********* using patched version from tasks folder
-	//
-
-	// convert to amd (requirejs like) module
-	//grunt.loadNpmTasks('grunt-wrap');
-
-	// watch
-	//grunt.loadNpmTasks('grunt-jsvalidate'); // check basic syntax error
-	//shaders
-	//grunt.loadNpmTasks('grunt-dir2json');
-	//
-*/
-	//grunt.loadNpmTasks('grunt-glslvalidator'); // GL shader validator sublime plugin ?
-	//grunt.loadNpmTasks('grunt-glsloptimizer'); // @aras_p  glsl optimizer
-	//grunt.loadNpmTasks('grunt-glslmin'); // just min
-
-	// docs
-	grunt.loadNpmTasks('grunt-plato'); // bug prediction
-	//
-	grunt.loadNpmTasks('grunt-docco'); // nice docs. https://bitbucket.org/doklovic_atlassian/atlassian-docco/wiki/writing-docco-comments
-	//grunt.loadNpmTasks('grunt-docco-husky');
-	//grunt.loadNpmTasks('grunt-dox');
-
-	//grunt.loadTasks('tasks'); // pure jsdoc
-
-	// chrome dev tool for grunt
-	//grunt.loadNpmTasks('grunt-devtools');
-
-	grunt.registerTask('release', ['jshint:beforeconcat', 'concat', 'jshint:afterconcat', 'strip', 'uglify', 'compress', 'copy']);
-	grunt.registerTask('verify', ['jsvalidate', 'release']);
-	grunt.registerTask('default', ['concat', 'strip', 'uglify', 'compress', 'copy', 'wrap', 'dir2json']);
+	grunt.registerTask('build_debug', ['jshint:beforeconcat', 'concat', 'copy:debug']);
+	grunt.registerTask('build_min', ['jshint:beforeconcat', 'concat', 'strip', 'uglify', 'copy']);
+	grunt.registerTask('verify', ['jsvalidate', 'jshint:beforeconcat']);
+	grunt.registerTask('default', ['verify', 'build_debug']);
+	grunt.registerTask('default_concurrent', ['concurrent:target2']);
 
 };

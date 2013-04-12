@@ -398,7 +398,7 @@ osgViewer.Viewer.prototype = osg.objectInehrit(osgViewer.View.prototype, {
         this._cullVisitor.setRenderStage(this._renderStage);
 
         this._cullVisitor.startCullTransformCallBacks(this.getCamera(), this._light, this.getScene());
-        
+
         this._renderStage.sort();
     },
     draw: function() {

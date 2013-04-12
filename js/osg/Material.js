@@ -2,6 +2,7 @@
  * Material
  * @class Material
  */
+/*jshint forin: false*/
 osg.Material = function () {
     osg.StateAttribute.call(this);
     this.ambient = [ 0.2, 0.2, 0.2, 1.0 ];

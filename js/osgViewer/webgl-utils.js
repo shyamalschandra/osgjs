@@ -150,42 +150,46 @@ WebGLUtils = function() {
             osg.profile = {};
             osg.profile.extensions = {};
             osg.profile.textureFormat = {};
-            var extArray = gl.getSupportedExtensions();
-            var i, k, ext, stdExt, extString, report = "";
-            for(ext in extArray) {
-                extString = extArray[ext];
-                osg.profile.extensions[extString] = gl.getExtension(extString);
-                stdExt = extString;
-                for (k = 0; k < prefixes.length;k++){
-                    if (extString.indexOf(prefixes[k]) !== -1){
-                        stdExt = extString.substr(prefixes[k].length, extString.length);
-                        osg.profile.extensions[stdExt] = osg.profile.extensions[extString];
-                        report +=  "(" + prefixes[k] + ")";
-                    }
-                }
-                report +=  stdExt + " ";
-                report += " http://www.khronos.org/registry/webgl/extensions/" + stdExt + " ";
-                if(extString.toLowerCase().indexOf('s3tc') !== -1) {
-                    osg.profile.textureFormat = gl.getParameter(gl.COMPRESSED_TEXTURE_FORMATS);
-                    report += '\n\t';
-                    report += 'Texture Support: ( ';
-                    for(i in osg.profile.textureFormat) {
-                        if(osg.profile.textureFormat[i] == osg.profile.extensions[extString].COMPRESSED_RGBA_S3TC_DXT5_EXT) {
-                            osg.profile.dxt5Supported = true;
-                            report += 'dxt5 ';
-                        }
-                        if(osg.profile.textureFormat[i] == osg.profile.extensions[extString].COMPRESSED_RGBA_S3TC_DXT3_EXT) {
-                            osg.profile.dxt3Supported = true;
-                            report += 'dxt3 ';
-                        }
-                        if(osg.profile.textureFormat[i] == osg.profile.extensions[extString].COMPRESSED_RGBA_S3TC_DXT1_EXT) {
-                            osg.profile.dxt1Supported = true;
-                            report += 'dxt1 ';
+            var extensions = gl.getSupportedExtensions();
+            var i, k, extension, stdExt, extString, report = "";
+            for(extension in extensions) {
+                if (extensions.hasOwnProperty(extension)) {
+                    extString = extensions[extension];
+                    osg.profile.extensions[extString] = gl.getExtension(extString);
+                    stdExt = extString;
+                    for (k = 0; k < prefixes.length;k++){
+                        if (extString.indexOf(prefixes[k]) !== -1){
+                            stdExt = extString.substr(prefixes[k].length, extString.length);
+                            osg.profile.extensions[stdExt] = osg.profile.extensions[extString];
+                            report +=  "(" + prefixes[k] + ")";
                         }
                     }
-                    report += ' )';
+                    report +=  stdExt + " ";
+                    report += " http://www.khronos.org/registry/webgl/extensions/" + stdExt + " ";
+                    if(extString.toLowerCase().indexOf('s3tc') !== -1) {
+                        osg.profile.textureFormat = gl.getParameter(gl.COMPRESSED_TEXTURE_FORMATS);
+                        report += '\n\t';
+                        report += 'Texture Support: ( ';
+                        for(i in osg.profile.textureFormat) {
+                            if (osg.profile.textureFormat.hasOwnProperty(i)) {
+                                if(osg.profile.textureFormat[i] == osg.profile.extensions[extString].COMPRESSED_RGBA_S3TC_DXT5_EXT) {
+                                    osg.profile.dxt5Supported = true;
+                                    report += 'dxt5 ';
+                                }
+                                if(osg.profile.textureFormat[i] == osg.profile.extensions[extString].COMPRESSED_RGBA_S3TC_DXT3_EXT) {
+                                    osg.profile.dxt3Supported = true;
+                                    report += 'dxt3 ';
+                                }
+                                if(osg.profile.textureFormat[i] == osg.profile.extensions[extString].COMPRESSED_RGBA_S3TC_DXT1_EXT) {
+                                    osg.profile.dxt1Supported = true;
+                                    report += 'dxt1 ';
+                                }
+                            }
+                        }
+                        report += ' )';
+                    }
+                    report += '\n';
                 }
-                report += '\n';
             }
             osg.log("webgl profile: " + report);
             return context;
@@ -246,9 +250,9 @@ function getStackTrace(err) {
         } else {
             throw new Error();
         }
-    } catch(err) {
-        if(err.stack) { //Firefox and Chrome
-            callstack = (err.stack + '\n').replace(/^\S[^\(]+?[\n$]/gm, '').
+    } catch(e) {
+        if(e.stack) { //Firefox and Chrome
+            callstack = (e.stack + '\n').replace(/^\S[^\(]+?[\n$]/gm, '').
             replace(/^\s+(at eval )?at\s+/gm, '').
             replace(/^([^\(]+?)([\n$])/gm, '{anonymous}()@$1$2').
             replace(/^Object.<anonymous>\s*\(([^\)]+)\)/gm, '{anonymous}()@$1').split('\n');

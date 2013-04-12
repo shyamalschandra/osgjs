@@ -13,41 +13,41 @@ osg.Object = function() {
 osg.Object.objectInstance = 0;
 /** @lends osg.Object.prototype */
 osg.Object.prototype = osg.objectLibraryClass({
-    getObjectID: function() { 
-        return this._objectID; 
+    getObjectID: function() {
+        return this._objectID;
     },
     setName: function(name) {
-	this._name = name;
+        this._name = name;
     },
     getName: function() {
-	return this._name;
+        return this._name;
     },
     dirty: function() {
-	this._dirty = true;
+        this._dirty = true;
     },
     setClean: function() {
-	this._dirty = false;
+        this._dirty = false;
     },
     isDirty: function() {
-	return this._dirty;
+        return this._dirty;
     },
     setUserData: function(data) {
-	this._userdata = data;
+        this._userdata = data;
     },
     getUserData: function() {
-	return this._userdata;
+        return this._userdata;
     },
     toString: function() {
-	return JSON.stringify(this.toObject());
+        return JSON.stringify(this.toObject());
     },
     toJSON: function() {
-	return JSON.stringify(this.toObject());
+        return JSON.stringify(this.toObject());
     },
     toObject: function() {
-	var object = {
-	    _name: this._name,
-	    _userdata: this._userdata
-	};
-	return object;
+        var object = {
+            _name: this._name,
+            _userdata: this._userdata
+        };
+        return object;
     }
 }, "osg", "Object");

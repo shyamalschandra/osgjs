@@ -1,13 +1,13 @@
-/**
- * From OpenSceneGraph http://www.openscenegraph.org
- * RenderStage base class. Used for encapsulate a complete stage in
- * rendering - setting up of viewport, the projection and model
- * matrices and rendering the RenderBin's enclosed with this RenderStage.
- * RenderStage also has a dependency list of other RenderStages, each
- * of which must be called before the rendering of this stage.  These
- * 'pre' rendering stages are used for advanced rendering techniques
- * like multistage pixel shading or impostors.
- */
+// From OpenSceneGraph http://www.openscenegraph.org
+// RenderStage base class. Used for encapsulate a complete stage in
+// rendering - setting up of viewport, the projection and model
+// matrices and rendering the RenderBin's enclosed with this RenderStage.
+// RenderStage also has a dependency list of other RenderStages, each
+// of which must be called before the rendering of this stage.  These
+// 'pre' rendering stages are used for advanced rendering techniques
+// like multistage pixel shading or impostors.
+//
+/*jshint forin: false*/
 osg.RenderStage = function () {
     osg.RenderBin.call(this);
     this.positionedAttribute = [];

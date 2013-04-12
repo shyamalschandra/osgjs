@@ -36,8 +36,8 @@ osg.ShaderLoader.prototype = osg.objectLibraryClass({
     _debugLines: false,
     _includeR: /#pragma include "([^"]+)"/g,
     _uniformR: /uniform\s+([a-z]+\s+)?([A-Za-z0-9]+)\s+([a-zA-Z_0-9]+)\s*(\[\s*(.+)\s*\])?/,
-    _structR: /struct\s+\w+\s*{[^}]+}\s*;/g,
-    _structExtractR: /struct\s+(\w+)\s*{([^}]+)}\s*;/,
+    _structR: /struct\s+\w+\s*\{[^\}]+\}\s*;/g,
+    _structExtractR: /struct\s+(\w+)\s*\{([^\}]+)\}\s*;/,
     _structFieldsR: /[^;]+;/g,
     _structFieldR: /\s*([a-z]+\s+)?([A-Za-z0-9]+)\s+([a-zA-Z_0-9]+)\s*(\[\s*(.+)\s*\])?\s*;/,
     _defineR: /#define\s+([a-zA-Z_0-9]+)\s+(.*)/,
@@ -48,23 +48,28 @@ osg.ShaderLoader.prototype = osg.objectLibraryClass({
         this._callbackSingle = options.callbackSingle;
         this._async = options.async;
         this._numtoLoad = 0;
-        if (!options.loadprefix)
-            options.loadprefix = '';
+        if (!options.loadprefix) options.loadprefix = '';
         var i;
         for (i in options.shaders) {
-            this._numtoLoad++;
+            if (options.shaders.hasOwnProperty(i)) {
+                this._numtoLoad++;
+            }
         }
         if (!options.inline) {
             for (i in options.shaders) {
-                this._shadersList[i] = options.loadprefix + i;
+                if (options.shaders.hasOwnProperty(i)) {
+                    this._shadersList[i] = options.loadprefix + i;
+                }
             }
             this._loaded = false;
         } else {
             for (i in options.shaders) {
-                this._shadersList[i] = i;
-                this._shadersText[i] = options.shaders[i];
-                if (this._callbackSingle) this._callbackSingle(i);
-                this._numtoLoad--;
+                if (options.shaders.hasOwnProperty(i)) {
+                    this._shadersList[i] = i;
+                    this._shadersText[i] = options.shaders[i];
+                    if (this._callbackSingle) this._callbackSingle(i);
+                    this._numtoLoad--;
+                }
             }
             this._loaded = true;
 
@@ -99,10 +104,12 @@ osg.ShaderLoader.prototype = osg.objectLibraryClass({
         return this;
     },
     loadAll: function(options) {
-         if (this._numtoLoad > 0){
+        if (this._numtoLoad > 0) {
             if (options && options.callbackAll) this._callbackAll = options.callbackAll;
             for (var shader in this._shadersList) {
-                this.load(this._shadersList[shader], shader, options && options.callbackSingle);
+                if (this._shadersList.hasOwnProperty(shader)) {
+                    this.load(this._shadersList[shader], shader, options && options.callbackSingle);
+                }
             }
         }
         return this;
@@ -111,7 +118,11 @@ osg.ShaderLoader.prototype = osg.objectLibraryClass({
         this._shaderLoaded = {};
         this._loaded = false;
         this._numtoLoad = 0;
-        for (var shader in this._shadersList) this._numtoLoad++;
+        for (var shader in this._shadersList) {
+            if (this._shadersList.hasOwnProperty(shader)) {
+                this._numtoLoad++;
+            }
+        }
         this.loadAll(options);
         return this;
     },
@@ -122,7 +133,7 @@ osg.ShaderLoader.prototype = osg.objectLibraryClass({
         this.load(this._shaders[options.shaderName], options && options.shaderName, options && options.callbackSingle);
         return this;
     },
-    instrumentShaderlines: function(content, sourceID ) {
+    instrumentShaderlines: function(content, sourceID) {
         // TODO instrumentShaderlines
         // http://immersedcode.org/2012/1/12/random-notes-on-webgl/
         // one ID per "file"
@@ -141,26 +152,24 @@ osg.ShaderLoader.prototype = osg.objectLibraryClass({
         content = allLines.join('\n');
         */
 
-       // seems just  prefixing first line seems ok to help renumbering error mesg
-       return  "\n#line " + 0 + " " + sourceID + '\n' +content;
+        // seems just  prefixing first line seems ok to help renumbering error mesg
+        return "\n#line " + 0 + " " + sourceID + '\n' + content;
     },
     getShaderTextPure: function(shaderName) {
-        if (!(shaderName in this._shadersText)){
+        if (!(shaderName in this._shadersText)) {
             // directory include/prefix problems.
-            for (var name in this._shadersText)
-            {
-                if (name.indexOf(shaderName) !== -1){
-                     preShader = this._shadersText[name];
-                     break;
+            for (var name in this._shadersText) {
+                if (name.indexOf(shaderName) !== -1) {
+                    preShader = this._shadersText[name];
+                    break;
                 }
             }
-            if (!preShader){
+            if (!preShader) {
                 console.error("shader file/text: " + shaderName + " not loaded");
                 return '';
             }
-        }
-        else{
-           preShader = this._shadersText[shaderName];
+        } else {
+            preShader = this._shadersText[shaderName];
         }
         return preShader;
     },
@@ -170,8 +179,7 @@ osg.ShaderLoader.prototype = osg.objectLibraryClass({
         return content.replace(this._includeR, function(_, name) {
             // \#pragma include "name";
             // already included
-            if (includeList.indexOf(name) !== -1)
-                return;
+            if (includeList.indexOf(name) !== -1) return;
             // avoid endless loop, not calling the impure
             var txt = this.getShaderTextPure(name);
             // make sure it's not included twice

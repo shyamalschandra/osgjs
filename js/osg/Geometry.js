@@ -4,6 +4,7 @@
  * Geometry manage array and primitives to draw a geometry.
  * @class Geometry
  */
+/*jshint forin: false*/
 osg.Geometry = function () {
     osg.Node.call(this);
     this.primitives = [];

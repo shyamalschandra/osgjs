@@ -116,11 +116,7 @@ osg.ShaderGenerator.prototype = {
             }
         }
 
-        var keys = [];
-        for (var ukey in uniforms) {
-            keys.push(ukey);
-        }
-        uniforms.uniformKeys = keys;
+        uniforms.uniformKeys = Object.keys(uniforms);
         return uniforms;
     },
 
