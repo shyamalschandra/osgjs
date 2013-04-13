@@ -204,41 +204,42 @@ WebGLUtils = function() {
  * Provides requestAnimationFrame in a cross browser
  * way.
  */
-if(!window.requestAnimationFrame) {
-    window.requestAnimationFrame = (function() {
-        return window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame || window.oRequestAnimationFrame || window.msRequestAnimationFrame ||
-        function( /* function FrameRequestCallback */ callback, /* DOMElement Element */ element) {
-            window.setTimeout(callback, 1000 / 60);
+if (typeof window !== "undefined"){
+    if(!window.requestAnimationFrame) {
+        window.requestAnimationFrame = (function() {
+            return window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame || window.oRequestAnimationFrame || window.msRequestAnimationFrame ||
+            function( /* function FrameRequestCallback */ callback, /* DOMElement Element */ element) {
+                window.setTimeout(callback, 1000 / 60);
+            };
+        })();
+    }
+
+    if (!window.cancelRequestAnimFrame) {
+        window.cancelRequestAnimFrame = ( function() {
+            return window.cancelAnimationFrame          ||
+                window.webkitCancelRequestAnimationFrame    ||
+                window.mozCancelRequestAnimationFrame       ||
+                window.oCancelRequestAnimationFrame     ||
+                window.msCancelRequestAnimationFrame        ||
+                clearTimeout;
+        } )();
+    }
+
+
+
+    window.performance = window.performance || {};
+    performance.now = (function() {
+        return window.performance.now || window.performance.mozNow || window.performance.msNow || window.performance.oNow || window.performance.webkitNow ||
+        function() {
+            return Date.now();
         };
     })();
 }
-
-if (!window.cancelRequestAnimFrame) {
-    window.cancelRequestAnimFrame = ( function() {
-        return window.cancelAnimationFrame          ||
-            window.webkitCancelRequestAnimationFrame    ||
-            window.mozCancelRequestAnimationFrame       ||
-            window.oCancelRequestAnimationFrame     ||
-            window.msCancelRequestAnimationFrame        ||
-            clearTimeout;
-    } )();
-}
-
 if(!Date.now) {
     Date.now = function now() {
         return new Date().getTime();
     };
 }
-
-
-window.performance = window.performance || {};
-performance.now = (function() {
-    return window.performance.now || window.performance.mozNow || window.performance.msNow || window.performance.oNow || window.performance.webkitNow ||
-    function() {
-        return Date.now();
-    };
-})();
-
 /** Obtain a stacktrace from the current stack http://eriwen.com/javascript/js-stack-trace/
 */
 function getStackTrace(err) {

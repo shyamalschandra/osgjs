@@ -336,7 +336,7 @@ osg.RenderBin.prototype = {
                 modelViewUniformUpdate = false;
                 projectionUniformUpdate = false;
 
-                if (program !== programPrevious){
+                if (!state.programAlreadyApplied || program !== programPrevious){
                     modelViewUniform    = program.uniformsCache[state.modelViewMatrix.name];
                     modelUniform        = program.uniformsCache[state.modelMatrix.name];
                     viewUniform         = program.uniformsCache[state.viewMatrix.name];
@@ -350,7 +350,7 @@ osg.RenderBin.prototype = {
                     normalUniformUpdate         = normalUniform     !== undefined;
                 }
                 else{
-                    // samee program, check changes.
+                    // same program, check changes.
                     viewUniformUpdate           = viewUniform       !== undefined && (!viewPrevious         || leaf.view        !== viewPrevious);
                     projectionUniformUpdate     = projectionUniform !== undefined && (!projectionPrevious   || leaf.projection  !== projectionPrevious);
                     modelUniformUpdate          = modelUniform      !== undefined && (!modelPrevious        || leaf.model       !== modelPrevious);

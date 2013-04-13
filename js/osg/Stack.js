@@ -5,6 +5,7 @@ osg.Stack.create = function()
     var a = [];
     a.globalDefault = undefined;
     a.lastApplied = undefined;
+    a.lastAppliedPrevious = undefined;
     a.back = function () {
         return this[this.length -1];
     };

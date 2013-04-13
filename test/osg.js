@@ -1328,7 +1328,7 @@ test("CullVisitor", function() {
         var bs = viewer.getCamera().getBound();
         console.log("BS c: " + bs._center.toString());
         console.log("BS r: " + bs._radius.toString());
-        ok(bs._center[0]=== -5 && bs._center[2]=== 0 && bs._center[2]=== -10, "check boundingsphere computation " + bs._center.toString() + " === [-5,0,10]" );
+        ok(bs._center[0]=== -5 && bs._center[2]=== 0 && bs._center[2]=== -10, "check boundingsphere computation " + bs._center.toString() + " === [-5,0,-10]" );
         ok(bs._radius === 5.866025403784439 , "check boundingsphere computation radius: " + bs._radius.toString() + " === " + 5.866025403784439);
 
         var node3 = new osg.MatrixTransform();

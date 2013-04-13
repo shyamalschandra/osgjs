@@ -21,3 +21,4 @@ docs/dox/
 *.sublime-project
 *.sublime-workspace
 docs\analysis/
+docs/analysis/

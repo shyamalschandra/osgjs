@@ -1,6 +1,9 @@
 osg.State = function () {
     this._graphicContext = undefined;
-
+    // avoid multiple gl calls by 
+    // not re-issuing the exact same
+    // binding & slow uniform upload
+    this.programAlreadyApplied = false;
     this.currentVBO = null;
     this.currentVAO = null;
     this.vertexAttribList = [];
@@ -207,6 +210,10 @@ osg.State.prototype = {
         if (this.programs.lastApplied !== program) {
             program.apply(this);
             this.programs.lastApplied = program;
+            this.programAlreadyApplied = false;
+        }
+        else{
+            this.programAlreadyApplied = true;
         }
 
 	var programUniforms;
@@ -680,8 +687,10 @@ osg.State.prototype = {
                 }
                 uniform.dirty();
             }
-            //osg.log(uniform.get()[0]);
-            uniform.apply(program.uniformsCache.ArrayColorEnabled);
+            if (updateColorUniform || !this.programAlreadyApplied) {
+                //osg.log(uniform.get()[0]);
+                uniform.apply(program.uniformsCache.ArrayColorEnabled);
+            }
         }
     },
     setVertexAttribArray: function(attrib, array, normalize) {

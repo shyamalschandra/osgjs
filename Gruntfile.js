@@ -144,7 +144,7 @@
 				//    'js/osgDB/Promise.js'
 				//]
 			},
-			beforeconcat: project.scripts,
+			beforeconcat: [project.scripts],
 			afterconcat: 'build/<%= pkg.name %>-debug.js'
 		},
 		jsvalidate: {
@@ -152,7 +152,10 @@
 				tolerant: true
 			},
 			main: {
-				src: project.scripts
+				src: [project.scripts,
+					'examples/*/*.js',
+					'sandbox/*/*.js',
+					'test/*.js']
 			}
 		},
 		qunit: {
@@ -279,7 +282,7 @@
 					jsonfiledir: true
 				},
 				root: 'examples/setup/shaders',
-				dest: 'examples/setup/shaderliblist.js'
+				dest: 'examples/setup/shaderliblist.json'
 			}
 
 		},
@@ -390,7 +393,7 @@
 					'examples/*/*.js',
 					'sandbox/*/*.js',
 					'test/*.js'],
-				tasks: ['jsvalidate', 'jshint:beforeconcat']
+				tasks: ['jsvalidate', 'jshint:beforeconcat', 'build_debug']
 			}
 		}
 	});

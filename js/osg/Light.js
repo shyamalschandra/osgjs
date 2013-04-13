@@ -190,8 +190,8 @@ osg.Light.prototype._shaderCommon[osg.ShaderGeneratorType.VertexFunction] = func
          else{
     return [ "",
              "vec3 computeNormal() {",
-            "   return vec3(NormalMatrix * vec4(Normal, 0.0));",
-              //"   return vec3(ViewMatrix * ModelMatrix * vec4(Normal, 0.0));",
+            //"   return vec3(NormalMatrix * vec4(Normal, 0.0));",
+              "   return vec3(ViewMatrix * ModelMatrix * vec4(Normal, 0.0));",
              "}",
              "",
              "vec3 computeEyeVertex() {",

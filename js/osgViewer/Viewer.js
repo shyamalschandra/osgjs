@@ -5,18 +5,20 @@
 
  var optionsURL = function() {
     var vars = [], hash;
-    var hashes = window.location.href.slice(window.location.href.indexOf('?') + 1).split('&');
-    for(var i = 0; i < hashes.length; i++)
-    {
-        hash = hashes[i].split('=');
-        var element = hash[0].toLowerCase();
-        vars.push(element);
-        var result = hash[1];
-        if (result === undefined) {
-            result = "1";
-        }
-        vars[element] = result.toLowerCase();
+    if (typeof window !== "undefined"){
+        var hashes = window.location.href.slice(window.location.href.indexOf('?') + 1).split('&');
+        for(var i = 0; i < hashes.length; i++)
+        {
+            hash = hashes[i].split('=');
+            var element = hash[0].toLowerCase();
+            vars.push(element);
+            var result = hash[1];
+            if (result === undefined) {
+                result = "1";
+            }
+            vars[element] = result.toLowerCase();
 
+        }
     }
     return vars;
 };
