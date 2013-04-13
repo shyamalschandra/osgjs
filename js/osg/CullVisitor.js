@@ -96,10 +96,28 @@ NodeDirtyMatrix.prototype = {
 
 var TraceNodePath = function() {
     this._array = [];
+    this._dirty = false;
+    this._previousIndex = this._index = -1;
     this.reset();
 };
 TraceNodePath.prototype = {
     reset: function() {
+
+        // detect a change in path lenght
+        // not that this detection could be useless
+        // because it's only valid if you remove a node and add it again
+        // at the same position in tree ( meaning in the end )
+        // so not really sure we have to fix this
+        var prevIndex = this._index;
+        var prevPrevIndex = this._previousIndex;
+        if (prevIndex !== prevPrevIndex && prevPrevIndex !== -1) {
+            var i = Math.min(prevIndex, prevPrevIndex);
+            for (var l = this._array.length; i < l; i++) {
+                this._array[i] = undefined;
+            }
+        }
+        this._previousIndex = this._index;
+
         this._dirty = false;
         this._index = -1;
     },
@@ -650,6 +668,10 @@ osg.CullVisitor.prototype[osg.Projection.prototype.objectType] = function (node)
 
 osg.CullVisitor.prototype[osg.Node.prototype.objectType] = function (node) {
 
+    if ( this._traceNode.isDirty() ) {
+        this._reserveMatrixModelStack.dirty();
+    }
+
     var stateset = node.getStateSet();
     if (stateset) {
         this.pushStateSet(stateset);
@@ -693,6 +715,7 @@ osg.CullVisitor.prototype[osg.Geometry.prototype.objectType] = function (node) {
 
     var recompute = this._traceNode.isDirty() || this._reserveMatrixModelStack.isDirty();
     if (recompute) {
+        this._reserveMatrixModelStack.dirty();
         this._reserveBoundingBoxStack.dirty();
     }
     var bb = this._reserveBoundingBoxStack.getReserved();

@@ -1342,9 +1342,13 @@ test("CullVisitor", function() {
         node3.removeChildren();
         viewer.cull();
         ok(viewer._cullVisitor._reserveMatrixModelStack.isDirty() === true, "check matrix model are not cached when removing nodes");
+
         node1.removeChild(node3);
         viewer.cull();
+        // the reserveMatrixModelStack is not dirty because when traversing we
+        // did not traverse a node that need matrix
         ok(viewer._cullVisitor._reserveMatrixModelStack.isDirty() === true, "check matrix model are not cached when remove transform nodes");
+
         node1.addChild(cube);
         viewer.cull();
         ok(viewer._cullVisitor._reserveMatrixModelStack.isDirty() === true, "check matrix model are cached when adding geom nodes");
