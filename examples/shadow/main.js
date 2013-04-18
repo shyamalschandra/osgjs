@@ -23,7 +23,7 @@
 
 function createShadowMatrix(ground, light, shadowMat) {
     var dot;
-    if(shadowMat === undefined) {
+    if (shadowMat === undefined) {
         shadowMat = [];
     }
 
@@ -51,27 +51,30 @@ function createShadowMatrix(ground, light, shadowMat) {
 
     return shadowMat;
 }
-var LightUpdateCallback = function(matrix) {
-        this.matrix = matrix;
-        this.groundPositionProj = [0.0, 0.0, 1.0, 5.0];
-        this.lightPositionProj = [0.0, 0.0, 80.0, 0.0];
+var LightUpdateCallback = function(matrix, shadowNode) {
+    this.matrix = matrix;
+    this.shadowNode = shadowNode;
+    this.groundPositionProj = [0.0, 0.0, 1.0, 5.0];
+    this.lightPositionProj = [0.0, 0.0, 80.0, 0.0];
 
-    };
+};
 LightUpdateCallback.prototype = {
     update: function(node, nv) {
         var currentTime = nv.getFrameStamp().getSimulationTime();
 
-        this.lightPositionProj[0] = 50 * Math.cos(currentTime);//x
-        this.lightPositionProj[1] = 50 * Math.sin(currentTime);//y
+        this.lightPositionProj[0] = 50 * Math.cos(currentTime); //x
+        this.lightPositionProj[1] = 50 * Math.sin(currentTime); //y
         //lightPositionProj[2] = 80;//h
         //
-       this.lightPositionProj[3] = 1;
-        createShadowMatrix(this.groundPositionProj,this.lightPositionProj, this.matrix);
+        this.lightPositionProj[3] = 1;
+        createShadowMatrix(this.groundPositionProj, this.lightPositionProj, this.matrix);
+
+        this.shadowNode.setDirtyMatrix(true);
 
         this.lightPositionProj[3] = 0;
-        node.lightShadow.setPosition(this.lightPositionProj);
+        node.getLight().setPosition(this.lightPositionProj);
 
-        node.lightShadow.dirty();
+        node.getLight().dirty();
         node.traverse(nv);
     }
 };
@@ -83,10 +86,10 @@ function createProjectedShadowScene(model) {
     shadowNode.addChild(model);
     var bs = model.getBound();
 
-    var light = new osg.MatrixTransform();
-    light.lightShadow = new osg.Light();
-    light.setUpdateCallback(new LightUpdateCallback(shadowNode.getMatrix()));
-    light.getOrCreateStateSet().setAttributeAndMode(light.lightShadow);
+    var light = new osg.LightSource();
+    light.setLight(new osg.Light());
+    light.setUpdateCallback(new LightUpdateCallback(shadowNode.getMatrix(), shadowNode));
+    light.getOrCreateStateSet().setAttributeAndMode(light.getLight());
 
     shadowNode.getOrCreateStateSet().setTextureAttributeAndMode(0, new osg.Texture(), osg.StateAttribute.OFF | osg.StateAttribute.OVERRIDE);
     shadowNode.getOrCreateStateSet().setAttributeAndMode(new osg.CullFace('DISABLE'), osg.StateAttribute.OFF | osg.StateAttribute.OVERRIDE);
@@ -107,34 +110,36 @@ function createProjectedShadowScene(model) {
 
 function getTextureProjectedShadowShader() {
     var vertexshader = ["",
- "#ifdef GL_ES",
- "precision highp float;",
- "#endif",
- "attribute vec3 Vertex;",
- "uniform mat4 ModelViewMatrix;",
- "uniform mat4 ProjectionMatrix;",
- "uniform vec4 fragColor;",
- "uniform mat4 ModelViewShadow;",
- "uniform mat4 ProjectionShadow;",
- "varying vec4 ShadowUVProjected;",
- "void main(void) {",
- "  gl_Position = ProjectionMatrix * ModelViewMatrix * vec4(Vertex,1.0);",
- "  vec4 uv = (ProjectionShadow * ModelViewShadow * vec4(Vertex,1.0));",
- "  ShadowUVProjected = uv;",
- "}",
- ""].join('\n');
+        "#ifdef GL_ES",
+        "precision highp float;",
+        "#endif",
+        "attribute vec3 Vertex;",
+        "uniform mat4 ModelViewMatrix;",
+        "uniform mat4 ModelMatrix;",
+        "uniform mat4 ViewMatrix;",
+        "uniform mat4 ProjectionMatrix;",
+        "uniform vec4 fragColor;",
+        "uniform mat4 ModelViewShadow;",
+        "uniform mat4 ProjectionShadow;",
+        "varying vec4 ShadowUVProjected;",
+        "void main(void) {",
+        "  gl_Position = ProjectionMatrix * ViewMatrix * ModelMatrix * vec4(Vertex,1.0);",
+        "  vec4 uv = (ProjectionShadow * ModelViewShadow * vec4(Vertex,1.0));",
+        "  ShadowUVProjected = uv;",
+        "}",
+        ""].join('\n');
 
     var fragmentshader = ["",
- "#ifdef GL_ES",
- "precision highp float;",
- "#endif",
- "uniform vec4 fragColor;",
- "uniform sampler2D Texture0;",
- "varying vec4 ShadowUVProjected;",
- "void main(void) {",
- "  gl_FragColor = texture2DProj( Texture0, ShadowUVProjected);",
- "}",
- ""].join('\n');
+        "#ifdef GL_ES",
+        "precision highp float;",
+        "#endif",
+        "uniform vec4 fragColor;",
+        "uniform sampler2D Texture0;",
+        "varying vec4 ShadowUVProjected;",
+        "void main(void) {",
+        "  gl_FragColor = texture2DProj( Texture0, ShadowUVProjected);",
+        "}",
+        ""].join('\n');
 
     var program = new osg.Program(
     new osg.Shader(gl.VERTEX_SHADER, vertexshader), new osg.Shader(gl.FRAGMENT_SHADER, fragmentshader));
@@ -144,43 +149,45 @@ function getTextureProjectedShadowShader() {
 
 function getBlurrShader() {
     var vertexshader = ["",
- "#ifdef GL_ES",
- "precision highp float;",
- "#endif",
- "attribute vec3 Vertex;",
- "attribute vec2 TexCoord0;",
- "uniform mat4 ModelViewMatrix;",
- "uniform mat4 ProjectionMatrix;",
- "varying vec2 uv0;",
- "void main(void) {",
- "  gl_Position = ProjectionMatrix * ModelViewMatrix * vec4(Vertex,1.0);",
- "  uv0 = TexCoord0;",
- "}",
- ""].join('\n');
+        "#ifdef GL_ES",
+        "precision highp float;",
+        "#endif",
+        "attribute vec3 Vertex;",
+        "attribute vec2 TexCoord0;",
+        "uniform mat4 ModelViewMatrix;",
+        "uniform mat4 ModelMatrix;",
+        "uniform mat4 ViewMatrix;",
+        "uniform mat4 ProjectionMatrix;",
+        "varying vec2 uv0;",
+        "void main(void) {",
+        "  gl_Position = ProjectionMatrix *  ViewMatrix * ModelMatrix * vec4(Vertex,1.0);",
+        "  uv0 = TexCoord0;",
+        "}",
+        ""].join('\n');
 
     var fragmentshader = ["",
- "#ifdef GL_ES",
- "precision highp float;",
- "#endif",
- "uniform sampler2D Texture0;",
- "varying vec2 uv0;",
- "float shift = 1.0/512.0;",
- "vec4 getSmoothTexelFilter(vec2 uv) {",
- "  vec4 c = texture2D( Texture0,  uv);",
- "  c += texture2D( Texture0, uv+vec2(0,shift));",
- "  c += texture2D( Texture0, uv+vec2(shift,shift));",
- "  c += texture2D( Texture0, uv+vec2(shift,0));",
- "  c += texture2D( Texture0, uv+vec2(shift,-shift));",
- "  c += texture2D( Texture0, uv+vec2(0,-shift));",
- "  c += texture2D( Texture0, uv+vec2(-shift,-shift));",
- "  c += texture2D( Texture0, uv+vec2(-shift,0));",
- "  c += texture2D( Texture0, uv+vec2(-shift,shift));",
- "  return c/9.0;",
- "}",
- "void main(void) {",
- "   gl_FragColor = getSmoothTexelFilter( uv0);",
- "}",
- ""].join('\n');
+        "#ifdef GL_ES",
+        "precision highp float;",
+        "#endif",
+        "uniform sampler2D Texture0;",
+        "varying vec2 uv0;",
+        "float shift = 1.0/512.0;",
+        "vec4 getSmoothTexelFilter(vec2 uv) {",
+        "  vec4 c = texture2D( Texture0,  uv);",
+        "  c += texture2D( Texture0, uv+vec2(0,shift));",
+        "  c += texture2D( Texture0, uv+vec2(shift,shift));",
+        "  c += texture2D( Texture0, uv+vec2(shift,0));",
+        "  c += texture2D( Texture0, uv+vec2(shift,-shift));",
+        "  c += texture2D( Texture0, uv+vec2(0,-shift));",
+        "  c += texture2D( Texture0, uv+vec2(-shift,-shift));",
+        "  c += texture2D( Texture0, uv+vec2(-shift,0));",
+        "  c += texture2D( Texture0, uv+vec2(-shift,shift));",
+        "  return c/9.0;",
+        "}",
+        "void main(void) {",
+        "   gl_FragColor = getSmoothTexelFilter( uv0);",
+        "}",
+        ""].join('\n');
 
     var program = new osg.Program(
     new osg.Shader(gl.VERTEX_SHADER, vertexshader), new osg.Shader(gl.FRAGMENT_SHADER, fragmentshader));
@@ -189,33 +196,33 @@ function getBlurrShader() {
 }
 
 var LightUpdateCallbackProjectedTexture = function(options) {
-        this.projectionShadow = options.projectionShadow;
-        this.modelviewShadow = options.modelViewShadow;
-        this.shadowScene = options.shadowScene;
-        this.camera = options.camera;
-        this.groundPositionProjTex = [0.0, 0.0, -5.0];
-        this.lightPositionProjTex = [0.0, 0.0, 80.0, 0.0];
-        this.worldCameraPositiontionProjTex = [];
-        this.worldCameraTargetProjTex = [];
-        this.shadowProj = [];
-        this.shadowView = [];
-        this.idlook = [0, -1, 0];
+    this.projectionShadow = options.projectionShadow;
+    this.modelviewShadow = options.modelViewShadow;
+    this.shadowScene = options.shadowScene;
+    this.camera = options.camera;
+    this.groundPositionProjTex = [0.0, 0.0, -5.0];
+    this.lightPositionProjTex = [0.0, 0.0, 80.0, 0.0];
+    this.worldCameraPositiontionProjTex = [];
+    this.worldCameraTargetProjTex = [];
+    this.shadowProj = [];
+    this.shadowView = [];
+    this.idlook = [0, -1, 0];
 
-        this.biasScale = [];
-        this.move = [0.5, 0.5, 0.5];
-        this.Translate = [];
-        this.Translate = osg.Matrix.makeTranslate(this.move[0], this.move[1], this.move[2], this.Translate);
-        this.Scale = [];
-        this.Scale = osg.Matrix.makeScale(this.move[0], this.move[1], this.move[2], this.Scale);
-        this.biasScale = osg.Matrix.preMult(this.Translate, this.Scale );
-    };
+    this.biasScale = [];
+    this.move = [0.5, 0.5, 0.5];
+    this.Translate = [];
+    this.Translate = osg.Matrix.makeTranslate(this.move[0], this.move[1], this.move[2], this.Translate);
+    this.Scale = [];
+    this.Scale = osg.Matrix.makeScale(this.move[0], this.move[1], this.move[2], this.Scale);
+    this.biasScale = osg.Matrix.preMult(this.Translate, this.Scale);
+};
 
 LightUpdateCallbackProjectedTexture.prototype = {
     update: function(node, nv) {
         var currentTime = nv.getFrameStamp().getSimulationTime();
 
-        this.lightPositionProjTex[0] = 50 * Math.cos(currentTime);//x
-        this.lightPositionProjTex[1] = 50 * Math.sin(currentTime);//y
+        this.lightPositionProjTex[0] = 50 * Math.cos(currentTime); //x
+        this.lightPositionProjTex[1] = 50 * Math.sin(currentTime); //y
         //this.lightPositionProjTex[2] = 80;//z
         //
         //osg.Matrix.makeTranslate(x ,y,h, node.getMatrix());
@@ -225,7 +232,7 @@ LightUpdateCallbackProjectedTexture.prototype = {
         this.worldCameraPositiontionProjTex = osg.Matrix.transformVec3(worldMatrix, this.lightPositionProjTex, this.worldCameraPositiontionProjTex);
         this.worldCameraTargetProjTex = osg.Matrix.transformVec3(worldMatrix, this.groundPositionProjTex, this.worldCameraTargetProjTex);
 
-        osg.Matrix.makeLookAt(this.worldCameraPositiontionProjTex, this.worldCameraTargetProjTex, this.idlook , this.camera.getViewMatrix());
+        osg.Matrix.makeLookAt(this.worldCameraPositiontionProjTex, this.worldCameraTargetProjTex, this.idlook, this.camera.getViewMatrix());
 
         this.shadowProj = osg.Matrix.copy(this.camera.getProjectionMatrix(), this.shadowProj);
         osg.Matrix.postMult(this.biasScale, this.shadowProj);
@@ -235,8 +242,9 @@ LightUpdateCallbackProjectedTexture.prototype = {
 
         this.projectionShadow.set(this.shadowProj);
         this.modelviewShadow.set(this.shadowView);
-        node.lightShadow.setPosition(this.lightPositionProjTex);
-        node.lightShadow.dirty();
+        node.getLight().setPosition(this.lightPositionProjTex);
+        node.getLight().dirty();
+        this.camera.setDirtyMatrix(true);
         node.traverse(nv);
     }
 };
@@ -248,7 +256,7 @@ function createTextureProjectedShadowScene(model) {
     shadowNode.addChild(model);
     var bs = model.getBound();
 
-    var light = new osg.MatrixTransform();
+    var light = new osg.LightSource();
     var rtt = new osg.Camera();
     rtt.setName("rtt_camera");
     rttSize = [512, 512];
@@ -278,8 +286,8 @@ function createTextureProjectedShadowScene(model) {
     light.addChild(rtt);
 
     var shadowMatrix = [];
-    light.lightShadow = new osg.Light();
-    light.getOrCreateStateSet().setAttributeAndMode(light.lightShadow);
+    light.setLight( new osg.Light());
+    light.getOrCreateStateSet().setAttributeAndMode(light.getLight());
 
     var q = osg.createTexturedQuad(-10, -10, -5.0, 20, 0, 0, 0, 20, 0);
     q.getOrCreateStateSet().setAttributeAndMode(new osg.BlendFunc('ONE', 'ONE_MINUS_SRC_ALPHA'));
@@ -332,46 +340,48 @@ function createTextureProjectedShadowScene(model) {
 
 function getShadowMapShaderLight() {
     var vertexshader = ["",
- "#ifdef GL_ES",
- "precision highp float;",
- "#endif",
- "attribute vec3 Vertex;",
- "uniform mat4 ModelViewMatrix;",
- "uniform mat4 ProjectionMatrix;",
- "varying float z;",
- "void main(void) {",
- "  gl_Position = ProjectionMatrix * ModelViewMatrix * vec4(Vertex,1.0);",
- "  z = (ModelViewMatrix * vec4(Vertex,1.0)).z;",
- "}",
- ""].join('\n');
+        "#ifdef GL_ES",
+        "precision highp float;",
+        "#endif",
+        "attribute vec3 Vertex;",
+        "uniform mat4 ModelViewMatrix;",
+        "uniform mat4 ModelMatrix;",
+        "uniform mat4 ViewMatrix;",
+        "uniform mat4 ProjectionMatrix;",
+        "varying float z;",
+        "void main(void) {",
+        "  gl_Position = ProjectionMatrix * ViewMatrix * ModelMatrix * vec4(Vertex,1.0);",
+        "  z = (ModelViewMatrix * vec4(Vertex,1.0)).z;",
+        "}",
+        ""].join('\n');
 
     var fragmentshader = ["",
- "#ifdef GL_ES",
- "precision highp float;",
- "#endif",
- "varying float z;",
- "uniform float nearShadow;",
- "uniform float farShadow;",
- "vec4 pack2(float value) {",
- "  return vec4(floor(value * 256.0)/255.0, floor(fract(value * 256.0) * 256.0)/255.0 , floor(fract(value * 65536.0) * 256.0)/255.0, 0.0);",
- "}",
- "vec4 pack(float value){",
- "    float depth = value;",
- "    float depth1 = depth*255.0*255.0;",
- "    float depth2 = (depth*depth)*255.0*255.0;",
- "    return vec4(",
- "        mod(depth1, 255.0)/255.0,",
- "        floor(depth1/255.0)/255.0,",
- "        mod(depth2, 255.0)/255.0,",
- "        floor(depth2/255.0)/255.0",
- "    );",
- "}",
- "void main(void) {",
- "  //gl_FragColor = pack(((-z) - nearShadow)/ (farShadow-nearShadow));",
- "  gl_FragColor = pack2(((-z) - nearShadow)/ (farShadow-nearShadow));",
- "  //gl_FragColor = vec4(1.0, 0.0, 1.0, 1.0);",
- "}",
- ""].join('\n');
+        "#ifdef GL_ES",
+        "precision highp float;",
+        "#endif",
+        "varying float z;",
+        "uniform float nearShadow;",
+        "uniform float farShadow;",
+        "vec4 pack2(float value) {",
+        "  return vec4(floor(value * 256.0)/255.0, floor(fract(value * 256.0) * 256.0)/255.0 , floor(fract(value * 65536.0) * 256.0)/255.0, 0.0);",
+        "}",
+        "vec4 pack(float value){",
+        "    float depth = value;",
+        "    float depth1 = depth*255.0*255.0;",
+        "    float depth2 = (depth*depth)*255.0*255.0;",
+        "    return vec4(",
+        "        mod(depth1, 255.0)/255.0,",
+        "        floor(depth1/255.0)/255.0,",
+        "        mod(depth2, 255.0)/255.0,",
+        "        floor(depth2/255.0)/255.0",
+        "    );",
+        "}",
+        "void main(void) {",
+        "  //gl_FragColor = pack(((-z) - nearShadow)/ (farShadow-nearShadow));",
+        "  gl_FragColor = pack2(((-z) - nearShadow)/ (farShadow-nearShadow));",
+        "  //gl_FragColor = vec4(1.0, 0.0, 1.0, 1.0);",
+        "}",
+        ""].join('\n');
 
     var program = new osg.Program(
     new osg.Shader(gl.VERTEX_SHADER, vertexshader), new osg.Shader(gl.FRAGMENT_SHADER, fragmentshader));
@@ -382,88 +392,90 @@ function getShadowMapShaderLight() {
 
 function getShadowMapShaderGround() {
     var vertexshader = ["",
- "#ifdef GL_ES",
- "precision highp float;",
- "#endif",
- "attribute vec2 TexCoord0;",
- "attribute vec3 Vertex;",
- "uniform mat4 ModelViewMatrix;",
- "uniform mat4 ProjectionMatrix;",
- "uniform mat4 ProjectionShadow;",
- "uniform mat4 ModelViewShadow;",
- "varying vec4 shadowVertexProjected;",
- "varying float shadowZ;",
- "varying vec2 uv0;",
- "uniform float nearShadow;",
- "uniform float farShadow;",
- "void computeShadowElements() {",
- "vec4 shadowVertex = ModelViewShadow * vec4(Vertex,1.0);",
- "shadowVertexProjected = ProjectionShadow * shadowVertex;",
- "shadowZ = (-shadowVertex.z - nearShadow)/(farShadow-nearShadow);",
- "}",
+        "#ifdef GL_ES",
+        "precision highp float;",
+        "#endif",
+        "attribute vec2 TexCoord0;",
+        "attribute vec3 Vertex;",
+        "uniform mat4 ModelViewMatrix;",
+        "uniform mat4 ModelMatrix;",
+        "uniform mat4 ViewMatrix;",
+        "uniform mat4 ProjectionMatrix;",
+        "uniform mat4 ProjectionShadow;",
+        "uniform mat4 ModelViewShadow;",
+        "varying vec4 shadowVertexProjected;",
+        "varying float shadowZ;",
+        "varying vec2 uv0;",
+        "uniform float nearShadow;",
+        "uniform float farShadow;",
+        "void computeShadowElements() {",
+        "   vec4 shadowVertex = ModelViewShadow * vec4(Vertex,1.0);",
+        "   shadowVertexProjected = ProjectionShadow * shadowVertex;",
+        "   shadowZ = (-shadowVertex.z - nearShadow)/(farShadow-nearShadow);",
+        "}",
 
-    "void main(void) {",
- "  gl_Position = ProjectionMatrix * ModelViewMatrix * vec4(Vertex,1.0);",
- "  uv0 = TexCoord0;",
- "  computeShadowElements();",
- "}",
- ""].join('\n');
+        "void main(void) {",
+        "  gl_Position = ProjectionMatrix * ViewMatrix * ModelMatrix  * vec4(Vertex,1.0);",
+        "  uv0 = TexCoord0;",
+        "  computeShadowElements();",
+        "}",
+        ""].join('\n');
 
     var fragmentshader = ["",
- "#ifdef GL_ES",
- "precision highp float;",
- "#endif",
- "varying vec2 uv0;",
- "varying vec4 shadowVertexProjected;",
- "//varying vec2 shadowUV;",
- "varying float shadowZ;",
- "uniform sampler2D Texture0;",
- "uniform mat4 ProjectionShadow;",
- "uniform mat4 ModelViewShadow;",
- "float unpack2(vec4 depth) {",
- "  return depth[0] * 255.0 / 256.0 + depth[1] * 255.0 / (256.0 * 256.0) + depth[2] * 255.0 / (256.0 * 256.0 * 256.0);",
- "}",
- "vec2 unpack(vec4 src){",
- "    return vec2(",
- "    src.x/255.0+src.y,",
- "        src.z/255.0+src.w",
- ");",
- "}",
- "void main(void) {",
- "vec4 uv = shadowVertexProjected;",
- "vec2 shadowUV = (uv.xyz/uv.w).xy;",
- "float shadowed = 0.0;",
- "vec2 fetch[16];",
- "fetch[0] = shadowUV.xy + vec2(-1.5, -1.5)/vec2(510.0, 510.0);",
- "fetch[1] = shadowUV.xy + vec2(-0.5, -1.5)/vec2(510.0, 510.0);",
- "fetch[2] = shadowUV.xy + vec2(0.5, -1.5)/vec2(510.0, 510.0);",
- "fetch[3] = shadowUV.xy + vec2(1.5, -1.5)/vec2(510.0, 510.0);",
- "fetch[4] = shadowUV.xy + vec2(-1.5, -0.5)/vec2(510.0, 510.0);",
- "fetch[5] = shadowUV.xy + vec2(-0.5, -0.5)/vec2(510.0, 510.0);",
- "fetch[6] = shadowUV.xy + vec2(0.5, -0.5)/vec2(510.0, 510.0);",
- "fetch[7] = shadowUV.xy + vec2(1.5, -0.5)/vec2(510.0, 510.0);",
- "fetch[8] = shadowUV.xy + vec2(-1.5, 0.5)/vec2(510.0, 510.0);",
- "fetch[9] = shadowUV.xy + vec2(-0.5, 0.5)/vec2(510.0, 510.0);",
- "fetch[10] = shadowUV.xy + vec2(0.5, 0.5)/vec2(510.0, 510.0);",
- "fetch[11] = shadowUV.xy + vec2(1.5, 0.5)/vec2(510.0, 510.0);",
- "fetch[12] = shadowUV.xy + vec2(-1.5, 1.5)/vec2(510.0, 510.0);",
- "fetch[13] = shadowUV.xy + vec2(-0.5, 1.5)/vec2(510.0, 510.0);",
- "fetch[14] = shadowUV.xy + vec2(0.5, 1.5)/vec2(510.0, 510.0);",
- "fetch[15] = shadowUV.xy + vec2(1.5, 1.5)/vec2(510.0, 510.0);",
- "for(int i = 0; i < 16; i++) {",
- "   float zz = unpack2(texture2D(Texture0, fetch[i]));",
- "   float d = shadowZ - zz;",
- "   shadowed += (d >= 0.01 ) ? (1.0) : (0.0);",
- " }",
- "shadowed = shadowed / 16.0;",
+        "#ifdef GL_ES",
+        "precision highp float;",
+        "#endif",
+        "varying vec2 uv0;",
+        "varying vec4 shadowVertexProjected;",
+        "//varying vec2 shadowUV;",
+        "varying float shadowZ;",
+        "uniform sampler2D Texture0;",
+        "uniform mat4 ProjectionShadow;",
+        "uniform mat4 ModelViewShadow;",
+        "float unpack2(vec4 depth) {",
+        "  return depth[0] * 255.0 / 256.0 + depth[1] * 255.0 / (256.0 * 256.0) + depth[2] * 255.0 / (256.0 * 256.0 * 256.0);",
+        "}",
+        "vec2 unpack(vec4 src){",
+        "    return vec2(",
+        "    src.x/255.0+src.y,",
+        "        src.z/255.0+src.w",
+        ");",
+        "}",
+        "void main(void) {",
+        "vec4 uv = shadowVertexProjected;",
+        "vec2 shadowUV = (uv.xyz/uv.w).xy;",
+        "float shadowed = 0.0;",
+        "vec2 fetch[16];",
+        "fetch[0] = shadowUV.xy + vec2(-1.5, -1.5)/vec2(510.0, 510.0);",
+        "fetch[1] = shadowUV.xy + vec2(-0.5, -1.5)/vec2(510.0, 510.0);",
+        "fetch[2] = shadowUV.xy + vec2(0.5, -1.5)/vec2(510.0, 510.0);",
+        "fetch[3] = shadowUV.xy + vec2(1.5, -1.5)/vec2(510.0, 510.0);",
+        "fetch[4] = shadowUV.xy + vec2(-1.5, -0.5)/vec2(510.0, 510.0);",
+        "fetch[5] = shadowUV.xy + vec2(-0.5, -0.5)/vec2(510.0, 510.0);",
+        "fetch[6] = shadowUV.xy + vec2(0.5, -0.5)/vec2(510.0, 510.0);",
+        "fetch[7] = shadowUV.xy + vec2(1.5, -0.5)/vec2(510.0, 510.0);",
+        "fetch[8] = shadowUV.xy + vec2(-1.5, 0.5)/vec2(510.0, 510.0);",
+        "fetch[9] = shadowUV.xy + vec2(-0.5, 0.5)/vec2(510.0, 510.0);",
+        "fetch[10] = shadowUV.xy + vec2(0.5, 0.5)/vec2(510.0, 510.0);",
+        "fetch[11] = shadowUV.xy + vec2(1.5, 0.5)/vec2(510.0, 510.0);",
+        "fetch[12] = shadowUV.xy + vec2(-1.5, 1.5)/vec2(510.0, 510.0);",
+        "fetch[13] = shadowUV.xy + vec2(-0.5, 1.5)/vec2(510.0, 510.0);",
+        "fetch[14] = shadowUV.xy + vec2(0.5, 1.5)/vec2(510.0, 510.0);",
+        "fetch[15] = shadowUV.xy + vec2(1.5, 1.5)/vec2(510.0, 510.0);",
+        "for(int i = 0; i < 16; i++) {",
+        "   float zz = unpack2(texture2D(Texture0, fetch[i]));",
+        "   float d = shadowZ - zz;",
+        "   shadowed += (d >= 0.01 ) ? (1.0) : (0.0);",
+        " }",
+        "shadowed = shadowed / 16.0;",
 
-    "  gl_FragColor = vec4(1.0-shadowed,1.0-shadowed,1.0-shadowed,1.0);",
- "  //debug = unpack2(texture2D(Texture0, uv0));",
- "  //gl_FragColor = texture2D(Texture0, uv0);",
- "  //debug = depth;",
- "  //gl_FragColor = vec4(shadowCoord.x,shadowCoord.y,0,1);",
- "}",
- ""].join('\n');
+        "  gl_FragColor = vec4(1.0-shadowed,1.0-shadowed,1.0-shadowed,1.0);",
+        "  //debug = unpack2(texture2D(Texture0, uv0));",
+        "  //gl_FragColor = texture2D(Texture0, uv0);",
+        "  //debug = depth;",
+        "  //gl_FragColor = vec4(shadowCoord.x,shadowCoord.y,0,1);",
+        "}",
+        ""].join('\n');
 
     var program = new osg.Program(
     new osg.Shader(gl.VERTEX_SHADER, vertexshader), new osg.Shader(gl.FRAGMENT_SHADER, fragmentshader));
@@ -473,212 +485,214 @@ function getShadowMapShaderGround() {
 
 function getOgreShadowMapShader() {
     var vertexshader = ["#ifdef GL_ES",
-    "precision highp float;",
-    "#endif",
- "attribute vec3 Vertex;",
- "attribute vec3 Normal;",
- "uniform mat4 ModelViewMatrix;",
- "uniform mat4 ProjectionMatrix;",
- "uniform mat4 NormalMatrix;",
- "uniform vec4 MaterialAmbient;",
- "uniform vec4 MaterialDiffuse;",
- "uniform vec4 MaterialSpecular;",
- "uniform vec4 MaterialEmission;",
- "uniform float MaterialShininess;",
- "vec4 Ambient;",
- "vec4 Diffuse;",
- "vec4 Specular;",
- "",
- "attribute vec2 TexCoord0;",
- "varying vec2 FragTexCoord0;",
- "varying vec4 LightColor;",
- "vec3 EyeVector;",
- "vec3 NormalComputed;",
- "",
- "",
- "uniform bool Light0_enabled;",
- "uniform vec4 Light0_uniform_ambient;",
- "uniform vec4 Light0_uniform_diffuse;",
- "uniform vec4 Light0_uniform_specular;",
- "uniform vec4 Light0_uniform_position;",
- "uniform float Light0_uniform_constantAttenuation;",
- "uniform float Light0_uniform_linearAttenuation;",
- "uniform float Light0_uniform_quadraticAttenuation;",
- "",
- "",
- "// shadow stuff",
- "uniform mat4 ProjectionShadow;",
- "uniform mat4 ModelViewShadow;",
- "uniform float nearShadow;",
- "uniform float farShadow;",
- "varying vec4 shadowVertexProjected;",
- "varying float shadowZ;",
- "",
- "vec4 ftransform() {",
- "return ProjectionMatrix * ModelViewMatrix * vec4(Vertex, 1.0);",
- "}",
- "vec3 computeNormal() {",
- "return vec3(NormalMatrix * vec4(Normal, 0.0));",
- "}",
- "",
- "vec3 computeEyeDirection() {",
- "return vec3(ModelViewMatrix * vec4(Vertex,1.0));",
- "}",
- "",
- "void directionalLight(in vec3 lightDirection, in vec3 lightHalfVector, in float constantAttenuation, in float linearAttenuation, in float quadraticAttenuation, in vec4 ambient, in vec4 diffuse,in vec4 specular, in vec3 normal)",
- "{",
- "float nDotVP;         // normal . light direction",
- "float nDotHV;         // normal . light half vector",
- "float pf;             // power factor",
- "",
- "nDotVP = max(0.0, dot(normal, normalize(lightDirection)));",
- "nDotHV = max(0.0, dot(normal, lightHalfVector));",
- "",
- "if (nDotHV == 0.0)",
- "{",
- "pf = 0.0;",
- "}",
- "else",
- "{",
- "pf = pow(nDotHV, MaterialShininess);",
- "}",
- "Ambient  += ambient;",
- "Diffuse  += diffuse * nDotVP;",
- "Specular += specular * pf;",
- "}",
- "",
- "void flight(in vec3 lightDirection, in float constantAttenuation, in float linearAttenuation, in float quadraticAttenuation, in vec4 ambient, in vec4 diffuse, in vec4 specular, in vec3 normal)",
- "{",
- "vec4 localColor;",
- "vec3 lightHalfVector = normalize(EyeVector-lightDirection);",
- "// Clear the light intensity accumulators",
- "Ambient  = vec4 (0.0);",
- "Diffuse  = vec4 (0.0);",
- "Specular = vec4 (0.0);",
- "",
- "directionalLight(lightDirection, lightHalfVector, constantAttenuation, linearAttenuation, quadraticAttenuation, ambient, diffuse, specular, normal);",
- "",
- "vec4 sceneColor = vec4(0,0,0,0);",
- "localColor = sceneColor +",
- "MaterialEmission +",
- "Ambient  * MaterialAmbient +",
- "Diffuse  * MaterialDiffuse;",
- "//Specular * MaterialSpecular;",
- "localColor = clamp( localColor, 0.0, 1.0 );",
- "LightColor += localColor;",
- "}",
- "",
- "void computeShadowElements() {",
- "vec4 shadowPosition = ModelViewShadow * vec4(Vertex,1.0);",
- "shadowVertexProjected = ProjectionShadow * shadowPosition;",
- "shadowZ = (-shadowPosition.z - nearShadow)/(farShadow-nearShadow);",
- "}",
- "",
- "void main(void) {",
- "gl_Position = ftransform();",
- "",
- "EyeVector = computeEyeDirection();",
- "NormalComputed = computeNormal();",
- "LightColor = vec4(0,0,0,0);",
- "",
- "//if (Light0_enabled) {",
- "if (true) {",
- "vec3 Light0_directionNormalized = normalize(vec3(Light0_uniform_position));",
- "float Light0_NdotL = max(dot(Normal, Light0_directionNormalized), 0.0);",
- "flight(Light0_directionNormalized, Light0_uniform_constantAttenuation, Light0_uniform_linearAttenuation, Light0_uniform_quadraticAttenuation, Light0_uniform_ambient, Light0_uniform_diffuse, Light0_uniform_specular, NormalComputed );",
- "}",
- "",
- "FragTexCoord0 = TexCoord0;",
- "computeShadowElements();",
- "}", ].join('\n');
+        "precision highp float;",
+        "#endif",
+        "attribute vec3 Vertex;",
+        "attribute vec3 Normal;",
+        "uniform mat4 ModelViewMatrix;",
+        "uniform mat4 ViewMatrix;",
+        "uniform mat4 ModelMatrix;",
+        "uniform mat4 ProjectionMatrix;",
+        "uniform mat4 NormalMatrix;",
+        "uniform vec4 MaterialAmbient;",
+        "uniform vec4 MaterialDiffuse;",
+        "uniform vec4 MaterialSpecular;",
+        "uniform vec4 MaterialEmission;",
+        "uniform float MaterialShininess;",
+        "vec4 Ambient;",
+        "vec4 Diffuse;",
+        "vec4 Specular;",
+        "",
+        "attribute vec2 TexCoord0;",
+        "varying vec2 FragTexCoord0;",
+        "varying vec4 LightColor;",
+        "vec3 EyeVector;",
+        "vec3 NormalComputed;",
+        "",
+        "",
+        "uniform bool Light0_enabled;",
+        "uniform vec4 Light0_uniform_ambient;",
+        "uniform vec4 Light0_uniform_diffuse;",
+        "uniform vec4 Light0_uniform_specular;",
+        "uniform vec4 Light0_uniform_position;",
+        "uniform float Light0_uniform_constantAttenuation;",
+        "uniform float Light0_uniform_linearAttenuation;",
+        "uniform float Light0_uniform_quadraticAttenuation;",
+        "",
+        "",
+        "// shadow stuff",
+        "uniform mat4 ProjectionShadow;",
+        "uniform mat4 ModelViewShadow;",
+        "uniform float nearShadow;",
+        "uniform float farShadow;",
+        "varying vec4 shadowVertexProjected;",
+        "varying float shadowZ;",
+        "",
+        "vec4 ftransform() {",
+        "return ProjectionMatrix * ViewMatrix * ModelMatrix  * vec4(Vertex, 1.0);",
+        "}",
+        "vec3 computeNormal() {",
+        "return vec3(ViewMatrix * ModelMatrix  * vec4(Normal, 0.0));",
+        "}",
+        "",
+        "vec3 computeEyeDirection() {",
+        "return vec3(ViewMatrix * ModelMatrix  * vec4(Vertex,1.0));",
+        "}",
+        "",
+        "void directionalLight(in vec3 lightDirection, in vec3 lightHalfVector, in float constantAttenuation, in float linearAttenuation, in float quadraticAttenuation, in vec4 ambient, in vec4 diffuse,in vec4 specular, in vec3 normal)",
+        "{",
+        "float nDotVP;         // normal . light direction",
+        "float nDotHV;         // normal . light half vector",
+        "float pf;             // power factor",
+        "",
+        "nDotVP = max(0.0, dot(normal, normalize(lightDirection)));",
+        "nDotHV = max(0.0, dot(normal, lightHalfVector));",
+        "",
+        "if (nDotHV == 0.0)",
+        "{",
+        "pf = 0.0;",
+        "}",
+        "else",
+        "{",
+        "pf = pow(nDotHV, MaterialShininess);",
+        "}",
+        "Ambient  += ambient;",
+        "Diffuse  += diffuse * nDotVP;",
+        "Specular += specular * pf;",
+        "}",
+        "",
+        "void flight(in vec3 lightDirection, in float constantAttenuation, in float linearAttenuation, in float quadraticAttenuation, in vec4 ambient, in vec4 diffuse, in vec4 specular, in vec3 normal)",
+        "{",
+        "vec4 localColor;",
+        "vec3 lightHalfVector = normalize(EyeVector-lightDirection);",
+        "// Clear the light intensity accumulators",
+        "Ambient  = vec4 (0.0);",
+        "Diffuse  = vec4 (0.0);",
+        "Specular = vec4 (0.0);",
+        "",
+        "directionalLight(lightDirection, lightHalfVector, constantAttenuation, linearAttenuation, quadraticAttenuation, ambient, diffuse, specular, normal);",
+        "",
+        "vec4 sceneColor = vec4(0,0,0,0);",
+        "localColor = sceneColor +",
+        "MaterialEmission +",
+        "Ambient  * MaterialAmbient +",
+        "Diffuse  * MaterialDiffuse;",
+        "//Specular * MaterialSpecular;",
+        "localColor = clamp( localColor, 0.0, 1.0 );",
+        "LightColor += localColor;",
+        "}",
+        "",
+        "void computeShadowElements() {",
+        "vec4 shadowPosition = ModelViewShadow * vec4(Vertex,1.0);",
+        "shadowVertexProjected = ProjectionShadow * shadowPosition;",
+        "shadowZ = (-shadowPosition.z - nearShadow)/(farShadow-nearShadow);",
+        "}",
+        "",
+        "void main(void) {",
+        "gl_Position = ftransform();",
+        "",
+        "EyeVector = computeEyeDirection();",
+        "NormalComputed = computeNormal();",
+        "LightColor = vec4(0,0,0,0);",
+        "",
+        "//if (Light0_enabled) {",
+        "if (true) {",
+        "vec3 Light0_directionNormalized = normalize(vec3(Light0_uniform_position));",
+        "float Light0_NdotL = max(dot(Normal, Light0_directionNormalized), 0.0);",
+        "flight(Light0_directionNormalized, Light0_uniform_constantAttenuation, Light0_uniform_linearAttenuation, Light0_uniform_quadraticAttenuation, Light0_uniform_ambient, Light0_uniform_diffuse, Light0_uniform_specular, NormalComputed );",
+        "}",
+        "",
+        "FragTexCoord0 = TexCoord0;",
+        "computeShadowElements();",
+        "}" ].join('\n');
 
     var fragmentshader = ["#ifdef GL_ES",
- "precision highp float;",
- "#endif",
- "vec4 fragColor;",
- "varying vec4 LightColor;",
- "uniform int ground;",
- "uniform sampler2D Texture0;",
- "uniform sampler2D Texture1;",
- "varying vec4 shadowVertexProjected;",
- "varying float shadowZ;",
- "varying vec2 FragTexCoord0;",
- "",
- "float unpack2(vec4 depth) {",
- "return depth[0] * 255.0 / 256.0 + depth[1] * 255.0 / (256.0 * 256.0) + depth[2] * 255.0 / (256.0 * 256.0 * 256.0);",
- "}",
- "",
- "float getShadowedTerm(vec2 uv) {",
- "   float d = shadowZ - unpack2(texture2D(Texture1, uv ));",
- "   return (d >= 0.01 ) ? (1.0) : (0.0);",
- "}",
- "float computeShadowTerm() {",
- "vec4 uv = shadowVertexProjected;",
- "vec2 shadowUV = (uv.xy/uv.w).xy;",
- "float shadowed = 0.0;",
- "#if 1",
- "vec2 fetch[16];",
- "fetch[0] = shadowUV.xy + vec2(-1.5, -1.5)/vec2(510.0, 510.0);",
- "fetch[1] = shadowUV.xy + vec2(-0.5, -1.5)/vec2(510.0, 510.0);",
- "fetch[2] = shadowUV.xy + vec2(0.5, -1.5)/vec2(510.0, 510.0);",
- "fetch[3] = shadowUV.xy + vec2(1.5, -1.5)/vec2(510.0, 510.0);",
- "fetch[4] = shadowUV.xy + vec2(-1.5, -0.5)/vec2(510.0, 510.0);",
- "fetch[5] = shadowUV.xy + vec2(-0.5, -0.5)/vec2(510.0, 510.0);",
- "fetch[6] = shadowUV.xy + vec2(0.5, -0.5)/vec2(510.0, 510.0);",
- "fetch[7] = shadowUV.xy + vec2(1.5, -0.5)/vec2(510.0, 510.0);",
- "fetch[8] = shadowUV.xy + vec2(-1.5, 0.5)/vec2(510.0, 510.0);",
- "fetch[9] = shadowUV.xy + vec2(-0.5, 0.5)/vec2(510.0, 510.0);",
- "fetch[10] = shadowUV.xy + vec2(0.5, 0.5)/vec2(510.0, 510.0);",
- "fetch[11] = shadowUV.xy + vec2(1.5, 0.5)/vec2(510.0, 510.0);",
- "fetch[12] = shadowUV.xy + vec2(-1.5, 1.5)/vec2(510.0, 510.0);",
- "fetch[13] = shadowUV.xy + vec2(-0.5, 1.5)/vec2(510.0, 510.0);",
- "fetch[14] = shadowUV.xy + vec2(0.5, 1.5)/vec2(510.0, 510.0);",
- "fetch[15] = shadowUV.xy + vec2(1.5, 1.5)/vec2(510.0, 510.0);",
- "#if 1 // inline",
- "shadowed += getShadowedTerm(fetch[0]);",
- "shadowed += getShadowedTerm(fetch[1]);",
- "shadowed += getShadowedTerm(fetch[2]);",
- "shadowed += getShadowedTerm(fetch[3]);",
- "shadowed += getShadowedTerm(fetch[4]);",
- "shadowed += getShadowedTerm(fetch[5]);",
- "shadowed += getShadowedTerm(fetch[6]);",
- "shadowed += getShadowedTerm(fetch[7]);",
- "shadowed += getShadowedTerm(fetch[8]);",
- "shadowed += getShadowedTerm(fetch[9]);",
- "shadowed += getShadowedTerm(fetch[10]);",
- "shadowed += getShadowedTerm(fetch[11]);",
- "shadowed += getShadowedTerm(fetch[12]);",
- "shadowed += getShadowedTerm(fetch[13]);",
- "shadowed += getShadowedTerm(fetch[14]);",
- "shadowed += getShadowedTerm(fetch[15]);",
- "shadowed /= 16.0;",
- "#else",
- "for (int i = 0; i < 16; i++)",
- "   shadowed += getShadowedTerm(fetch[i]);",
- "#endif",
- "#else",
- "       // only one fetch to debug",
- "       shadowed += getShadowedTerm(shadowUV.xy);",
- "#endif",
+        "precision highp float;",
+        "#endif",
+        "vec4 fragColor;",
+        "varying vec4 LightColor;",
+        "uniform int ground;",
+        "uniform sampler2D Texture0;",
+        "uniform sampler2D Texture1;",
+        "varying vec4 shadowVertexProjected;",
+        "varying float shadowZ;",
+        "varying vec2 FragTexCoord0;",
+        "",
+        "float unpack2(vec4 depth) {",
+        "return depth[0] * 255.0 / 256.0 + depth[1] * 255.0 / (256.0 * 256.0) + depth[2] * 255.0 / (256.0 * 256.0 * 256.0);",
+        "}",
+        "",
+        "float getShadowedTerm(vec2 uv) {",
+        "   float d = shadowZ - unpack2(texture2D(Texture1, uv ));",
+        "   return (d >= 0.01 ) ? (1.0) : (0.0);",
+        "}",
+        "float computeShadowTerm() {",
+        "vec4 uv = shadowVertexProjected;",
+        "vec2 shadowUV = (uv.xy/uv.w).xy;",
+        "float shadowed = 0.0;",
+        "#if 1",
+        "vec2 fetch[16];",
+        "fetch[0] = shadowUV.xy + vec2(-1.5, -1.5)/vec2(510.0, 510.0);",
+        "fetch[1] = shadowUV.xy + vec2(-0.5, -1.5)/vec2(510.0, 510.0);",
+        "fetch[2] = shadowUV.xy + vec2(0.5, -1.5)/vec2(510.0, 510.0);",
+        "fetch[3] = shadowUV.xy + vec2(1.5, -1.5)/vec2(510.0, 510.0);",
+        "fetch[4] = shadowUV.xy + vec2(-1.5, -0.5)/vec2(510.0, 510.0);",
+        "fetch[5] = shadowUV.xy + vec2(-0.5, -0.5)/vec2(510.0, 510.0);",
+        "fetch[6] = shadowUV.xy + vec2(0.5, -0.5)/vec2(510.0, 510.0);",
+        "fetch[7] = shadowUV.xy + vec2(1.5, -0.5)/vec2(510.0, 510.0);",
+        "fetch[8] = shadowUV.xy + vec2(-1.5, 0.5)/vec2(510.0, 510.0);",
+        "fetch[9] = shadowUV.xy + vec2(-0.5, 0.5)/vec2(510.0, 510.0);",
+        "fetch[10] = shadowUV.xy + vec2(0.5, 0.5)/vec2(510.0, 510.0);",
+        "fetch[11] = shadowUV.xy + vec2(1.5, 0.5)/vec2(510.0, 510.0);",
+        "fetch[12] = shadowUV.xy + vec2(-1.5, 1.5)/vec2(510.0, 510.0);",
+        "fetch[13] = shadowUV.xy + vec2(-0.5, 1.5)/vec2(510.0, 510.0);",
+        "fetch[14] = shadowUV.xy + vec2(0.5, 1.5)/vec2(510.0, 510.0);",
+        "fetch[15] = shadowUV.xy + vec2(1.5, 1.5)/vec2(510.0, 510.0);",
+        "#if 1 // inline",
+        "shadowed += getShadowedTerm(fetch[0]);",
+        "shadowed += getShadowedTerm(fetch[1]);",
+        "shadowed += getShadowedTerm(fetch[2]);",
+        "shadowed += getShadowedTerm(fetch[3]);",
+        "shadowed += getShadowedTerm(fetch[4]);",
+        "shadowed += getShadowedTerm(fetch[5]);",
+        "shadowed += getShadowedTerm(fetch[6]);",
+        "shadowed += getShadowedTerm(fetch[7]);",
+        "shadowed += getShadowedTerm(fetch[8]);",
+        "shadowed += getShadowedTerm(fetch[9]);",
+        "shadowed += getShadowedTerm(fetch[10]);",
+        "shadowed += getShadowedTerm(fetch[11]);",
+        "shadowed += getShadowedTerm(fetch[12]);",
+        "shadowed += getShadowedTerm(fetch[13]);",
+        "shadowed += getShadowedTerm(fetch[14]);",
+        "shadowed += getShadowedTerm(fetch[15]);",
+        "shadowed /= 16.0;",
+        "#else",
+        "for (int i = 0; i < 16; i++)",
+        "   shadowed += getShadowedTerm(fetch[i]);",
+        "#endif",
+        "#else",
+        "       // only one fetch to debug",
+        "       shadowed += getShadowedTerm(shadowUV.xy);",
+        "#endif",
 
-    "return shadowed;",
- "}",
- "",
- "void main(void) {",
- "fragColor = texture2D( Texture0, FragTexCoord0.xy );",
- "",
- "fragColor *= LightColor;",
- "//fragColor = vec4(1,1,1,1);",
- "float dark = computeShadowTerm();",
- "fragColor.xyz *= 0.5 + (0.5* (1.0-dark));",
- "fragColor.w = 1.0;",
- " if (ground == 1) {",
- "fragColor.w = dark;",
- "}",
- "//fragColor = vec4(unpack2(texture2D(Texture1, FragTexCoord0 )));",
- "//gl_FragColor = vec4(1.0,0.0,1.0,1.0); //fragColor;",
- "gl_FragColor = fragColor;",
- "}", ].join('\n');
+        "return shadowed;",
+        "}",
+        "",
+        "void main(void) {",
+        "fragColor = texture2D( Texture0, FragTexCoord0.xy );",
+        "",
+        "fragColor *= LightColor;",
+        "//fragColor = vec4(1,1,1,1);",
+        "float dark = computeShadowTerm();",
+        "fragColor.xyz *= 0.5 + (0.5* (1.0-dark));",
+        "fragColor.w = 1.0;",
+        " if (ground == 1) {",
+        "fragColor.w = dark;",
+        "}",
+        "//fragColor = vec4(unpack2(texture2D(Texture1, FragTexCoord0 )));",
+        "//gl_FragColor = vec4(1.0,0.0,1.0,1.0); //fragColor;",
+        "gl_FragColor = fragColor;",
+        "}" ].join('\n');
 
     var program = new osg.Program(
     new osg.Shader(gl.VERTEX_SHADER, vertexshader), new osg.Shader(gl.FRAGMENT_SHADER, fragmentshader));
@@ -688,38 +702,38 @@ function getOgreShadowMapShader() {
 
 
 var LightUpdateCallbackShadowMap = function(options) {
-        this.projectionShadow = options.projectionShadow;
-        this.modelviewShadow = options.modelViewShadow;
-        this.shadowScene = options.shadowScene;
-        this.nearShadow = options.nearShadow;
-        this.farShadow = options.farShadow;
-        this.camera = options.camera;
-        this.groundPositionProjTex = [0.0, 0.0, -5.0];
-        osg.Vec3.normalize(this.groundPositionProjTex, this.groundPositionProjTex);
-        this.lightPositionProjTex = [0.0, 0.0, 80.0, 0.0];
+    this.projectionShadow = options.projectionShadow;
+    this.modelviewShadow = options.modelViewShadow;
+    this.shadowScene = options.shadowScene;
+    this.nearShadow = options.nearShadow;
+    this.farShadow = options.farShadow;
+    this.camera = options.camera;
+    this.groundPositionProjTex = [0.0, 0.0, -5.0];
+    osg.Vec3.normalize(this.groundPositionProjTex, this.groundPositionProjTex);
+    this.lightPositionProjTex = [0.0, 0.0, 80.0, 0.0];
 
-        this.tempMatrixLightPos = [];
-        this.tempMatrixLightDir = [];
+    this.tempMatrixLightPos = [];
+    this.tempMatrixLightDir = [];
 
-        this.shadowProj = [];
-        this.shadowView = [];
+    this.shadowProj = [];
+    this.shadowView = [];
     this.idlook = [0, 0, 1];
 
-        this.biasScale = [];
-        this.move = [0.5, 0.5, 0.5];
-        this.Translate = [];
-        this.Translate = osg.Matrix.makeTranslate(this.move[0], this.move[1], this.move[2], this.Translate);
-        this.Scale = [];
-        this.Scale = osg.Matrix.makeScale(this.move[0], this.move[1], this.move[2], this.Scale);
-        this.biasScale = osg.Matrix.preMult(this.Translate, this.Scale );
-    };
+    this.biasScale = [];
+    this.move = [0.5, 0.5, 0.5];
+    this.Translate = [];
+    this.Translate = osg.Matrix.makeTranslate(this.move[0], this.move[1], this.move[2], this.Translate);
+    this.Scale = [];
+    this.Scale = osg.Matrix.makeScale(this.move[0], this.move[1], this.move[2], this.Scale);
+    this.biasScale = osg.Matrix.preMult(this.Translate, this.Scale);
+};
 LightUpdateCallbackShadowMap.prototype = {
     update: function(node, nv) {
         var currentTime = nv.getFrameStamp().getSimulationTime();
 
-            // animation !
-        this.lightPositionProjTex[0] = 50 * Math.cos(currentTime);//x
-        this.lightPositionProjTex[1] = 50 * Math.sin(currentTime);//y
+        // animation !
+        this.lightPositionProjTex[0] = 50 * Math.cos(currentTime); //x
+        this.lightPositionProjTex[1] = 50 * Math.sin(currentTime); //y
         //this.lightPositionProjTex[2] = 80;//z
         //update osg objects
         node.getLight().setPosition(this.lightPositionProjTex);
@@ -735,8 +749,7 @@ LightUpdateCallbackShadowMap.prototype = {
 
         var up = this.idlook; //  Z camera up
         // Check it's not coincident with lightdir
-        if (Math.abs(osg.Vec3.dot(up, lightDir)) >= 1.0)
-        {
+        if (Math.abs(osg.Vec3.dot(up, lightDir)) >= 1.0) {
             // Use Y camera up
             up = [0, 1, 0];
         }
@@ -749,7 +762,7 @@ LightUpdateCallbackShadowMap.prototype = {
         //  light pos & dir in World Space
         osg.Matrix.transformVec3(worldMatrix, lightPos, this.tempMatrixLightPos);
         osg.Matrix.transformVec3(worldMatrix, lightDir, this.tempMatrixLightDir);
-            //osg.Vec3.normalize(this.tempMatrixLightDir, this.tempMatrixLightDir);
+        //osg.Vec3.normalize(this.tempMatrixLightDir, this.tempMatrixLightDir);
 
         //
         // LIGHT VIEW MATRIX
@@ -757,14 +770,15 @@ LightUpdateCallbackShadowMap.prototype = {
         osg.Matrix.makeLookAt(this.tempMatrixLightPos, this.tempMatrixLightDir, this.idlook, this.camera.getViewMatrix());
         this.shadowScene.setMatrix(worldMatrix);
         osg.Matrix.mult(this.camera.getViewMatrix(), worldMatrix, this.shadowView);
+        this.camera.setDirtyMatrix(true);
 
         //
         // LIGHT PROJ MATRIX
         // update depth range camera with  light parameters
         // camera proj matrix should be automatically updated by update/culling ?
-        if (this.camera.near && this.camera.far){
+        if (this.camera.near && this.camera.far) {
             var near = this.camera.near;
-            var far =  this.camera.far + 1;
+            var far = this.camera.far + 1;
             this.nearShadow.set([near]);
             this.farShadow.set([far]);
             // spot light
@@ -773,7 +787,7 @@ LightUpdateCallbackShadowMap.prototype = {
             //this.camera.setProjectionMatrix(osg.Matrix.makeOrtho(-15, 15, -15, 15, near, far));
         }
         osg.Matrix.copy(this.camera.getProjectionMatrix(), this.shadowProj);
-         //bias scale
+        //bias scale
         osg.Matrix.postMult(this.biasScale, this.shadowProj);
 
         //
@@ -903,7 +917,7 @@ function createScene() {
 
     (function() {
         osgDB.Promise.when(osgDB.parseSceneGraph(getOgre())).then(function(model) {
-/*
+
             projectShadowNode = createProjectedShadowScene(model);
             projectShadowNode.setMatrix(osg.Matrix.makeTranslate(-10, 0, 0.0, []));
             root.addChild(projectShadowNode);
@@ -911,12 +925,12 @@ function createScene() {
             projectTextureShadowNode = createTextureProjectedShadowScene(model);
             projectTextureShadowNode.setMatrix(osg.Matrix.makeTranslate(0, 0, 0.0, []));
             root.addChild(projectTextureShadowNode);
-*/
+
             ShadowMapNode = createShadowMapScene(model);
             ShadowMapNode.setMatrix(osg.Matrix.makeTranslate(10, 0, 0.0, []));
             root.addChild(ShadowMapNode);
             if (window.location.href.indexOf("debug") !== -1) {
-               osgUtil.addFrameBufferVisuals();
+                osgUtil.addFrameBufferVisuals();
             }
 
         });
@@ -927,60 +941,63 @@ function createScene() {
 }
 
 function createSceneBox() {
-    return osg.createTexturedBox(0, 0, 0, 2, 2, 2);
+    return osg.createTexturedBoxGeometry(0, 0, 0, 2, 2, 2);
 }
 
 
 var startShadow = function() {
 
-        var canvas = document.getElementById("3DView");
-        canvas.style.width = window.innerWidth;
-        canvas.style.height = window.innerHeight;
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
+    var canvas = document.getElementById("3DView");
+    canvas.style.width = window.innerWidth;
+    canvas.style.height = window.innerHeight;
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
 
-        var stats = document.getElementById("Stats");
+    var stats = document.getElementById("Stats");
 
-        var viewer;
-        try {
-            osg.cacheState = false;
-            viewer = new osgViewer.Viewer(canvas, {
-                antialias: true,
-                premultipliedAlpha: true
-            });
-            viewer.init();
-            viewer.setupManipulator();
-            var rotate = new osg.MatrixTransform();
-            rotate.addChild(createScene());
-            viewer.getCamera().setClearColor([0.0, 0.0, 0.0, 0.0]);
-            viewer.setSceneData(rotate);
-            viewer.getManipulator().computeHomePosition();
-            viewer.run();
+    var viewer;
+    try {
+        osg.cacheState = false;
+        viewer = new osgViewer.Viewer(canvas, {
+            antialias: true,
+            premultipliedAlpha: true
+        });
+        viewer.init();
+        viewer.setupManipulator();
+        var rotate = new osg.MatrixTransform();
+        rotate.addChild(createScene());
+        viewer.getCamera().setClearColor([0.0, 0.0, 0.0, 0.0]);
+        viewer.setSceneData(rotate);
+        viewer.getManipulator().computeHomePosition();
+        viewer.run();
 
-            if (window.location.href.indexOf("debug") !== -1) {
-               rotate.addChild(osgUtil.addFrameBufferVisuals({screenW: canvas.width, screenH: canvas.height}));
-            }
-            var mousedown = function(ev) {
-                    ev.stopPropagation();
-                };
-            document.getElementById("explanation").addEventListener("mousedown", mousedown, false);
-
-        } catch(er) {
-            osg.log("exception in osgViewer " + er);
+        if (window.location.href.indexOf("debug") !== -1) {
+            rotate.addChild(osgUtil.addFrameBufferVisuals({
+                screenW: canvas.width,
+                screenH: canvas.height
+            }));
         }
-    };
+        var mousedown = function(ev) {
+            ev.stopPropagation();
+        };
+        document.getElementById("explanation").addEventListener("mousedown", mousedown, false);
+
+    } catch (er) {
+        osg.log("exception in osgViewer " + er);
+    }
+};
 
 if (!window.multidemo) {
     window.addEventListener("load", function() {
         if (window.location.href.indexOf("debug") !== -1) {
             loadOSGJSON("../../",
- "project.json", startShadow);
+                "project.json", startShadow);
         } else if (window.location.href.indexOf("concat") !== -1) {
             loadOSGJS("../../",
- "build/osg.debug.js", startShadow);
+                "build/osg.debug.js", startShadow);
         } else {
             loadOSGJS("../../",
- "build/osg.min.js", startShadow);
+                "build/osg.min.js", startShadow);
         }
     }, true);
 }

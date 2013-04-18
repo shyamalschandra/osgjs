@@ -55,8 +55,14 @@ var ReservedStack = function(entryConstructor) {
     this._index = this._current = 0; this._dirty = true;
 };
 ReservedStack.prototype = {
-    reset: function() { this._index = this._current = 0; this._dirty = false;},
-    dirty: function() { this._current = this._index; this._dirty = true; },
+    reset: function() {
+        this._index = this._current = 0;
+        this._dirty = false;
+    },
+    dirty: function() {
+        this._current = this._index;
+        this._dirty = true;
+    },
     getCurrent: function() { return this._array[this._index]; },
     getIndex: function() { return this._index; },
     isDirty: function() { return this._dirty; },
@@ -262,6 +268,9 @@ osg.CullVisitor.prototype = osg.objectInehrit(osg.CullStack.prototype ,osg.objec
             // whole object behind the eye point so discard
             return false;
         }
+        if (d_near<0.0) {
+            d_near = 0.00000001;
+        }
 
         if (d_near<this._computedNear) {
             this._computedNear = d_near;
@@ -459,7 +468,8 @@ osg.CullVisitor.prototype[osg.Camera.prototype.objectType] = function( camera ) 
     }
 
     if (camera.light) {
-        this.addPositionedAttribute(camera.light);
+        osg.warn("using node.light is deprecated, using LightSource node instead");
+        //this.addPositionedAttribute(camera.light);
     }
 
     var OldtraversalMask = this.traversalMask;
@@ -733,6 +743,15 @@ osg.CullVisitor.prototype[osg.Geometry.prototype.objectType] = function (node) {
         }
     }
 
+    // have to do this here, otherwise if it
+    // gets pruned by updatenearfar 
+    // (because behind the camera)
+    // the slot isn't reserved, thus,
+    // getting out of reserved bound request
+    var leaf = this._getReservedLeaf();
+    leaf.node = node;
+    leaf.bb = bb;
+
     var validBB = bb.valid();
     if (this._computeNearFar && validBB) {
         // could do that and get depth at once.
@@ -752,9 +771,6 @@ osg.CullVisitor.prototype[osg.Geometry.prototype.objectType] = function (node) {
         this._currentRenderBin.addStateGraph(this._currentStateGraph);
     }
 
-    var leaf = this._getReservedLeaf();
-    leaf.node = node;
-    leaf.bb = bb;
     var depth = 0;
     if (validBB) {
         // cache center ?

@@ -2,8 +2,12 @@
 precision highp float;
 #endif
 
+
 uniform vec4 Shadow_DepthRange;
-varying vec3 vertexDepth;
+uniform mat4 Shadow_View;
+
+varying vec4 WorldPos;
+
 
 const vec2 g_EVSMExponents = vec2(20.0, 10.0);
 const float g_EVSM_Derivation = 0.0001;
@@ -31,7 +35,13 @@ void main(void) {
      // derive a per-pixel depth and depth squared
     // (length of the view space position == distance from camera)
     // (this is linear space, not post-projection quadratic space)
-    float d = (length(vertexDepth.xyz) - Shadow_DepthRange.x) * Shadow_DepthRange.w;
+    float depth;
+    // linerarize (aka map z to near..far to 0..1)
+    //depth =  length(WorldPos.xyz);
+    depth = - WorldPos.z;
+    depth = (depth - Shadow_DepthRange.x )* Shadow_DepthRange.w;
+    //depth = WorldPos.z / WorldPos.w;
+    depth = clamp(depth, 0.0, 1.0);
 
-    gl_FragColor = ShadowDepthToEVSM(d);
+    gl_FragColor = ShadowDepthToEVSM(depth);
 }

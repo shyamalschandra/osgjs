@@ -200,6 +200,15 @@ WebGLUtils = function() {
     };
 }();
 
+
+/**
+ * Polyfill
+ */
+if(!Date.now) {
+    Date.now = function now() {
+        return new Date().getTime();
+    };
+}
 /**
  * Provides requestAnimationFrame in a cross browser
  * way.
@@ -235,40 +244,39 @@ if (typeof window !== "undefined"){
         };
     })();
 }
-if(!Date.now) {
-    Date.now = function now() {
-        return new Date().getTime();
-    };
-}
-/** Obtain a stacktrace from the current stack http://eriwen.com/javascript/js-stack-trace/
-*/
+// TODO: Update
+// and make it a loadable extension instead
+//  Obtain a stacktrace from the current stack https://github.com/eriwen/javascript-stacktrace/blob/master/stacktrace.js
 function getStackTrace(err) {
     var callstack = [];
     var originalArgs = arguments;
-    try {
-        if(arguments.length == 1) {
-            throw err;
-        } else {
-            throw new Error();
-        }
-    } catch(e) {
-        if(e.stack) { //Firefox and Chrome
-            callstack = (e.stack + '\n').replace(/^\S[^\(]+?[\n$]/gm, '').
-            replace(/^\s+(at eval )?at\s+/gm, '').
-            replace(/^([^\(]+?)([\n$])/gm, '{anonymous}()@$1$2').
-            replace(/^Object.<anonymous>\s*\(([^\)]+)\)/gm, '{anonymous}()@$1').split('\n');
-            // Remove call to this function
-            callstack.shift();
+    if (console.trace)
+        console.trace(err);
+    else{
+        try {
+            if(arguments.length == 1) {
+                throw err;
+            } else {
+                throw new Error();
+            }
+        } catch(e) {
+            if(e.stack) { //Firefox and Chrome
+                callstack = (e.stack + '\n').replace(/^\S[^\(]+?[\n$]/gm, '').
+                replace(/^\s+(at eval )?at\s+/gm, '').
+                replace(/^([^\(]+?)([\n$])/gm, '{anonymous}()@$1$2').
+                replace(/^Object.<anonymous>\s*\(([^\)]+)\)/gm, '{anonymous}()@$1').split('\n');
+                // Remove call to this function
+                callstack.shift();
 
+            }
+        }
+        // Remove empty entries
+        for(var i = 0; i < callstack.length; ++i) {
+            if(callstack[i] === '') {
+                callstack.splice(i, 1);
+                --i;
+            }
         }
     }
-    // Remove empty entries
-    for(var i = 0; i < callstack.length; ++i) {
-        if(callstack[i] === '') {
-            callstack.splice(i, 1);
-            --i;
-        }
-    }
-
     return callstack;
 }

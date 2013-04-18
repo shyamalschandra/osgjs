@@ -20,87 +20,29 @@
 
 osgDB.ObjectWrapper.deserializers.osg = {};
 
-osgDB.ObjectWrapper.deserializers.osg.Object = function(input, obj) {
-    var jsonObj = input.getJSON();
-    var check = function(o) {
-        return true;
-    };
-    if (!check(jsonObj)) {
-        return;
+osgDB.ObjectWrapper.deserializers.osg.Object = function(output, obj) {
+
+    if (obj.getName()) {
+        output += '"name": ' + obj.getName();
     }
-    
-    if (jsonObj.Name) {
-        obj.setName(jsonObj.Name);
+    output += ',';
+    if (obj.getUserData()) {
+        output += '"UserDataContainer": ' + obj.getUserData();
     }
 
-    if (jsonObj.UserDataContainer) {
-        var userdata = input.setJSON(jsonObj.UserDataContainer).readUserDataContainer();
-        if (userdata !== undefined) {
-            obj.setUserData(userdata);
-        }
-    }
-
-    return obj;
+    return output;
 };
 
-osgDB.ObjectWrapper.deserializers.osg.Node = function(input, node) {
-    var jsonObj = input.getJSON();
+osgDB.ObjectWrapper.deserializers.osg.Node = function(output, node) {
 
-    var check = function(o) {
-        return true;
-    };
-    if (!check(jsonObj)) {
-        return;
-    }
+    output += '{';
 
-    osgDB.ObjectWrapper.serializers.osg.Object(input, node);
-
-    var promiseArray = [];
-
-    var createCallback = function(jsonCallback) {
-        var promise = input.setJSON(jsonCallback).readObject();
-        var df = osgDB.Promise.defer();
-        promiseArray.push(df.promise);
-        osgDB.Promise.when(promise).then(function(cb) {
-            if (cb) {
-                node.addUpdateCallback(cb);
-            }
-            df.resolve();
-        });
-    };
-
-    if (jsonObj.UpdateCallbacks) {
-        for (var j = 0, l = jsonObj.UpdateCallbacks.length; j < l; j++) {
-            createCallback(jsonObj.UpdateCallbacks[j]);
-        }
-    }
+    osgDB.ObjectWrapper.deserializers.osg.Object(output, node);
 
 
-    if (jsonObj.StateSet) {
-        var pp = input.setJSON(jsonObj.StateSet).readObject();
-        var df = osgDB.Promise.defer();
-        promiseArray.push(df.promise);
-        osgDB.Promise.when(pp).then(function(stateset) {
-            node.setStateSet(stateset);
-            df.resolve();
-        });
-    }
-
-    var createChildren = function(jsonChildren) {
-        var promise = input.setJSON(jsonChildren).readObject();
-        var df = osgDB.Promise.defer();
-        promiseArray.push(df.promise);
-        osgDB.Promise.when(promise).then(function(obj) {
-            if (obj) {
-                node.addChild(obj);
-            }
-            df.resolve(obj);
-        });
-    };
-
-    if (jsonObj.Children) {
-        for (var i = 0, k = jsonObj.Children.length; i < k; i++) {
-            createChildren(jsonObj.Children[i]);
+    if (node.Children) {
+        for (var i = 0, k = node.Children.length; i < k; i++) {
+            createChildren(node.Children[i]);
         }
     }
 
@@ -109,11 +51,12 @@ osgDB.ObjectWrapper.deserializers.osg.Node = function(input, node) {
         defer.resolve(node);
     });
 
+    output += '}';
     return defer.promise;
 };
 
-osgDB.ObjectWrapper.deserializers.osg.StateSet = function(input, stateSet) {
-    var jsonObj = input.getJSON();
+osgDB.ObjectWrapper.deserializers.osg.StateSet = function(output, stateSet) {
+    var jsonObj = output.getJSON();
     var check = function(o) {
         return true;
     };
@@ -121,15 +64,15 @@ osgDB.ObjectWrapper.deserializers.osg.StateSet = function(input, stateSet) {
     if (!check(jsonObj)) {
         return;
     }
-    
-    osgDB.ObjectWrapper.serializers.osg.Object(input, stateSet);
+
+    osgDB.ObjectWrapper.deserializers.osg.Object(output, stateSet);
 
     if (jsonObj.RenderingHint !== undefined) {
         stateSet.setRenderingHint(jsonObj.RenderingHint);
     }
 
     var createAttribute = function(jsonAttribute) {
-        var promise = input.setJSON(jsonAttribute).readObject();
+        var promise = output.setJSON(jsonAttribute).readObject();
         var df = osgDB.Promise.defer();
         promiseArray.push(df.promise);
         osgDB.Promise.when(promise).then(function(attribute) {
@@ -149,7 +92,7 @@ osgDB.ObjectWrapper.deserializers.osg.StateSet = function(input, stateSet) {
     }
 
     var createTextureAttribute = function(unit, textureAttribute) {
-        var promise = input.setJSON(textureAttribute).readObject();
+        var promise = output.setJSON(textureAttribute).readObject();
         var df = osgDB.Promise.defer();
         promiseArray.push(df.promise);
         osgDB.Promise.when(promise).then(function(attribute) {
@@ -177,13 +120,13 @@ osgDB.ObjectWrapper.deserializers.osg.StateSet = function(input, stateSet) {
     return defer.promise;
 };
 
-osgDB.ObjectWrapper.deserializers.osg.Material = function(input, material) {
-    var jsonObj = input.getJSON();
+osgDB.ObjectWrapper.deserializers.osg.Material = function(output, material) {
+    var jsonObj = output.getJSON();
 
     var check = function(o) {
-        if (o.Diffuse !== undefined && 
-            o.Emission !== undefined && 
-            o.Specular !== undefined && 
+        if (o.Diffuse !== undefined &&
+            o.Emission !== undefined &&
+            o.Specular !== undefined &&
             o.Shininess !== undefined) {
             return true;
         }
@@ -194,7 +137,7 @@ osgDB.ObjectWrapper.deserializers.osg.Material = function(input, material) {
         return;
     }
 
-    osgDB.ObjectWrapper.serializers.osg.Object(input, material);
+    osgDB.ObjectWrapper.deserializers.osg.Object(output, material);
 
     material.setAmbient(jsonObj.Ambient);
     material.setDiffuse(jsonObj.Diffuse);
@@ -205,8 +148,8 @@ osgDB.ObjectWrapper.deserializers.osg.Material = function(input, material) {
 };
 
 
-osgDB.ObjectWrapper.deserializers.osg.BlendFunc = function(input, blend) {
-    var jsonObj = input.getJSON();
+osgDB.ObjectWrapper.deserializers.osg.BlendFunc = function(output, blend) {
+    var jsonObj = output.getJSON();
     var check = function(o) {
         if (o.SourceRGB && o.SourceAlpha && o.DestinationRGB && o.DestinationAlpha) {
             return true;
@@ -217,7 +160,7 @@ osgDB.ObjectWrapper.deserializers.osg.BlendFunc = function(input, blend) {
         return;
     }
 
-    osgDB.ObjectWrapper.serializers.osg.Object(input, blend);
+    osgDB.ObjectWrapper.deserializers.osg.Object(output, blend);
 
     blend.setSourceRGB(jsonObj.SourceRGB);
     blend.setSourceAlpha(jsonObj.SourceAlpha);
@@ -226,8 +169,8 @@ osgDB.ObjectWrapper.deserializers.osg.BlendFunc = function(input, blend) {
     return blend;
 };
 
-osgDB.ObjectWrapper.deserializers.osg.CullFace = function(input, attr) {
-    var jsonObj = input.getJSON();
+osgDB.ObjectWrapper.deserializers.osg.CullFace = function(output, attr) {
+    var jsonObj = output.getJSON();
     var check = function(o) {
         if (o.Mode !== undefined) {
             return true;
@@ -238,13 +181,13 @@ osgDB.ObjectWrapper.deserializers.osg.CullFace = function(input, attr) {
         return;
     }
 
-    osgDB.ObjectWrapper.serializers.osg.Object(input, attr);
+    osgDB.ObjectWrapper.deserializers.osg.Object(output, attr);
     attr.setMode(jsonObj.Mode);
     return attr;
 };
 
-osgDB.ObjectWrapper.deserializers.osg.BlendColor = function(input, attr) {
-    var jsonObj = input.getJSON();
+osgDB.ObjectWrapper.deserializers.osg.BlendColor = function(output, attr) {
+    var jsonObj = output.getJSON();
     var check = function(o) {
         if (o.ConstantColor !== undefined) {
             return true;
@@ -255,13 +198,13 @@ osgDB.ObjectWrapper.deserializers.osg.BlendColor = function(input, attr) {
         return;
     }
 
-    osgDB.ObjectWrapper.serializers.osg.Object(input, attr);
+    osgDB.ObjectWrapper.deserializers.osg.Object(output, attr);
     attr.setConstantColor(jsonObj.ConstantColor);
     return attr;
 };
 
-osgDB.ObjectWrapper.deserializers.osg.Light = function(input, light) {
-    var jsonObj = input.getJSON();
+osgDB.ObjectWrapper.deserializers.osg.Light = function(output, light) {
+    var jsonObj = output.getJSON();
     var check = function(o) {
         if (o.LightNum !== undefined &&
             o.Ambient !== undefined &&
@@ -281,7 +224,7 @@ osgDB.ObjectWrapper.deserializers.osg.Light = function(input, light) {
         return;
     }
 
-    osgDB.ObjectWrapper.serializers.osg.Object(input, light);
+    osgDB.ObjectWrapper.deserializers.osg.Object(output, light);
     light.setAmbient(jsonObj.Ambient);
     light.setConstantAttenuation(jsonObj.ConstantAttenuation);
     light.setDiffuse(jsonObj.Diffuse);
@@ -299,8 +242,8 @@ osgDB.ObjectWrapper.deserializers.osg.Light = function(input, light) {
     return light;
 };
 
-osgDB.ObjectWrapper.deserializers.osg.Texture = function(input, texture) {
-    var jsonObj = input.getJSON();
+osgDB.ObjectWrapper.deserializers.osg.Texture = function(output, texture) {
+    var jsonObj = output.getJSON();
     var check = function(o) {
         return true;
     };
@@ -308,7 +251,7 @@ osgDB.ObjectWrapper.deserializers.osg.Texture = function(input, texture) {
         return;
     }
 
-    osgDB.ObjectWrapper.serializers.osg.Object(input, texture);
+    osgDB.ObjectWrapper.deserializers.osg.Object(output, texture);
 
     if (jsonObj.MinFilter !== undefined) {
         texture.setMinFilter(jsonObj.MinFilter);
@@ -331,7 +274,7 @@ osgDB.ObjectWrapper.deserializers.osg.Texture = function(input, texture) {
     }
 
     var defer = osgDB.Promise.defer();
-    osgDB.Promise.when(input.readImageURL(file)).then(
+    osgDB.Promise.when(output.readImageURL(file)).then(
         function(img) {
             texture.setImage(img);
             defer.resolve(texture);
@@ -340,8 +283,8 @@ osgDB.ObjectWrapper.deserializers.osg.Texture = function(input, texture) {
 };
 
 
-osgDB.ObjectWrapper.deserializers.osg.Projection = function(input, node) {
-    var jsonObj = input.getJSON();
+osgDB.ObjectWrapper.deserializers.osg.Projection = function(output, node) {
+    var jsonObj = output.getJSON();
     var check = function(o) {
         if (o.Matrix !== undefined) {
             return true;
@@ -352,7 +295,7 @@ osgDB.ObjectWrapper.deserializers.osg.Projection = function(input, node) {
         return;
     }
 
-    var promise = osgDB.ObjectWrapper.serializers.osg.Node(input, node);
+    var promise = osgDB.ObjectWrapper.deserializers.osg.Node(output, node);
 
     if (jsonObj.Matrix !== undefined) {
         node.setMatrix(jsonObj.Matrix);
@@ -361,8 +304,8 @@ osgDB.ObjectWrapper.deserializers.osg.Projection = function(input, node) {
 };
 
 
-osgDB.ObjectWrapper.deserializers.osg.MatrixTransform = function(input, node) {
-    var jsonObj = input.getJSON();
+osgDB.ObjectWrapper.deserializers.osg.MatrixTransform = function(output, node) {
+    var jsonObj = output.getJSON();
     var check = function(o) {
         if (o.Matrix) {
             return true;
@@ -373,7 +316,7 @@ osgDB.ObjectWrapper.deserializers.osg.MatrixTransform = function(input, node) {
         return;
     }
 
-    var promise = osgDB.ObjectWrapper.serializers.osg.Node(input, node);
+    var promise = osgDB.ObjectWrapper.deserializers.osg.Node(output, node);
 
     if (jsonObj.Matrix !== undefined) {
         node.setMatrix(jsonObj.Matrix);
@@ -382,8 +325,8 @@ osgDB.ObjectWrapper.deserializers.osg.MatrixTransform = function(input, node) {
 };
 
 
-osgDB.ObjectWrapper.deserializers.osg.LightSource = function(input, node) {
-    var jsonObj = input.getJSON();
+osgDB.ObjectWrapper.deserializers.osg.LightSource = function(output, node) {
+    var jsonObj = output.getJSON();
     var check = function(o) {
         if (o.Light !== undefined) {
             return true;
@@ -395,8 +338,8 @@ osgDB.ObjectWrapper.deserializers.osg.LightSource = function(input, node) {
     }
 
     var defer = osgDB.Promise.defer();
-    var promise = osgDB.ObjectWrapper.serializers.osg.Node(input, node);
-    osgDB.Promise.all([input.setJSON(jsonObj.Light).readObject(), promise]).then( function (args) {
+    var promise = osgDB.ObjectWrapper.deserializers.osg.Node(output, node);
+    osgDB.Promise.all([output.setJSON(jsonObj.Light).readObject(), promise]).then( function (args) {
         var light = args[0];
         var lightsource = args[1];
         node.setLight(light);
@@ -406,8 +349,8 @@ osgDB.ObjectWrapper.deserializers.osg.LightSource = function(input, node) {
 };
 
 
-osgDB.ObjectWrapper.deserializers.osg.Geometry = function(input, node) {
-    var jsonObj = input.getJSON();
+osgDB.ObjectWrapper.deserializers.osg.Geometry = function(output, node) {
+    var jsonObj = output.getJSON();
     var check = function(o) {
         if (o.PrimitiveSetList !== undefined && o.VertexAttributeList !== undefined) {
             return true;
@@ -419,12 +362,12 @@ osgDB.ObjectWrapper.deserializers.osg.Geometry = function(input, node) {
     }
 
     var arraysPromise = [];
-    arraysPromise.push(osgDB.ObjectWrapper.serializers.osg.Node(input, node));
+    arraysPromise.push(osgDB.ObjectWrapper.deserializers.osg.Node(output, node));
 
     var createPrimitive = function(jsonPrimitive) {
         var defer = osgDB.Promise.defer();
         arraysPromise.push(defer.promise);
-        var promise = input.setJSON(jsonPrimitive).readPrimitiveSet();
+        var promise = output.setJSON(jsonPrimitive).readPrimitiveSet();
         osgDB.Promise.when(promise).then(function(primitiveSet) {
             if (primitiveSet !== undefined) {
                 node.getPrimitives().push(primitiveSet);
@@ -441,7 +384,7 @@ osgDB.ObjectWrapper.deserializers.osg.Geometry = function(input, node) {
     var createVertexAttribute = function(name, jsonAttribute) {
         var defer = osgDB.Promise.defer();
         arraysPromise.push(defer.promise);
-        var promise = input.setJSON(jsonAttribute).readBufferArray();
+        var promise = output.setJSON(jsonAttribute).readBufferArray();
         osgDB.Promise.when(promise).then(function(buffer) {
             if (buffer !== undefined) {
                 node.getVertexAttributeList()[name] = buffer;

@@ -7,7 +7,7 @@ osgViewer.View = function() {
     this._frameStamp = new osg.FrameStamp();
     this._lightingMode = undefined;
     this._manipulator = undefined;
-
+    this._light = undefined;
     this.setLightingMode(osgViewer.View.LightingMode.HEADLIGHT);
 
     this._scene.getOrCreateStateSet().setAttributeAndMode(new osg.Material());
@@ -35,7 +35,7 @@ osgViewer.View.prototype = {
         if (traversalMask === undefined) {
             traversalMask = ~0;
         }
-        
+
         var iv = new osgUtil.IntersectVisitor();
         iv.setTraversalMask(traversalMask);
         iv.addLineSegment([x,y,0.0], [x,y,1.0]);
@@ -61,9 +61,9 @@ osgViewer.View.prototype = {
     setManipulator: function(manipulator) { this._manipulator = manipulator; },
 
     getLight: function() {
-         return this._light; 
+         return this._light;
     },
-    setLight: function(light) { 
+    setLight: function(light) {
         this._light = light;
         if (this._lightingMode !== osgViewer.View.LightingMode.NO_LIGHT) {
             this._scene.getOrCreateStateSet().setAttributeAndMode(this._light);

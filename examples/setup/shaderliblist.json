@@ -24,6 +24,7 @@
  "fog.vert": "examples/setup/shaders/fog.vert",
  "fog.frag": "examples/setup/shaders/fog.frag",
  "floatrgbacodec.glsl": "examples/setup/shaders/floatrgbacodec.glsl",
+ "fastblur.frag": "examples/setup/shaders/fastblur.frag",
  "common.vert": "examples/setup/shaders/common.vert",
  "common.frag": "examples/setup/shaders/common.frag",
  "blur.frag": "examples/setup/shaders/blur.frag",

@@ -176,16 +176,16 @@ readHDRImage = function(url, options) {
             img.height = header.height;
             defer.resolve(img);
         }
-    }
+    };
 
     // async/defer
     xhr.send(null);
     return defer.promise;
-}
+};
 
 var SphereEnvMap = function(viewer) {
     this._viewer = viewer;
-}
+};
 
 function getEnvSphere(size, scene)
 {
@@ -302,7 +302,8 @@ function getShader()
         "attribute vec3 Vertex;",
         "attribute vec3 Normal;",
 
-        "uniform mat4 ModelViewMatrix;",
+        "uniform mat4 ModelMatrix;",
+        "uniform mat4 ViewMatrix;",
         "uniform mat4 ProjectionMatrix;",
         "uniform mat4 NormalMatrix;",
 
@@ -311,7 +312,9 @@ function getShader()
         "varying vec3 osg_FragNormalWorld;",
         "varying vec3 osg_FragLightDirection;",
 
+
         "void main(void) {",
+        "  mat4 ModelViewMatrix = ViewMatrix * ModelMatrix;",
         "  osg_FragEye = vec3(ModelViewMatrix * vec4(Vertex, 1.0));",
         "  osg_FragNormal = vec3(NormalMatrix * vec4(Normal, 0.0));",
         "  osg_FragNormalWorld = Normal;",
@@ -332,6 +335,7 @@ function getShader()
         "uniform float hdrExposure;",
         "uniform float hdrGamma;",
         "uniform mat4 CubemapTransform;",
+        "uniform mat4 ViewMatrix;",
 
         "varying vec3 osg_FragEye;",
         "varying vec3 osg_FragNormal;",
@@ -351,22 +355,21 @@ function getShader()
 
         // convert 8-bit RGB channels into floats using the common E exponent
         "vec3 decodeRGBE(vec4 rgbe) {",
-        "  float f = pow(2.0, rgbe.w * 255.0 - (128.0 + 8.0));",
-        "  return rgbe.rgb * 255.0 * f;",
+        "   //const vec3 scaleBias = vec3(22.09, -6.09161, 1.0);//16bfp",
+        "   const vec3 scaleBias = vec3(255.0, -136.0, 255.0);//8bp",
+        "   return  rgbe.rgb * scaleBias.z * exp2(rgbe.w * scaleBias.x + scaleBias.y);",
         "}",
 
         // apply some gamma correction (http://www.geeks3d.com/20101001/tutorial-gamma-correction-a-story-of-linearity/)
         "vec3 toneMapHDR(vec3 rgb) {",
         "  return pow(rgb * hdrExposure, 1.0 / vec3(hdrGamma));",
         "}",
-
         // fetch from environment sphere texture
         "vec4 textureSphere(sampler2D tex, vec3 n) {",
         "  float yaw = acos(n.y) / PI;",
         "  float pitch = (atan(n.x, n.z) + PI) / (2.0 * PI);",
-        "  return texture2D(tex, vec2(pitch, yaw));",
+        "  return texture2D(tex, vec2(pitch, yaw ));",
         "}",
-
         "void main(void) {",
         "  vec3 normalWorld = normalize(osg_FragNormalWorld);",
         "  vec3 N = normalize(osg_FragNormal);",
@@ -375,8 +378,11 @@ function getShader()
         "  vec3 R = cubemapReflectionVector(CubemapTransform, E, N);",
 
         "  float NdotL = dot(-N, L);",
-        "  vec3 diffuse = toneMapHDR(decodeRGBE(textureSphere(Texture1, normalWorld)));",
-        "  vec3 specular = toneMapHDR(decodeRGBE(textureSphere(Texture0, R)));",
+        "  vec3 diffuse;",
+        "  vec3 specular;  ",
+        "  specular = toneMapHDR(decodeRGBE(textureSphere(Texture0, R)));",
+        "  diffuse = toneMapHDR(decodeRGBE(textureSphere(Texture1, normalWorld)));",
+
         "  gl_FragColor = vec4(mix(diffuse, specular, 1.0), 1.0);",
         "}",
         ""
@@ -399,7 +405,8 @@ function getShaderBackground()
         "attribute vec3 Vertex;",
         "attribute vec3 Normal;",
         "attribute vec2 TexCoord0;",
-        "uniform mat4 ModelViewMatrix;",
+        "uniform mat4 ViewMatrix;",
+        "uniform mat4 ModelMatrix;",
         "uniform mat4 ProjectionMatrix;",
         "uniform mat4 NormalMatrix;",
 
@@ -411,6 +418,7 @@ function getShaderBackground()
         "void main(void) {",
         "  osg_FragVertex = Vertex;",
         "  osg_TexCoord0 = TexCoord0;",
+        "  mat4 ModelViewMatrix = ViewMatrix * ModelMatrix;",
         "  osg_FragEye = vec3(ModelViewMatrix * vec4(Vertex,1.0));",
         "  osg_FragNormal = vec3(NormalMatrix * vec4(Normal, 1.0));",
         "  gl_Position = ProjectionMatrix * ModelViewMatrix * vec4(Vertex,1.0);",
@@ -435,8 +443,9 @@ function getShaderBackground()
 
         // convert 8-bit RGB channels into floats using the common E exponent
         "vec3 decodeRGBE(vec4 rgbe) {",
-        "  float f = pow(2.0, rgbe.w * 255.0 - (128.0 + 8.0));",
-        "  return rgbe.rgb * 255.0 * f;",
+        "   //const vec3 scaleBias = vec3(22.09, -6.09161, 1.0);//16bfp",
+        "   const vec3 scaleBias = vec3(255.0, -136.0, 255.0);//8bp",
+        "   return  rgbe.rgb * scaleBias.z * exp2(rgbe.w * scaleBias.x + scaleBias.y);",
         "}",
 
         // apply some gamma correction (http://www.geeks3d.com/20101001/tutorial-gamma-correction-a-story-of-linearity/)
@@ -529,7 +538,19 @@ var getModel = function(func) {
             }
         }
     }
-    loadModel(modelName + '.osgjs');
+    if (modelName == 'cube'){
+        var size = 10;
+        var cube = osg.createTexturedBox(0, 0, 0, size*5,size*5,size*5);
+        node.addChild(cube);
+    }
+    else if (modelName == 'sphere'){
+         //function(radius, widthSegments, heightSegments, phiStart, phiLength, thetaStart, thetaLength)
+        var sphere = osg.createTexturedSphere(50, 100, 100);
+        node.addChild(sphere);
+    }
+    else{
+        loadModel(modelName + '.osgjs');
+    }
     return node;
 };
 

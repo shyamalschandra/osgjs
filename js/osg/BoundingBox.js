@@ -3,6 +3,8 @@ osg.BoundingBox = function() {
 };
 osg.BoundingBox.prototype = osg.objectLibraryClass({
     _cache_radius2_tmp: [0, 0, 0],
+    _min: null,
+    _max: null,
 
     init: function() {
         this._min = [Infinity, Infinity, Infinity];

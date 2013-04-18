@@ -6,17 +6,15 @@
 
  uniform mat4 ViewMatrix;
  uniform mat4 ModelMatrix;
- uniform mat4 ModelViewMatrix;
  uniform mat4 ProjectionMatrix;
 
- uniform mat4 Shadow_ModelView;
+ uniform mat4 Shadow_View;
  uniform mat4 Shadow_Projection;
-
- uniform mat4 invShadowViewMatrix;
  
- varying vec3 vertexDepth;
+ varying vec4 WorldPos;
 
  void main(void) {
-   gl_Position = Shadow_Projection * ModelViewMatrix * vec4(Vertex,1.0);
-   vertexDepth = (ModelViewMatrix * vec4(Vertex,1.0)).xyz;
+   WorldPos = ModelMatrix * vec4(Vertex,1.0);
+   gl_Position = Shadow_Projection * Shadow_View * WorldPos;
+   WorldPos =  Shadow_View * WorldPos;
 }

@@ -144,12 +144,12 @@ osgDB.parseSceneGraph_deprecated = function (node)
                 }
                 var tex = new osg.Texture();
                 setTexture(tex, textures[t]);
-                
+
                 osgjs.setTextureAttributeAndMode(t, tex);
                 osgjs.addUniform(osg.Uniform.createInt1(t,"Texture" + t));
             }
         }
-        
+
         var blendfunc = getFieldBackwardCompatible("BlendFunc",json);
         if (blendfunc) {
             var newblendfunc = new osg.BlendFunc();

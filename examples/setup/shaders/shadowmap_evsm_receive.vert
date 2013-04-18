@@ -11,7 +11,6 @@ uniform float ArrayColorEnabled;
  uniform mat4 ViewMatrix;
  uniform mat4 ModelMatrix;
 uniform mat4 ModelViewMatrix;
-uniform mat4 invViewMatrix;
 uniform mat4 ProjectionMatrix;
 uniform mat4 NormalMatrix;
 
@@ -26,29 +25,29 @@ varying vec2 FragTexCoord0;
 uniform int Light0_uniform_enable;
 // shadow 0
 uniform mat4 Shadow_Projection0;
-uniform mat4 Shadow_ModelView0;
+uniform mat4 Shadow_View0;
 uniform vec4 Shadow_DepthRange0;
 
 varying vec4  Shadow_VertexProjected0;
-varying float Shadow_Z0;
+varying vec4 Shadow_Z0;
 
 uniform int Light1_uniform_enable;
 // shadow 1
 uniform mat4 Shadow_Projection1;
-uniform mat4 Shadow_ModelView1;
+uniform mat4 Shadow_View1;
 uniform vec4 Shadow_DepthRange1;
 
 varying vec4  Shadow_VertexProjected1;
-varying float Shadow_Z1;
+varying vec4 Shadow_Z1;
 
 uniform int Light2_uniform_enable;
 // shadow 2
 uniform mat4 Shadow_Projection2;
-uniform mat4 Shadow_ModelView2;
+uniform mat4 Shadow_View2;
 uniform vec4 Shadow_DepthRange2;
 
 varying vec4  Shadow_VertexProjected2;
-varying float Shadow_Z2;
+varying vec4 Shadow_Z2;
 
 varying vec3 FragNormal;
 varying vec3 FragEyeVector;
@@ -66,27 +65,18 @@ void main(void) {
 	FragEyeVector = computeEyeVertex();
 	FragNormal = computeNormal();
 
-	Shadow_Z0 = -1.0;
-	Shadow_Z1 = -1.0;
-	Shadow_Z2 = -1.0;
-
-	//reuse var accross lights
-	vec4 shadowPosition;
-
+	vec4 worldPosition =  ModelMatrix *  vec4(Vertex,1.0);
 	if (Light0_uniform_enable == 1) {
-		shadowPosition = Shadow_ModelView0 * invViewMatrix * ModelViewMatrix *  vec4(Vertex,1.0);
-		Shadow_VertexProjected0 = Shadow_Projection0 * shadowPosition;
-		Shadow_Z0 =  (length(shadowPosition.xyz) - Shadow_DepthRange0.x) * Shadow_DepthRange0.w;
+		Shadow_Z0 =  Shadow_View0 * worldPosition;
+		Shadow_VertexProjected0 =  Shadow_Projection0 * Shadow_Z0;
 	}
 	if (Light1_uniform_enable == 1) {
-		shadowPosition =  Shadow_ModelView1 * invViewMatrix * ModelViewMatrix *  vec4(Vertex,1.0);
-		Shadow_VertexProjected1 = Shadow_Projection1 * shadowPosition;
-		Shadow_Z1 =  (length(shadowPosition.xyz)- Shadow_DepthRange1.x) * Shadow_DepthRange1.w;
+		Shadow_Z1 =  Shadow_View1 * worldPosition;
+		Shadow_VertexProjected1 =  Shadow_Projection1  * Shadow_Z1;
 	}
 	if (Light2_uniform_enable == 1) {
-		shadowPosition =  Shadow_ModelView2 * invViewMatrix * ModelViewMatrix *  vec4(Vertex,1.0);	
-		Shadow_VertexProjected2 = Shadow_Projection2 * shadowPosition;
-		Shadow_Z2 =  (length(shadowPosition.xyz) - Shadow_DepthRange2.x) * Shadow_DepthRange2.w;
+		Shadow_Z2 =  Shadow_View2 * worldPosition;
+		Shadow_VertexProjected2 =  Shadow_Projection2   *  Shadow_Z2;
 	}
 
 	FragTexCoord0 = TexCoord0;
