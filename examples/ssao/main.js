@@ -599,7 +599,7 @@ CullCallback.prototype = {
         var matrix = nv.getCurrentProjectionMatrix();
         this._projection = matrix;
         matrix._projection = "me";
-        matrix = nv.getCurrentModelviewMatrix();
+        matrix = nv.getCurrentViewMatrix() * nv.getCurrentModelMatrix();
         this._modelview = matrix;
         return true;
     }

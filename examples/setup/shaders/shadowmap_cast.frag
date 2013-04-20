@@ -10,6 +10,7 @@ varying vec4 WorldPos;
 #pragma include "floatrgbacodec.glsl"
 
 
+
 void main(void) {
     float depth;
     // linerarize (aka map z to near..far to 0..1)
@@ -19,7 +20,7 @@ void main(void) {
     //depth = (depth)* Shadow_DepthRange.w;
     depth = clamp(depth, 0.0, 1.0);
 
-  #define _ESM
+ // #define _VSM
     #ifndef _FLOATTEX
 	    #ifdef _VSM
 	    	gl_FragColor = EncodeHalfFloatRGBA(vec2(depth, depth*depth));

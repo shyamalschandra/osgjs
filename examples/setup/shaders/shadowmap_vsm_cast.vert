@@ -13,8 +13,14 @@
  
  varying vec4 WorldPos;
 
+
+const mat4 biasMatrix = mat4(   0.5, 0.0, 0.0, 0.0,
+							0.0, 0.5, 0.0, 0.0,
+							0.0, 0.0, 0.5, 0.0,
+							0.5, 0.5, 0.5, 1.0);
+
  void main(void) {
-   WorldPos = ModelMatrix * vec4(Vertex,1.0);
-   gl_Position = Shadow_Projection * Shadow_View * WorldPos;
-   WorldPos =  Shadow_View * WorldPos;
+   WorldPos = ViewMatrix * ModelMatrix * vec4(Vertex,1.0);
+   gl_Position = ProjectionMatrix  * WorldPos;
 }
+

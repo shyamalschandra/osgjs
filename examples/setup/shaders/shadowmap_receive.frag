@@ -116,7 +116,6 @@ float PCFLerp(sampler2D depths, vec4 size, vec2 uv, float compare){
     }
     return result/9.0;
 }
-
 float PCF(sampler2D tex, vec4 shadowMapSize, vec2 shadowUV, float shadowZ) {
     vec2 o = shadowMapSize.zw;
     float shadowed = 0.0;
@@ -166,47 +165,41 @@ float getShadowedTermUnified(vec2 shadowUV, float shadowZ, sampler2D tex, vec4 s
   //vec2 uv, float shadowZ, sampler2D tex
   vec3 depth = vec3(shadowUV.xy, shadowZ);
   float shadow = 1.0;
-   #define _ESM
+// #define _VSM
+//#define  _ESM
+#define  _ESM
     #ifdef _NONE
         // "Peter Panning"/"Shadow Acne"
-        depth.z *= 0.96;
+        //depth.z *= 0.96;
         float shadowDepth = DecodeFloatRGBA(texture2D(tex, shadowUV.xy));
         if ( depth.z > shadowDepth )
             shadow = 0.0;
     #elif defined( _PCF )
         // "Peter Panning"/"Shadow Acne"
-      depth.z *= 0.96;
-      for (int y = -1; y <= 1; ++y)
-      {
-        for (int x = -1; x <= 1; ++x)
-        {
-          vec2 offset = depth.xy + vec2(float(x) * shadowMapSize.z, float(y) * shadowMapSize.w);
-          if ( (offset.x >= 0.0) && (offset.x <= 1.0) && (offset.y >= 0.0) && (offset.y <= 1.0) )
-          {
-            // Decode from RGBA to float
-            float shadowDepth = DecodeFloatRGBA(texture2D(tex, offset));
-            if ( depth.z > shadowDepth )
-              shadow *= 0.9;
-          }
-        }
-      }
+      //depth.z *= 0.96;
+      shadow = PCF(tex, shadowMapSize, shadowUV, depth.z);
     #elif defined( _ESM )
       //http://research.edm.uhasselt.be/tmertens/papers/gi_08_esm.pdf
       float c = 80.0;
       vec4 texel = texture2D(tex, depth.xy);
       shadow = clamp(exp(-c * (depth.z - DecodeFloatRGBA(texel))), 0.0, 1.0);
-      shadow = (1.0 - shadow >= 0.001) ? (0.0) : (1.0);
+      //shadow = (1.0 - shadow >= 0.001) ? (0.0) : (1.0);
       //shadow *= 0.9;
     #elif  defined( _VSM )
       vec4 texel = texture2D(tex, depth.xy);
       vec2 moments = DecodeHalfFloatRGBA(texel);
-      shadow = ChebychevInequality(moments, depth.z);
-      shadow = (1.0 - shadow >= 0.001) ? (0.0) : (1.0);
+      float vsmEpsilon = -0.001;
+      float shadowBias = 0.02;
+      shadow = ChebyshevUpperBound(moments, depth.z, shadowBias, vsmEpsilon);
+      //shadow = (1.0 - shadow >= 0.001) ? (0.0) : (1.0);
+      //shadow = shadow * 0.9;
     #elif  defined( _EVSM )
       vec4 texel = texture2D(tex, depth.xy);
-      vec2 moments = DecodeHalfFloatRGBA(texel);
-      shadow = ChebychevInequality(moments, depth.z);
-      shadow = (1.0 - shadow >= 0.001) ? (0.0) : (1.0);
+      vec2 moments = DecodeHalfFloatRGBA(texel);      
+      float vsmEpsilon = -0.001;
+      float shadowBias = 0.02;
+      shadow = ChebyshevUpperBound(moments, depth.z, shadowBias, vsmEpsilon);
+      //shadow = (1.0 - shadow >= 0.001) ? (0.0) : (1.0);
     #endif
 
     return shadow;

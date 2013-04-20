@@ -82,20 +82,8 @@ varying vec4 Shadow_Z2;
 varying vec2 FragTexCoord0;
 
 #pragma include "common.frag"
+#pragma include "shadow.glsl"
 
-float ChebyshevUpperBound(vec2 moments, float mean, float bias, float minVariance)
-{
-    // Compute variance
-    float variance = moments.y - (moments.x * moments.x);
-    variance = max(variance, minVariance);
-
-    // Compute probabilistic upper bound
-    float p = smoothstep(mean - bias, mean, moments.x);
-    float d = mean - moments.x;
-    float pMax = smoothstep(0.2, 1.0, variance / (variance + d*d));
-    // One-tailed Chebyshev
-    return clamp(max(p, pMax), 0.0, 1.0);
-}
 
 float computeShadowTerm(vec4 shadowVertexProjected, vec4 shadowZ, sampler2D tex, vec4 texSize, vec4 depthRange, vec4 lightPos){
 
@@ -110,13 +98,9 @@ float computeShadowTerm(vec4 shadowVertexProjected, vec4 shadowZ, sampler2D tex,
 
     vec4 depth =  texture2D(tex, shadowUV.xy);
     vec2 moments = depth.xy;
-    float objDepth = length(shadowZ.xyz);
+    float objDepth = -shadowZ.z;
     objDepth =  (objDepth - depthRange.x)* depthRange.w;// linerarize (aka map z to near..far to 0..1)
     objDepth =   clamp(objDepth, 0.0, 1.0);
-
-    // Exit because result is undefined when occluder is further than the lit objet
-    if(moments.x > objDepth)
-      return 1.0;
 
     float vsmEpsilon = -0.001;
     float shadowBias = 0.02;

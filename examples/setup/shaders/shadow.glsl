@@ -21,6 +21,10 @@ float VsmFixLightBleed (float pMax, float amount)
 	return clamp((pMax - amount) / (1.0 - amount), 0.0, 1.0);
 }
 
+float linstep(float low, float high, float v){
+    return clamp((v-low)/(high-low), 0.0, 1.0);
+}
+
 float ChebyshevUpperBound(vec2 moments, float mean, float bias, float minVariance)
 {
     // Compute variance
@@ -30,7 +34,7 @@ float ChebyshevUpperBound(vec2 moments, float mean, float bias, float minVarianc
     // Compute probabilistic upper bound
     float p = smoothstep(mean - bias, mean, moments.x);
     float d = mean - moments.x;
-    float pMax = smoothstep(0.2, 1.0, variance / (variance + d*d));
+    float pMax = linstep(0.2, 1.0, variance / (variance + d*d));
     // One-tailed Chebyshev
     return clamp(max(p, pMax), 0.0, 1.0);
 }

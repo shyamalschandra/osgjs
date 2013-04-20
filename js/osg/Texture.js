@@ -148,10 +148,10 @@ osg.Texture.prototype = osg.objectLibraryClass(osg.objectInehrit(osg.StateAttrib
 
     isMipMapped: function(filter){
 
-return filter == osg.Texture.NEAREST_MIPMAP_NEAREST ||
-        filter == osg.Texture.LINEAR_MIPMAP_NEAREST   ||
-        filter == osg.Texture.NEAREST_MIPMAP_LINEAR  ||
-        filter == osg.Texture.LINEAR_MIPMAP_LINEAR;
+        return filter == osg.Texture.NEAREST_MIPMAP_NEAREST ||
+            filter == osg.Texture.LINEAR_MIPMAP_NEAREST   ||
+            filter == osg.Texture.NEAREST_MIPMAP_LINEAR  ||
+            filter == osg.Texture.LINEAR_MIPMAP_LINEAR;
     },
 
     setMinFilter: function(value, multiplier) {
@@ -208,6 +208,9 @@ return filter == osg.Texture.NEAREST_MIPMAP_NEAREST ||
             this._imageFormat = osg.Texture.RGBA;
         }
         this.setInternalFormat(this._imageFormat);
+    },
+    getGLType: function() {
+        return this._type;
     },
     setType: function(value) {
         if (typeof(value) === "string") {

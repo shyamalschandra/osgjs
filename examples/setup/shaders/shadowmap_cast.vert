@@ -15,8 +15,13 @@ attribute vec3 Vertex;
 
  varying vec4 WorldPos;
 
+const mat4 biasMatrix = mat4(   0.5, 0.0, 0.0, 0.0,
+							0.0, 0.5, 0.0, 0.0,
+							0.0, 0.0, 0.5, 0.0,
+							0.5, 0.5, 0.5, 1.0);
+
  void main(void) {
-   WorldPos = Shadow_View * ModelMatrix * vec4(Vertex,1.0);
-   gl_Position = Shadow_Projection  * WorldPos;
+   WorldPos = ViewMatrix * ModelMatrix * vec4(Vertex,1.0);
+   gl_Position = ProjectionMatrix  * WorldPos;
 }
 

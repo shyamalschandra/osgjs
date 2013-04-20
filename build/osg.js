@@ -2869,6 +2869,8 @@ osg.BoundingBox = function() {
 };
 osg.BoundingBox.prototype = osg.objectLibraryClass({
     _cache_radius2_tmp: [0, 0, 0],
+    _min: null,
+    _max: null,
 
     init: function() {
         this._min = [Infinity, Infinity, Infinity];
@@ -4230,7 +4232,7 @@ osg.Light.prototype._shaderCommon[osg.ShaderGeneratorType.VertexInit] = function
 osg.Light.prototype._shaderCommon[osg.ShaderGeneratorType.VertexFunction] = function()
 {
     if (osg.oldModelViewMatrixMode){
-    return [ "",
+        return [ "",
              "vec3 computeNormal() {",
              "   return vec3(NormalMatrix * vec4(Normal, 0.0));",
              "}",
@@ -4242,18 +4244,31 @@ osg.Light.prototype._shaderCommon[osg.ShaderGeneratorType.VertexFunction] = func
              ""].join('\n');
          }
          else{
-    return [ "",
-             "vec3 computeNormal() {",
-            "   return vec3(NormalMatrix * vec4(Normal, 0.0));",
-              //"   return vec3(ViewMatrix * ModelMatrix * vec4(Normal, 0.0));",
-             "}",
-             "",
-             "vec3 computeEyeVertex() {",
-             "   return vec3(ViewMatrix * ModelMatrix * vec4(Vertex,1.0));",
-             "}",
-             "",
-             ""].join('\n');
-         }
+            if (osg.UniformScalingEnabled){
+                return [ "",
+                         "vec3 computeNormal() {",
+                          "   return vec3(ViewMatrix * ModelMatrix * vec4(Normal, 0.0));",
+                         "}",
+                         "",
+                         "vec3 computeEyeVertex() {",
+                         "   return vec3(ViewMatrix * ModelMatrix * vec4(Vertex,1.0));",
+                         "}",
+                         "",
+                         ""].join('\n');
+             }
+            else{
+                return [ "",
+                     "vec3 computeNormal() {",
+                     "   return vec3(NormalMatrix * vec4(Normal, 0.0));",
+                     "}",
+                     "",
+                     "vec3 computeEyeVertex() {",
+                     "   return vec3(ViewMatrix * ModelMatrix * vec4(Vertex,1.0));",
+                     "}",
+                     "",
+                     ""].join('\n');
+             }
+    }
 };
 
 osg.Light.prototype._shaderCommon[osg.ShaderGeneratorType.VertexMain] = function()
@@ -5364,34 +5379,59 @@ osg.RenderBin.prototype = {
                 //state.pushGeneratedProgram();
                 state.apply();
                 program = state.getLastProgramApplied();
+            }
+            viewUniformUpdate = false;
+            normalUniformUpdate = false;
+            modelUniformUpdate = false;
+            modelViewUniformUpdate = false;
+            projectionUniformUpdate = false;
 
-                modelViewUniform = program.uniformsCache[state.modelViewMatrix.name];
-                modelUniform = program.uniformsCache[state.modelMatrix.name];
-                viewUniform = program.uniformsCache[state.viewMatrix.name];
-                projectionUniform = program.uniformsCache[state.projectionMatrix.name];
-                normalUniform = program.uniformsCache[state.normalMatrix.name];
+            if (!osg.updateCacheUniform || !state.programAlreadyApplied || program !== programPrevious){
+                modelViewUniform    = program.uniformsCache[state.modelViewMatrix.name];
+                modelUniform        = program.uniformsCache[state.modelMatrix.name];
+                viewUniform         = program.uniformsCache[state.viewMatrix.name];
+                projectionUniform   = program.uniformsCache[state.projectionMatrix.name];
+                normalUniform       = program.uniformsCache[state.normalMatrix.name];
+
+                viewUniformUpdate           = viewUniform       !== undefined;
+                projectionUniformUpdate     = projectionUniform !== undefined;
+                modelUniformUpdate          = modelUniform      !== undefined;
+                modelViewUniformUpdate      = modelViewUniform  !== undefined;
+                normalUniformUpdate         = normalUniform     !== undefined;
+            }
+            else{
+                // same program, check changes.
+                viewUniformUpdate           = viewUniform       !== undefined && (!viewPrevious         || leaf.view        !== viewPrevious);
+                projectionUniformUpdate     = projectionUniform !== undefined && (!projectionPrevious   || leaf.projection  !== projectionPrevious);
+                modelUniformUpdate          = modelUniform      !== undefined && (!modelPrevious        || leaf.model       !== modelPrevious);
+                modelViewUniformUpdate      = modelViewUniform  !== undefined && (modelUniformUpdate    || viewUniformUpdate);
+                normalUniformUpdate         = normalUniform     !== undefined && (modelUniformUpdate    || viewUniformUpdate);
             }
 
-            if (modelViewUniform !== undefined || normalUniform !==  undefined) {
+            if (viewUniformUpdate) {
+                state.viewMatrix.set(leaf.view);
+                state.viewMatrix.apply(viewUniform);
+                viewPrevious = leaf.view;
+            }
+            if (projectionUniformUpdate) {
+                state.projectionMatrix.set(leaf.projection);
+                state.projectionMatrix.apply(projectionUniform);
+                projectionPrevious = leaf.projection;
+            }
+
+            if (modelUniformUpdate) {
+                state.modelMatrix.set(leaf.model);
+                state.modelMatrix.apply(modelUniform);
+                modelPrevious = leaf.model;
+            }
+            if (modelViewUniformUpdate || normalUniformUpdate) {
                 leaf.modelview =  osg.Matrix.mult(leaf.view, leaf.model, []);
             }
-            if (modelViewUniform !== undefined) {
+            if (modelViewUniformUpdate) {
                 state.modelViewMatrix.set(leaf.modelview);
                 state.modelViewMatrix.apply(modelViewUniform);
             }
-            if (modelUniform !== undefined) {
-                state.modelMatrix.set(leaf.model);
-                state.modelMatrix.apply(modelUniform);
-            }
-            if (viewUniform !== undefined) {
-                state.viewMatrix.set(leaf.view);
-                state.viewMatrix.apply(viewUniform);
-            }
-            if (projectionUniform !== undefined) {
-                state.projectionMatrix.set(leaf.projection);
-                state.projectionMatrix.apply(projectionUniform);
-            }
-            if (normalUniform !== undefined) {
+            if (normalUniformUpdate) {
                 Matrix.copy(leaf.modelview, normal);
                 //Matrix.setTrans(normal, 0, 0, 0);
                 normal[12] = 0;
@@ -5403,7 +5443,6 @@ osg.RenderBin.prototype = {
                 state.normalMatrix.set(normal);
                 state.normalMatrix.apply(normalUniform);
             }
-
             leaf.geometry.drawImplementation(state);
 
             if (push === true) {
@@ -5411,6 +5450,7 @@ osg.RenderBin.prototype = {
                 state.popStateSet();
             }
 
+            programPrevious = program;
             previousLeaf = leaf;
         }
 
@@ -5460,7 +5500,7 @@ osg.RenderBin.prototype = {
                 modelViewUniformUpdate = false;
                 projectionUniformUpdate = false;
 
-                if (program !== programPrevious){
+                if (!osg.updateCacheUniform || !state.programAlreadyApplied || program !== programPrevious){
                     modelViewUniform    = program.uniformsCache[state.modelViewMatrix.name];
                     modelUniform        = program.uniformsCache[state.modelMatrix.name];
                     viewUniform         = program.uniformsCache[state.viewMatrix.name];
@@ -5474,7 +5514,7 @@ osg.RenderBin.prototype = {
                     normalUniformUpdate         = normalUniform     !== undefined;
                 }
                 else{
-                    // samee program, check changes.
+                    // same program, check changes.
                     viewUniformUpdate           = viewUniform       !== undefined && (!viewPrevious         || leaf.view        !== viewPrevious);
                     projectionUniformUpdate     = projectionUniform !== undefined && (!projectionPrevious   || leaf.projection  !== projectionPrevious);
                     modelUniformUpdate          = modelUniform      !== undefined && (!modelPrevious        || leaf.model       !== modelPrevious);
@@ -6699,6 +6739,7 @@ osg.Stack.create = function()
     var a = [];
     a.globalDefault = undefined;
     a.lastApplied = undefined;
+    a.lastAppliedPrevious = undefined;
     a.back = function () {
         return this[this.length -1];
     };
@@ -6850,6 +6891,12 @@ osg.StateGraph.prototype = {
 };
 osg.State = function () {
     this._graphicContext = undefined;
+    // avoid multiple gl calls by 
+    // not re-issuing the exact same
+    // binding & slow uniform upload
+    this.programAlreadyApplied = false;
+    // special value for recurring uniform
+    this.arraycolorEnabledLastApplied = undefined;
 
     this.currentVBO = null;
     this.currentVAO = null;
@@ -7057,6 +7104,10 @@ osg.State.prototype = {
         if (this.programs.lastApplied !== program) {
             program.apply(this);
             this.programs.lastApplied = program;
+            this.programAlreadyApplied = false;
+        }
+        else{
+            this.programAlreadyApplied = true;
         }
 
 	var programUniforms;
@@ -7505,6 +7556,7 @@ osg.State.prototype = {
             }
         }
 
+        // TODO: uniform cache, coherent with last program applied
         // it takes 4.26% of global cpu
         // there would be a way to cache it and track state if the program has not changed ...
         var program = this.programs.lastApplied;
@@ -7530,8 +7582,16 @@ osg.State.prototype = {
                 }
                 uniform.dirty();
             }
-            //osg.log(uniform.get()[0]);
-            uniform.apply(program.uniformsCache.ArrayColorEnabled);
+            if (updateColorUniform){
+                if (!osg.updateCacheUniform ||
+                    !this.programAlreadyApplied ||
+                    (this.programAlreadyApplied && program.uniformsCache.ArrayColorEnabled !== this.arraycolorEnabledLastApplied)) {
+                    //osg.log(uniform.get()[0]);
+                    uniform.apply(program.uniformsCache.ArrayColorEnabled);
+                    this.arraycolorEnabledLastApplied = program.uniformsCache.ArrayColorEnabled;
+                }
+
+            }
         }
     },
     setVertexAttribArray: function(attrib, array, normalize) {
@@ -7889,10 +7949,10 @@ osg.Texture.prototype = osg.objectLibraryClass(osg.objectInehrit(osg.StateAttrib
 
     isMipMapped: function(filter){
 
-return filter == osg.Texture.NEAREST_MIPMAP_NEAREST ||
-        filter == osg.Texture.LINEAR_MIPMAP_NEAREST   ||
-        filter == osg.Texture.NEAREST_MIPMAP_LINEAR  ||
-        filter == osg.Texture.LINEAR_MIPMAP_LINEAR;
+        return filter == osg.Texture.NEAREST_MIPMAP_NEAREST ||
+            filter == osg.Texture.LINEAR_MIPMAP_NEAREST   ||
+            filter == osg.Texture.NEAREST_MIPMAP_LINEAR  ||
+            filter == osg.Texture.LINEAR_MIPMAP_LINEAR;
     },
 
     setMinFilter: function(value, multiplier) {
@@ -7949,6 +8009,9 @@ return filter == osg.Texture.NEAREST_MIPMAP_NEAREST ||
             this._imageFormat = osg.Texture.RGBA;
         }
         this.setInternalFormat(this._imageFormat);
+    },
+    getGLType: function() {
+        return this._type;
     },
     setType: function(value) {
         if (typeof(value) === "string") {
@@ -8394,8 +8457,14 @@ var ReservedStack = function(entryConstructor) {
     this._index = this._current = 0; this._dirty = true;
 };
 ReservedStack.prototype = {
-    reset: function() { this._index = this._current = 0; this._dirty = false;},
-    dirty: function() { this._current = this._index; this._dirty = true; },
+    reset: function() {
+        this._index = this._current = 0;
+        this._dirty = false;
+    },
+    dirty: function() {
+        this._current = this._index;
+        this._dirty = true;
+    },
     getCurrent: function() { return this._array[this._index]; },
     getIndex: function() { return this._index; },
     isDirty: function() { return this._dirty; },
@@ -8436,10 +8505,28 @@ NodeDirtyMatrix.prototype = {
 
 var TraceNodePath = function() {
     this._array = [];
+    this._dirty = false;
+    this._previousIndex = this._index = -1;
     this.reset();
 };
 TraceNodePath.prototype = {
     reset: function() {
+
+        // detect a change in path lenght
+        // not that this detection could be useless
+        // because it's only valid if you remove a node and add it again
+        // at the same position in tree ( meaning in the end )
+        // so not really sure we have to fix this
+        var prevIndex = this._index;
+        var prevPrevIndex = this._previousIndex;
+        if (prevIndex !== prevPrevIndex && prevPrevIndex !== -1) {
+            var i = Math.min(prevIndex, prevPrevIndex);
+            for (var l = this._array.length; i < l; i++) {
+                this._array[i] = undefined;
+            }
+        }
+        this._previousIndex = this._index;
+
         this._dirty = false;
         this._index = -1;
     },
@@ -8498,7 +8585,9 @@ osg.CullVisitor.prototype = osg.objectInehrit(osg.CullStack.prototype ,osg.objec
             // like a matrix generated by osg.Matrix.lookat
             osg.Matrix.copy(camera.getViewMatrix(), view);
             osg.Matrix.copy(camera.getProjectionMatrix(), projection);
-
+            // make sure to reset to identity in case of 
+            // treenode changes after initialisations
+            osg.Matrix.makeIdentity(model);
             boundingbox.init();
         }
 
@@ -8582,6 +8671,9 @@ osg.CullVisitor.prototype = osg.objectInehrit(osg.CullStack.prototype ,osg.objec
         if (d_far<0.0) {
             // whole object behind the eye point so discard
             return false;
+        }
+        if (d_near<0.0) {
+            d_near = 0.00000001;
         }
 
         if (d_near<this._computedNear) {
@@ -8780,7 +8872,8 @@ osg.CullVisitor.prototype[osg.Camera.prototype.objectType] = function( camera ) 
     }
 
     if (camera.light) {
-        this.addPositionedAttribute(camera.light);
+        osg.warn("using node.light is deprecated, using LightSource node instead");
+        //this.addPositionedAttribute(camera.light);
     }
 
     var OldtraversalMask = this.traversalMask;
@@ -8816,6 +8909,9 @@ osg.CullVisitor.prototype[osg.Camera.prototype.objectType] = function( camera ) 
             // absolute
             osg.Matrix.copy(camera.getViewMatrix(), view);
             osg.Matrix.copy(camera.getProjectionMatrix(), projection);
+            // make sure to reset to identity in case of 
+            // treenode changes after initialisations
+            osg.Matrix.makeIdentity(model);
         }
         boundingbox.init();
     }
@@ -8990,6 +9086,10 @@ osg.CullVisitor.prototype[osg.Projection.prototype.objectType] = function (node)
 
 osg.CullVisitor.prototype[osg.Node.prototype.objectType] = function (node) {
 
+    if ( this._traceNode.isDirty() ) {
+        this._reserveMatrixModelStack.dirty();
+    }
+
     var stateset = node.getStateSet();
     if (stateset) {
         this.pushStateSet(stateset);
@@ -9033,6 +9133,7 @@ osg.CullVisitor.prototype[osg.Geometry.prototype.objectType] = function (node) {
 
     var recompute = this._traceNode.isDirty() || this._reserveMatrixModelStack.isDirty();
     if (recompute) {
+        this._reserveMatrixModelStack.dirty();
         this._reserveBoundingBoxStack.dirty();
     }
     var bb = this._reserveBoundingBoxStack.getReserved();
@@ -9048,6 +9149,15 @@ osg.CullVisitor.prototype[osg.Geometry.prototype.objectType] = function (node) {
             cameraBoundingbox.expandByVec3(bb._max);
         }
     }
+
+    // have to do this here, otherwise if it
+    // gets pruned by updatenearfar 
+    // (because behind the camera)
+    // the slot isn't reserved, thus,
+    // getting out of reserved bound request
+    var leaf = this._getReservedLeaf();
+    leaf.node = node;
+    leaf.bb = bb;
 
     var validBB = bb.valid();
     if (this._computeNearFar && validBB) {
@@ -9068,9 +9178,6 @@ osg.CullVisitor.prototype[osg.Geometry.prototype.objectType] = function (node) {
         this._currentRenderBin.addStateGraph(this._currentStateGraph);
     }
 
-    var leaf = this._getReservedLeaf();
-    leaf.node = node;
-    leaf.bb = bb;
     var depth = 0;
     if (validBB) {
         // cache center ?
@@ -12905,12 +13012,12 @@ osgDB.parseSceneGraph_deprecated = function (node)
                 }
                 var tex = new osg.Texture();
                 setTexture(tex, textures[t]);
-                
+
                 osgjs.setTextureAttributeAndMode(t, tex);
                 osgjs.addUniform(osg.Uniform.createInt1(t,"Texture" + t));
             }
         }
-        
+
         var blendfunc = getFieldBackwardCompatible("BlendFunc",json);
         if (blendfunc) {
             var newblendfunc = new osg.BlendFunc();
@@ -15190,11 +15297,20 @@ WebGLUtils = function() {
     };
 }();
 
+
+/**
+ * Polyfill
+ */
+if(!Date.now) {
+    Date.now = function now() {
+        return new Date().getTime();
+    };
+}
 /**
  * Provides requestAnimationFrame in a cross browser
  * way.
  */
-if (typeof window !== undefined){
+if (typeof window !== "undefined"){
     if(!window.requestAnimationFrame) {
         window.requestAnimationFrame = (function() {
             return window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame || window.oRequestAnimationFrame || window.msRequestAnimationFrame ||
@@ -15225,41 +15341,40 @@ if (typeof window !== undefined){
         };
     })();
 }
-if(!Date.now) {
-    Date.now = function now() {
-        return new Date().getTime();
-    };
-}
-/** Obtain a stacktrace from the current stack http://eriwen.com/javascript/js-stack-trace/
-*/
+// TODO: Update
+// and make it a loadable extension instead
+//  Obtain a stacktrace from the current stack https://github.com/eriwen/javascript-stacktrace/blob/master/stacktrace.js
 function getStackTrace(err) {
     var callstack = [];
     var originalArgs = arguments;
-    try {
-        if(arguments.length == 1) {
-            throw err;
-        } else {
-            throw new Error();
-        }
-    } catch(e) {
-        if(e.stack) { //Firefox and Chrome
-            callstack = (e.stack + '\n').replace(/^\S[^\(]+?[\n$]/gm, '').
-            replace(/^\s+(at eval )?at\s+/gm, '').
-            replace(/^([^\(]+?)([\n$])/gm, '{anonymous}()@$1$2').
-            replace(/^Object.<anonymous>\s*\(([^\)]+)\)/gm, '{anonymous}()@$1').split('\n');
-            // Remove call to this function
-            callstack.shift();
+    if (console.trace)
+        0;
+    else{
+        try {
+            if(arguments.length == 1) {
+                throw err;
+            } else {
+                throw new Error();
+            }
+        } catch(e) {
+            if(e.stack) { //Firefox and Chrome
+                callstack = (e.stack + '\n').replace(/^\S[^\(]+?[\n$]/gm, '').
+                replace(/^\s+(at eval )?at\s+/gm, '').
+                replace(/^([^\(]+?)([\n$])/gm, '{anonymous}()@$1$2').
+                replace(/^Object.<anonymous>\s*\(([^\)]+)\)/gm, '{anonymous}()@$1').split('\n');
+                // Remove call to this function
+                callstack.shift();
 
+            }
+        }
+        // Remove empty entries
+        for(var i = 0; i < callstack.length; ++i) {
+            if(callstack[i] === '') {
+                callstack.splice(i, 1);
+                --i;
+            }
         }
     }
-    // Remove empty entries
-    for(var i = 0; i < callstack.length; ++i) {
-        if(callstack[i] === '') {
-            callstack.splice(i, 1);
-            --i;
-        }
-    }
-
     return callstack;
 }
 //Copyright (c) 2009 The Chromium Authors. All rights reserved.
@@ -16229,7 +16344,7 @@ osgViewer.View = function() {
     this._frameStamp = new osg.FrameStamp();
     this._lightingMode = undefined;
     this._manipulator = undefined;
-
+    this._light = undefined;
     this.setLightingMode(osgViewer.View.LightingMode.HEADLIGHT);
 
     this._scene.getOrCreateStateSet().setAttributeAndMode(new osg.Material());
@@ -16257,7 +16372,7 @@ osgViewer.View.prototype = {
         if (traversalMask === undefined) {
             traversalMask = ~0;
         }
-        
+
         var iv = new osgUtil.IntersectVisitor();
         iv.setTraversalMask(traversalMask);
         iv.addLineSegment([x,y,0.0], [x,y,1.0]);
@@ -16283,9 +16398,9 @@ osgViewer.View.prototype = {
     setManipulator: function(manipulator) { this._manipulator = manipulator; },
 
     getLight: function() {
-         return this._light; 
+         return this._light;
     },
-    setLight: function(light) { 
+    setLight: function(light) {
         this._light = light;
         if (this._lightingMode !== osgViewer.View.LightingMode.NO_LIGHT) {
             this._scene.getOrCreateStateSet().setAttributeAndMode(this._light);
@@ -16317,18 +16432,20 @@ osgViewer.View.prototype = {
 
  var optionsURL = function() {
     var vars = [], hash;
-    var hashes = window.location.href.slice(window.location.href.indexOf('?') + 1).split('&');
-    for(var i = 0; i < hashes.length; i++)
-    {
-        hash = hashes[i].split('=');
-        var element = hash[0].toLowerCase();
-        vars.push(element);
-        var result = hash[1];
-        if (result === undefined) {
-            result = "1";
-        }
-        vars[element] = result.toLowerCase();
+    if (typeof window !== "undefined"){
+        var hashes = window.location.href.slice(window.location.href.indexOf('?') + 1).split('&');
+        for(var i = 0; i < hashes.length; i++)
+        {
+            hash = hashes[i].split('=');
+            var element = hash[0].toLowerCase();
+            vars.push(element);
+            var result = hash[1];
+            if (result === undefined) {
+                result = "1";
+            }
+            vars[element] = result.toLowerCase();
 
+        }
     }
     return vars;
 };

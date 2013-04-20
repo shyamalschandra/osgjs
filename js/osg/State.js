@@ -4,6 +4,9 @@ osg.State = function () {
     // not re-issuing the exact same
     // binding & slow uniform upload
     this.programAlreadyApplied = false;
+    // special value for recurring uniform
+    this.arraycolorEnabledLastApplied = undefined;
+
     this.currentVBO = null;
     this.currentVAO = null;
     this.vertexAttribList = [];
@@ -662,6 +665,7 @@ osg.State.prototype = {
             }
         }
 
+        // TODO: uniform cache, coherent with last program applied
         // it takes 4.26% of global cpu
         // there would be a way to cache it and track state if the program has not changed ...
         var program = this.programs.lastApplied;
@@ -687,9 +691,15 @@ osg.State.prototype = {
                 }
                 uniform.dirty();
             }
-            if (updateColorUniform || !this.programAlreadyApplied) {
-                //osg.log(uniform.get()[0]);
-                uniform.apply(program.uniformsCache.ArrayColorEnabled);
+            if (updateColorUniform){
+                if (!osg.updateCacheUniform ||
+                    !this.programAlreadyApplied ||
+                    (this.programAlreadyApplied && program.uniformsCache.ArrayColorEnabled !== this.arraycolorEnabledLastApplied)) {
+                    //osg.log(uniform.get()[0]);
+                    uniform.apply(program.uniformsCache.ArrayColorEnabled);
+                    this.arraycolorEnabledLastApplied = program.uniformsCache.ArrayColorEnabled;
+                }
+
             }
         }
     },

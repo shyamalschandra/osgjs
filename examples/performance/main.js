@@ -51,6 +51,9 @@ function createScene() {
     var root = createItems(Deep);
     //root.addChild(items);
 
+    //osg.updateCacheUniform = true;
+    //osg.UniformScalingEnabled = true;
+
     osg.log("Total Items " + NbTotalItems);
     osg.log("Total Nodes " + NbTotalNodes);
     return root;

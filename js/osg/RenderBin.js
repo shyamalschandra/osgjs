@@ -247,7 +247,7 @@ osg.RenderBin.prototype = {
             modelViewUniformUpdate = false;
             projectionUniformUpdate = false;
 
-            if (!osg.updateCacheUniform && !state.programAlreadyApplied || program !== programPrevious){
+            if (!osg.updateCacheUniform || !state.programAlreadyApplied || program !== programPrevious){
                 modelViewUniform    = program.uniformsCache[state.modelViewMatrix.name];
                 modelUniform        = program.uniformsCache[state.modelMatrix.name];
                 viewUniform         = program.uniformsCache[state.viewMatrix.name];
@@ -361,7 +361,7 @@ osg.RenderBin.prototype = {
                 modelViewUniformUpdate = false;
                 projectionUniformUpdate = false;
 
-                if (!osg.updateCacheUniform && !state.programAlreadyApplied || program !== programPrevious){
+                if (!osg.updateCacheUniform || !state.programAlreadyApplied || program !== programPrevious){
                     modelViewUniform    = program.uniformsCache[state.modelViewMatrix.name];
                     modelUniform        = program.uniformsCache[state.modelMatrix.name];
                     viewUniform         = program.uniformsCache[state.viewMatrix.name];

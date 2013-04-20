@@ -20,10 +20,13 @@
  */
 
 function decodeHDRHeader(buf) {
-    var info = {exposure: 1.0};
+    var info = {
+        exposure: 1.0
+    };
 
     // find header size
-    var size = -1, size2 = -1;
+    var size = -1,
+        size2 = -1;
     for (var i = 0; i < buf.length - 1; i++) {
         if (buf[i] == 10 && buf[i + 1] == 10) {
             size = i;
@@ -51,10 +54,8 @@ function decodeHDRHeader(buf) {
             var key = matches[1],
                 value = matches[2];
 
-            if (key == "FORMAT")
-                info.format = value;
-            else if (key == "EXPOSURE")
-                info.exposure = parseFloat(value);
+            if (key == "FORMAT") info.format = value;
+            else if (key == "EXPOSURE") info.exposure = parseFloat(value);
         }
     }
 
@@ -89,19 +90,18 @@ readHDRImage = function(url, options) {
     xhr.responseType = "arraybuffer";
 
     var defer = osgDB.Promise.defer();
-    xhr.onload = function (ev) {
+    xhr.onload = function(ev) {
         if (xhr.response) {
             var bytes = new Uint8Array(xhr.response);
 
             var header = decodeHDRHeader(bytes);
-            if (header == false)
-                return;
+            if (header === false) return;
 
             // initialize output buffer
             var data = new Uint8Array(header.width * header.height * 4);
             var img_offset = 0;
 
-            if ((header.scanline_width < 8)||(header.scanline_width > 0x7fff)) {
+            if ((header.scanline_width < 8) || (header.scanline_width > 0x7fff)) {
                 console.error('not rle compressed .hdr file');
                 return;
             }
@@ -114,6 +114,7 @@ readHDRImage = function(url, options) {
                 var offset = 0;
                 var rgbe = [bytes[read_offset++], bytes[read_offset++], bytes[read_offset++], bytes[read_offset++]];
                 var buf = [0, 0];
+                var i;
 
                 if ((rgbe[0] != 2) || (rgbe[1] != 2) || (rgbe[2] & 0x80)) {
                     console.error('this file is not run length encoded');
@@ -126,7 +127,7 @@ readHDRImage = function(url, options) {
                 }
 
                 // read each of the four channels for the scanline into the buffer
-                for (var i=0;i<4;i++) {
+                for (i = 0; i < 4; i++) {
                     var offset_end = (i + 1) * header.scanline_width;
                     while (offset < offset_end) {
                         buf[0] = bytes[read_offset++];
@@ -135,16 +136,16 @@ readHDRImage = function(url, options) {
                         if (buf[0] > 128) {
                             // a run of the same value
                             count = buf[0] - 128;
-                            if ((count == 0) || (count > offset_end - offset)) {
+                            if ((count === 0) || (count > offset_end - offset)) {
                                 console.error('bad scanline data');
                                 return;
                             }
                             while (count-- > 0)
-                                scanline_buffer[offset++] = buf[1];
+                            scanline_buffer[offset++] = buf[1];
                         } else {
                             // a non-run
                             count = buf[0];
-                            if ((count == 0) || (count > offset_end - offset)) {
+                            if ((count === 0) || (count > offset_end - offset)) {
                                 console.error('bad scanline data');
                                 return;
                             }
@@ -160,7 +161,7 @@ readHDRImage = function(url, options) {
                 }
 
                 // fill the image array
-                for (var i = 0; i < header.scanline_width; i++) {
+                for (i = 0; i < header.scanline_width; i++) {
                     data[img_offset++] = scanline_buffer[i];
                     data[img_offset++] = scanline_buffer[i + header.scanline_width];
                     data[img_offset++] = scanline_buffer[i + 2 * header.scanline_width];
@@ -187,17 +188,16 @@ var SphereEnvMap = function(viewer) {
     this._viewer = viewer;
 };
 
-function getEnvSphere(size, scene)
-{
+function getEnvSphere(size, scene) {
     // create the environment sphere
     //var geom = osg.createTexturedSphere(size, 32, 32);
-    var geom = osg.createTexturedBoxGeometry(0,0,0, size,size,size);
+    var geom = osg.createTexturedBoxGeometry(0, 0, 0, size, size, size);
     geom.getOrCreateStateSet().setAttributeAndModes(new osg.CullFace('DISABLE'));
     geom.getOrCreateStateSet().setAttributeAndModes(getShaderBackground());
 
     var cubemapTransform = osg.Uniform.createMatrix4(osg.Matrix.makeIdentity([]), "CubemapTransform");
     var mt = new osg.MatrixTransform();
-    mt.setMatrix(osg.Matrix.makeRotate(Math.PI/2.0, 1,0,0,[]));
+    mt.setMatrix(osg.Matrix.makeRotate(Math.PI / 2.0, 1, 0, 0, []));
     mt.addChild(geom);
     var CullCallback = function() {
         this.cull = function(node, nv) {
@@ -207,7 +207,7 @@ function getEnvSphere(size, scene)
             var mv = [];
             osg.Matrix.mult(v, m, mv);
 
-            osg.Matrix.setTrans(mv, 0,0,0);
+            osg.Matrix.setTrans(mv, 0, 0, 0);
             osg.Matrix.copy(mv, cubemapTransform.get());
             //osg.Matrix.copy(v, cubemapTransform.get());
             cubemapTransform.dirty();
@@ -255,7 +255,7 @@ var startHDR = function() {
     var canvas = document.getElementById("3DView");
     var w = window.innerWidth;
     var h = window.innerHeight;
-    osg.log("size " + w + " x " + h );
+    osg.log("size " + w + " x " + h);
     canvas.style.width = w;
     canvas.style.height = h;
     canvas.width = w;
@@ -265,7 +265,9 @@ var startHDR = function() {
 
     var viewer;
     try {
-        viewer = new osgViewer.Viewer(canvas, {antialias : true });
+        viewer = new osgViewer.Viewer(canvas, {
+            antialias: true
+        });
         Viewer = viewer;
         viewer.init();
         var rotate = new osg.MatrixTransform();
@@ -291,8 +293,7 @@ var startHDR = function() {
     }
 };
 
-function getShader()
-{
+function getShader() {
     var vertexshader = [
         "",
         "#ifdef GL_ES",
@@ -320,8 +321,7 @@ function getShader()
         "  osg_FragNormalWorld = Normal;",
         "  osg_FragLightDirection = vec3(NormalMatrix * vec4(0.0, -1.0, 0.0, 1.0));",
         "  gl_Position = ProjectionMatrix * ModelViewMatrix * vec4(Vertex,1.0);",
-        "}"
-    ].join('\n');
+        "}"].join('\n');
 
     var fragmentshader = [
         "",
@@ -353,19 +353,19 @@ function getShader()
         "  return m*lv;",
         "}",
 
-        // convert 8-bit RGB channels into floats using the common E exponent
-        "vec3 decodeRGBE(vec4 rgbe) {",
+    // convert 8-bit RGB channels into floats using the common E exponent
+    "vec3 decodeRGBE(vec4 rgbe) {",
         "   //const vec3 scaleBias = vec3(22.09, -6.09161, 1.0);//16bfp",
         "   const vec3 scaleBias = vec3(255.0, -136.0, 255.0);//8bp",
         "   return  rgbe.rgb * scaleBias.z * exp2(rgbe.w * scaleBias.x + scaleBias.y);",
         "}",
 
-        // apply some gamma correction (http://www.geeks3d.com/20101001/tutorial-gamma-correction-a-story-of-linearity/)
-        "vec3 toneMapHDR(vec3 rgb) {",
+    // apply some gamma correction (http://www.geeks3d.com/20101001/tutorial-gamma-correction-a-story-of-linearity/)
+    "vec3 toneMapHDR(vec3 rgb) {",
         "  return pow(rgb * hdrExposure, 1.0 / vec3(hdrGamma));",
         "}",
-        // fetch from environment sphere texture
-        "vec4 textureSphere(sampler2D tex, vec3 n) {",
+    // fetch from environment sphere texture
+    "vec4 textureSphere(sampler2D tex, vec3 n) {",
         "  float yaw = acos(n.y) / PI;",
         "  float pitch = (atan(n.x, n.z) + PI) / (2.0 * PI);",
         "  return texture2D(tex, vec2(pitch, yaw ));",
@@ -385,18 +385,16 @@ function getShader()
 
         "  gl_FragColor = vec4(mix(diffuse, specular, 1.0), 1.0);",
         "}",
-        ""
-    ].join('\n');
+        ""].join('\n');
 
     var program = new osg.Program(
-        new osg.Shader(gl.VERTEX_SHADER, vertexshader),
-        new osg.Shader(gl.FRAGMENT_SHADER, fragmentshader));
+    new osg.Shader(gl.VERTEX_SHADER, vertexshader),
+    new osg.Shader(gl.FRAGMENT_SHADER, fragmentshader));
 
     return program;
 }
 
-function getShaderBackground()
-{
+function getShaderBackground() {
     var vertexshader = [
         "",
         "#ifdef GL_ES",
@@ -422,8 +420,7 @@ function getShaderBackground()
         "  osg_FragEye = vec3(ModelViewMatrix * vec4(Vertex,1.0));",
         "  osg_FragNormal = vec3(NormalMatrix * vec4(Normal, 1.0));",
         "  gl_Position = ProjectionMatrix * ModelViewMatrix * vec4(Vertex,1.0);",
-        "}"
-    ].join('\n');
+        "}"].join('\n');
 
     var fragmentshader = [
         "",
@@ -441,20 +438,20 @@ function getShaderBackground()
         "varying vec3 osg_FragVertex;",
         "varying vec2 osg_TexCoord0;",
 
-        // convert 8-bit RGB channels into floats using the common E exponent
-        "vec3 decodeRGBE(vec4 rgbe) {",
+    // convert 8-bit RGB channels into floats using the common E exponent
+    "vec3 decodeRGBE(vec4 rgbe) {",
         "   //const vec3 scaleBias = vec3(22.09, -6.09161, 1.0);//16bfp",
         "   const vec3 scaleBias = vec3(255.0, -136.0, 255.0);//8bp",
         "   return  rgbe.rgb * scaleBias.z * exp2(rgbe.w * scaleBias.x + scaleBias.y);",
         "}",
 
-        // apply some gamma correction (http://www.geeks3d.com/20101001/tutorial-gamma-correction-a-story-of-linearity/)
-        "vec3 toneMapHDR(vec3 rgb) {",
+    // apply some gamma correction (http://www.geeks3d.com/20101001/tutorial-gamma-correction-a-story-of-linearity/)
+    "vec3 toneMapHDR(vec3 rgb) {",
         "  return pow(rgb * hdrExposure, 1.0 / vec3(hdrGamma));",
         "}",
 
-        // fetch from environment sphere texture
-        "vec4 textureSphere(sampler2D tex, vec3 n) {",
+    // fetch from environment sphere texture
+    "vec4 textureSphere(sampler2D tex, vec3 n) {",
         "  float yaw = acos(n.y) / PI;",
         "  float pitch = (atan(n.x, n.z) + PI) / (2.0 * PI);",
         "  return texture2D(tex, vec2(pitch, yaw));",
@@ -465,12 +462,11 @@ function getShaderBackground()
         "  vec3 c = toneMapHDR(decodeRGBE(textureSphere(Texture0, normal)));",
         "  gl_FragColor = vec4(c, 1.0);",
         "}",
-        ""
-    ].join('\n');
+        ""].join('\n');
 
     var program = new osg.Program(
-        new osg.Shader(gl.VERTEX_SHADER, vertexshader),
-        new osg.Shader(gl.FRAGMENT_SHADER, fragmentshader));
+    new osg.Shader(gl.VERTEX_SHADER, vertexshader),
+    new osg.Shader(gl.FRAGMENT_SHADER, fragmentshader));
 
     return program;
 }
@@ -478,7 +474,7 @@ function getShaderBackground()
 var nbLoading = 0;
 var loaded = [];
 var removeLoading = function(node, child) {
-    nbLoading -=1;
+    nbLoading -= 1;
     loaded.push(child);
     if (nbLoading === 0) {
         document.getElementById("loading").style.display = 'None';
@@ -486,30 +482,30 @@ var removeLoading = function(node, child) {
     }
 };
 var addLoading = function() {
-    nbLoading+=1;
+    nbLoading += 1;
     document.getElementById("loading").style.display = 'Block';
 };
 
 var getModel = function(func) {
     var node = new osg.MatrixTransform();
-    node.setMatrix(osg.Matrix.makeRotate(-Math.PI/2, 1,0,0, []));
+    node.setMatrix(osg.Matrix.makeRotate(-Math.PI / 2, 1, 0, 0, []));
 
     var loadModel = function(url, cbfunc) {
         osg.log("loading " + url);
         var req = new XMLHttpRequest();
         req.open('GET', url, true);
-        req.onreadystatechange = function (aEvt) {
+        req.onreadystatechange = function(aEvt) {
             if (req.readyState == 4) {
-                if(req.status == 200) {
+                if (req.status == 200) {
                     osgDB.Promise.when(osgDB.parseSceneGraph(JSON.parse(req.responseText))).then(function(child) {
-                            if (cbfunc) {
-                                cbfunc(child);
-                            }
+                        if (cbfunc) {
+                            cbfunc(child);
+                        }
                         node.addChild(child);
                         removeLoading(node, child);
                         osg.log("success " + url);
                     });
-                } else{
+                } else {
                     removeLoading(node, child);
                     osg.log("error " + url);
                 }
@@ -525,12 +521,12 @@ var getModel = function(func) {
     //modelName = 'sponza';
     //modelName = 'raceship';
     var url = window.location.href;
-    if (window.location.href.indexOf('model')!=-1){
+    if (window.location.href.indexOf('model') != -1) {
         var urlParts = url.split('?');
-        if(urlParts.length > 1){
-           urlParts = urlParts[1].split('&');
-           for(var k in urlParts){
-                if (urlParts[k].indexOf('model') !==-1){
+        if (urlParts.length > 1) {
+            urlParts = urlParts[1].split('&');
+            for (var k in urlParts) {
+                if (urlParts[k].indexOf('model') !== -1) {
                     urlParts = urlParts[k].split('=');
                     modelName = urlParts[1];
                     break;
@@ -538,17 +534,15 @@ var getModel = function(func) {
             }
         }
     }
-    if (modelName == 'cube'){
+    if (modelName == 'cube') {
         var size = 10;
-        var cube = osg.createTexturedBox(0, 0, 0, size*5,size*5,size*5);
+        var cube = osg.createTexturedBox(0, 0, 0, size * 5, size * 5, size * 5);
         node.addChild(cube);
-    }
-    else if (modelName == 'sphere'){
-         //function(radius, widthSegments, heightSegments, phiStart, phiLength, thetaStart, thetaLength)
+    } else if (modelName == 'sphere') {
+        //function(radius, widthSegments, heightSegments, phiStart, phiLength, thetaStart, thetaLength)
         var sphere = osg.createTexturedSphere(50, 100, 100);
         node.addChild(sphere);
-    }
-    else{
+    } else {
         loadModel(modelName + '.osgjs');
     }
     return node;
@@ -556,8 +550,7 @@ var getModel = function(func) {
 
 function readImageURL(url) {
     var ext = url.split('.').pop();
-    if(ext == "hdr")
-        return readHDRImage(url);
+    if (ext == "hdr") return readHDRImage(url);
 
     return osgDB.readImageURL(url);
 }
@@ -565,6 +558,7 @@ function readImageURL(url) {
 // change the environment maps (reflective included)
 // Images are 8-bit RGBE encoded based on the radiance file format
 // The example supports radiance .hdr files, but uses .png which contains the exact same information for better size and speed.
+
 function setEnvironment(name, background, ground) {
     var textures = {
         'Alexs_Apartment': ['Alexs_Apt_2k.png', 'Alexs_Apt_Env.png'],
@@ -576,32 +570,31 @@ function setEnvironment(name, background, ground) {
     var urls = textures[name];
 
     osgDB.Promise.all([
-            readImageURL('textures/' + name + '/' + urls[0]),
-            readImageURL('textures/' + name + '/' + urls[1])]).then(function(images) {
-                var textureHigh = new osg.Texture();
-                textureHigh.setImage(images[0]);
-                if(images[0].data) {
-                    textureHigh.setTextureSize(images[0].width, images[0].height);
-                    textureHigh.setImage(images[0].data, osg.Texture.RGBA);
-                }
-                background.getOrCreateStateSet().setTextureAttributeAndMode(0, textureHigh);
-                background.getOrCreateStateSet().addUniform(osg.Uniform.createInt1(0,'Texture0'));
+    readImageURL('textures/' + name + '/' + urls[0]),
+    readImageURL('textures/' + name + '/' + urls[1])]).then(function(images) {
+        var textureHigh = new osg.Texture();
+        textureHigh.setImage(images[0]);
+        if (images[0].data) {
+            textureHigh.setTextureSize(images[0].width, images[0].height);
+            textureHigh.setImage(images[0].data, osg.Texture.RGBA);
+        }
+        background.getOrCreateStateSet().setTextureAttributeAndMode(0, textureHigh);
+        background.getOrCreateStateSet().addUniform(osg.Uniform.createInt1(0, 'Texture0'));
 
-                var textureEnv = new osg.Texture();
-                textureEnv.setImage(images[1]);
-                if(images[0].data) {
-                    textureEnv.setTextureSize(images[0].width, images[0].height);
-                    textureEnv.setImage(images[0].data, osg.Texture.RGBA);
-                }
-                ground.getOrCreateStateSet().setTextureAttributeAndMode(0, textureHigh);
-                ground.getOrCreateStateSet().addUniform(osg.Uniform.createInt1(0,'Texture0'));
-                ground.getOrCreateStateSet().setTextureAttributeAndMode(1, textureEnv);
-                ground.getOrCreateStateSet().addUniform(osg.Uniform.createInt1(1,'Texture1'));
-            });
+        var textureEnv = new osg.Texture();
+        textureEnv.setImage(images[1]);
+        if (images[0].data) {
+            textureEnv.setTextureSize(images[0].width, images[0].height);
+            textureEnv.setImage(images[0].data, osg.Texture.RGBA);
+        }
+        ground.getOrCreateStateSet().setTextureAttributeAndMode(0, textureHigh);
+        ground.getOrCreateStateSet().addUniform(osg.Uniform.createInt1(0, 'Texture0'));
+        ground.getOrCreateStateSet().setTextureAttributeAndMode(1, textureEnv);
+        ground.getOrCreateStateSet().addUniform(osg.Uniform.createInt1(1, 'Texture1'));
+    });
 }
 
-function createScene()
-{
+function createScene() {
     var group = new osg.Node();
 
     // HDR parameters uniform
@@ -620,14 +613,14 @@ function createScene()
 
     // gui
     document.getElementById('rangeExposure').onchange = function() {
-	    uniformCenter.set(parseFloat(this.value));
-    }
+        uniformCenter.set(parseFloat(this.value));
+    };
     document.getElementById('rangeGamma').onchange = function() {
-	    uniformGamma.set(parseFloat(this.value));
-    }
+        uniformGamma.set(parseFloat(this.value));
+    };
     document.getElementById('texture').onchange = function() {
-	    setEnvironment(this.value, background, ground);
-    }
+        setEnvironment(this.value, background, ground);
+    };
     setEnvironment('Alexs_Apartment', background, ground);
 
     group.addChild(ground);

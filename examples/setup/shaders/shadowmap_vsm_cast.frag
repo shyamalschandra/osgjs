@@ -11,7 +11,8 @@ void main(void) {
     float depth;
     // (this is linear space, not post-projection quadratic space)
     // (length of the view space position == distance from camera)
-    depth =  length(WorldPos.xyz);
+    //depth =  length(WorldPos.xyz);
+    depth =  - WorldPos.z;
     // linerarize (aka map z to near..far to 0..1) 
     depth = (depth - Shadow_DepthRange.x )* Shadow_DepthRange.w;
     //depth = WorldPos.z / WorldPos.w;
