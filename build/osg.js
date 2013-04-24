@@ -8620,6 +8620,7 @@ osg.CullVisitor.prototype = osg.objectInehrit(osg.CullStack.prototype ,osg.objec
         //thid.handleCullCallbacksAndTraverse(camera);
         scene.accept(this);
 
+        camera.boundingbox = boundingbox;
         this.popBoundingbox();
 
         this.popModelMatrix();
@@ -8985,6 +8986,7 @@ osg.CullVisitor.prototype[osg.Camera.prototype.objectType] = function( camera ) 
         }
     }
 
+    camera.boundingbox = boundingbox;
     this.popBoundingbox(boundingbox);
 
     this.popModelMatrix();
@@ -9142,13 +9144,13 @@ osg.CullVisitor.prototype[osg.Geometry.prototype.objectType] = function (node) {
 
         var localbb = node.getBoundingBox();
         osg.Matrix.transformBoundingbox( model, localbb,  bb);
-
-        var cameraBoundingbox = this.getCurrentBoundingbox();
-        if (cameraBoundingbox) {
-            cameraBoundingbox.expandByVec3(bb._min);
-            cameraBoundingbox.expandByVec3(bb._max);
-        }
     }
+    var cameraBoundingbox = this.getCurrentBoundingbox();
+    if (cameraBoundingbox) {
+        cameraBoundingbox.expandByVec3(bb._min);
+        cameraBoundingbox.expandByVec3(bb._max);
+    }
+
 
     // have to do this here, otherwise if it
     // gets pruned by updatenearfar 
@@ -15942,8 +15944,10 @@ function makeDebugContext(ctx, opt_onErrorFunc) {
                 loseContextIfTime();
                 var err;
                 if (!contextLost_) {
-                    while (err = unwrappedContext_.getError()) {
+                    err = unwrappedContext_.getError();
+                    while (err) {
                         glErrorShadow_[err] = true;
+                        err = unwrappedContext_.getError();
                     }
                 }
                 for (err in glErrorShadow_) {

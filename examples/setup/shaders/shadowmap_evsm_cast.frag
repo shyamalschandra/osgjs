@@ -32,16 +32,21 @@ vec4 ShadowDepthToEVSM(float depth)
 }
 
 void main(void) {
-     // derive a per-pixel depth and depth squared
-    // (length of the view space position == distance from camera)
-    // (this is linear space, not post-projection quadratic space)
     float depth;
-    // linerarize (aka map z to near..far to 0..1)
-    //depth =  length(WorldPos.xyz);
-    depth = - WorldPos.z;
-    depth = (depth - Shadow_DepthRange.x )* Shadow_DepthRange.w;
-    //depth = WorldPos.z / WorldPos.w;
-    depth = clamp(depth, 0.0, 1.0);
+// #define NUM_STABLE
+    #ifndef NUM_STABLE
+        depth =  - WorldPos.z;
+        // linerarize (aka map z to near..far to 0..1) 
+        depth = (depth - Shadow_DepthRange.x )* Shadow_DepthRange.w;
+        //depth = WorldPos.z / WorldPos.w;
+         depth = clamp(depth, 0.0, 1.0);
+    #else
+        depth =  length(WorldPos.xyz);
+        depth = (depth - Shadow_DepthRange.x )* Shadow_DepthRange.w;
+        //depth = WorldPos.z / WorldPos.w;
+         depth = clamp(depth, 0.0, 1.0);
+    #endif
+
 
     gl_FragColor = ShadowDepthToEVSM(depth);
 }

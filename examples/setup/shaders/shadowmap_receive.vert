@@ -67,24 +67,33 @@ void main(void) {
 
 	// Project the vertex from the light's point of view
 	vec4 worldPosition =  ModelMatrix *  vec4(Vertex,1.0);
-
-	/// The scale matrix is used to push the projected vertex into the 0.0 - 1.0 region.
-	/// Similar in role to a * 0.5 + 0.5, where -1.0 < a < 1.0.
-	//const mat4 ScaleMatrix = mat4(0.5, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.5, 0.5, 0.5, 1.0);
+	//#define NUM_STABLE
 	if (Light0_uniform_enable == 1) {
-		Shadow_Z0 =  Shadow_View0 * worldPosition;
-		Shadow_VertexProjected0 =  Shadow_Projection0 * Shadow_Z0;
-		//Shadow_VertexProjected0 =  ScaleMatrix * Shadow_VertexProjected0;
+	    #ifndef NUM_STABLE
+			Shadow_Z0 = Shadow_View0 *  worldPosition;
+			Shadow_VertexProjected0 = Shadow_Projection0 * Shadow_Z0;
+		#else
+			Shadow_Z0 =  worldPosition;
+			Shadow_VertexProjected0 = Shadow_Projection0 * Shadow_View0 * Shadow_Z0;
+	    #endif
 	}
 	if (Light1_uniform_enable == 1) {
-		Shadow_Z1 =  Shadow_View1 * worldPosition;
-		Shadow_VertexProjected1 =  Shadow_Projection1  * Shadow_Z1;
-		//Shadow_VertexProjected1 =  ScaleMatrix * Shadow_VertexProjected1;
+	    #ifndef NUM_STABLE
+			Shadow_Z1 = Shadow_View1 *  worldPosition;
+			Shadow_VertexProjected1 = Shadow_Projection1 * Shadow_Z1;
+		#else
+			Shadow_Z1 =  worldPosition;
+			Shadow_VertexProjected1 = Shadow_Projection1 * Shadow_View1 * Shadow_Z1;
+	    #endif
 	}
 	if (Light2_uniform_enable == 1) {
-		Shadow_Z2 =  Shadow_View2 * worldPosition;
-		Shadow_VertexProjected2 =  Shadow_Projection2   *  Shadow_Z2;
-		//Shadow_VertexProjected2 =  ScaleMatrix * Shadow_VertexProjected1;
+	    #ifndef NUM_STABLE
+			Shadow_Z2 = Shadow_View2 *  worldPosition;
+			Shadow_VertexProjected2 = Shadow_Projection2 * Shadow_Z2;
+		#else
+			Shadow_Z2 =  worldPosition;
+			Shadow_VertexProjected2 = Shadow_Projection2 * Shadow_View2 * Shadow_Z2;
+	    #endif
 	}
 
 	FragTexCoord0 = TexCoord0;

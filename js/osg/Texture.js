@@ -279,7 +279,6 @@ osg.Texture.prototype = osg.objectLibraryClass(osg.objectInehrit(osg.StateAttrib
 
         gl.texParameteri(target, gl.TEXTURE_WRAP_S, this._wrapS);
         gl.texParameteri(target, gl.TEXTURE_WRAP_T, this._wrapT);
-
         },
 
         generateMipmap: function(gl, target) {

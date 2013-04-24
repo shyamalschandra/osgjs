@@ -72,6 +72,11 @@ uniform sampler2D Texture1;
 uniform sampler2D Texture2;
 uniform sampler2D Texture3;
 
+uniform float bias;
+uniform float vsmEpsilon;
+uniform float exponent;
+uniform float exponent1;
+
 varying vec4 Shadow_VertexProjected0;
 varying vec4 Shadow_VertexProjected1;
 varying vec4 Shadow_VertexProjected2;
@@ -85,12 +90,6 @@ varying vec2 FragTexCoord0;
 
 #pragma include "common.frag"
 
-float k_esm_value = 50.0;
-
-
-
-const vec2 g_EVSMExponents = vec2(20.0, 10.0);
-const float g_EVSM_Derivation = 0.001;
 
 // Convert depth to EVSM coefficients
 // Input depth should be in [0, 1]
@@ -126,25 +125,33 @@ float ChebyshevUpperBound(vec2 moments, float mean, float minVariance)
 // Purpose: Perform the exponential variance shadow map
 float computeShadowTerm(vec4 shadowVertexProjected, vec4 shadowZ, sampler2D tex, vec4 texSize, vec4 depthRange, vec4 lightPos)
 {
-    // Perform the linear filtering
-   vec4 spProj = shadowVertexProjected;
-     spProj.z = spProj.z + 0.005;
-
-    vec2 shadowUV = (spProj.xy/spProj.w).xy;
+    vec2 shadowUV = (shadowVertexProjected.xy/shadowVertexProjected.w).xy;
     shadowUV.xy = shadowUV.xy* 0.5 + 0.5;
-    if (shadowUV.x > 1.0 || shadowUV.y > 1.0 || shadowUV.x < 0.0 || shadowUV.y < 0.0)
-     return 1.0;// 0.0 to show limits of light frustum
+
+     // outside light frustum, ignore
+    if (shadowUV.x >= 1.0 || shadowUV.y >= 1.0 || shadowUV.x <= 0.0 || shadowUV.y <= 0.0)
+     return 1.0;// turn to 0.0 in order to show limits of light frustum,
 
     
     vec4 occluder =  texture2D(tex, shadowUV);
 
-    vec2 exponents = g_EVSMExponents;
-    //float depth = length(shadowZ.xyz);
-    float depth = -shadowZ.z;
-    depth =  (depth - depthRange.x)* depthRange.w;// linerarize (aka map z to near..far to 0..1)
-    depth =   clamp(depth, 0.0, 1.0);
-    vec2 warpedDepth = WarpDepth(depth, exponents);
+    vec2 exponents = vec2(exponent, exponent1);
+    
+    float objDepth;
+    //#define NUM_STABLE
+    #ifndef NUM_STABLE
+      objDepth = -shadowZ.z;
+      objDepth =  (objDepth - depthRange.x)* depthRange.w;// linerarize (aka map z to near..far to 0..1)
+      objDepth =   clamp(objDepth, 0.0, 1.0);
+    #else
+      objDepth =  length(lightPos.xyz - shadowZ.xyz );
+      objDepth =  (objDepth - depthRange.x)* depthRange.w;// linerarize (aka map z to near..far to 0..1)
+      objDepth =   clamp(objDepth, 0.0, 1.0);
 
+    #endif
+    vec2 warpedDepth = WarpDepth(objDepth, exponents);
+
+    float g_EVSM_Derivation = vsmEpsilon;
     // Derivative of warping at depth
     vec2 depthScale = g_EVSM_Derivation * exponents * warpedDepth;
     vec2 minVariance = depthScale * depthScale;

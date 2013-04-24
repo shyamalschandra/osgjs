@@ -71,6 +71,10 @@ uniform sampler2D Texture1;
 uniform sampler2D Texture2;
 uniform sampler2D Texture3;
 
+uniform float bias;
+uniform float VsmEpsilon;
+uniform float exponent;
+
 varying vec4 Shadow_VertexProjected0;
 varying vec4 Shadow_VertexProjected1;
 varying vec4 Shadow_VertexProjected2;
@@ -98,14 +102,21 @@ float computeShadowTerm(vec4 shadowVertexProjected, vec4 shadowZ, sampler2D tex,
 
     vec4 depth =  texture2D(tex, shadowUV.xy);
     vec2 moments = depth.xy;
-    float objDepth = -shadowZ.z;
-    objDepth =  (objDepth - depthRange.x)* depthRange.w;// linerarize (aka map z to near..far to 0..1)
-    objDepth =   clamp(objDepth, 0.0, 1.0);
+    float objDepth;
+    //#define NUM_STABLE
+    #ifndef NUM_STABLE
+      objDepth = -shadowZ.z;
+      objDepth =  (objDepth - depthRange.x)* depthRange.w;// linerarize (aka map z to near..far to 0..1)
+      objDepth =   clamp(objDepth, 0.0, 1.0);
+    #else
+      objDepth =  length(lightPos.xyz - shadowZ.xyz );
+      objDepth =  (objDepth - depthRange.x)* depthRange.w;// linerarize (aka map z to near..far to 0..1)
+      objDepth =   clamp(objDepth, 0.0, 1.0);
 
-    float vsmEpsilon = -0.001;
-    float shadowBias = 0.02;
+    #endif
+    float shadowBias = bias;
     // Chebyshev inequality
-    return ChebyshevUpperBound(moments, objDepth, shadowBias, vsmEpsilon);
+    return ChebyshevUpperBound(moments, objDepth, shadowBias, VsmEpsilon);
 }
 
 void main(void) {
@@ -192,7 +203,7 @@ void main(void) {
           lightColor += Light0_uniform_enable == 0 ? nullColor : (LightColor0 * 0.5 + 0.5 * (computeShadowTerm(Shadow_VertexProjected0, Shadow_Z0, Texture1, Shadow_MapSize0, Shadow_DepthRange0, Light0_uniform_position)));
           lightColor += Light1_uniform_enable == 0 ? nullColor : (LightColor1 * 0.5 + 0.5 * (computeShadowTerm(Shadow_VertexProjected1, Shadow_Z1, Texture2, Shadow_MapSize1, Shadow_DepthRange1, Light1_uniform_position)));
           lightColor += Light2_uniform_enable == 0 ? nullColor : (LightColor2 * 0.5 + 0.5 * (computeShadowTerm(Shadow_VertexProjected2, Shadow_Z2, Texture3, Shadow_MapSize2, Shadow_DepthRange2, Light2_uniform_position)));
-      #endif  
+      #endif
   #endif
 #else
       lightColor += Light0_uniform_enable == 0 ? nullColor : (LightColor0 * (computeShadowTerm(Shadow_VertexProjected0, Shadow_Z0, Texture1, Shadow_MapSize0, Shadow_DepthRange0, Light0_uniform_position)));

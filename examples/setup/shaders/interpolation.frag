@@ -12,13 +12,13 @@ float cubicInterpolation(in float t, float v0, float v1, float v2, float v3) {
 
 	// Uniform cubic B-splines
 	// http://en.wikipedia.org/wiki/B-spline#Cubic_B-Spline
-	mat4 M = {
+	mat4 M =  mat4(
 		-1.0,  3.0, -3.0,  1.0,
 		 3.0, -6.0,  3,  0.0,
 		-3.0,  0.0,  3,  0.0,
 		 1.0,  4.0,  1.0,  0.0
-	};
-	return (1.0/6) * dot(vec4(t*t*t, t*t, t, 1), mul(M, vec4(v0, v1, v2, v3)));
+	);
+	return (1.0/6.0) * dot(vec4(t*t*t, t*t, t, 1), mul(M, vec4(v0, v1, v2, v3)));
 }
 
 // The straight forward implementation of bi-cubic interpolation
@@ -63,13 +63,13 @@ float bicubicInterpolationFast(in vec2 uv, in sampler2D tex, in vec2 texSize) {
 	vec2 index = floor(coord_hg);
 
 	vec2 f = coord_hg - index;
-	mat4 M = {
-		-1,  3, -3,  1,
-		 3, -6,  3,  0,
-		-3,  0,  3,  0,
-		 1,  4,  1,  0
-	};
-	M /= 6;
+	mat4 M =  mat4(
+		-1.0,  3.0, -3.0,  1.0,
+		 3.0, -6.0,  3,  0.0,
+		-3.0,  0.0,  3,  0.0,
+		 1.0,  4.0,  1,  0.0
+	);
+	M /= 6.0;
 
 	vec4 wx = mul(vec4(f.x*f.x*f.x, f.x*f.x, f.x, 1), M);
 	vec4 wy = mul(vec4(f.y*f.y*f.y, f.y*f.y, f.y, 1), M);
@@ -93,10 +93,10 @@ float bicubicInterpolationFast(in vec2 uv, in sampler2D tex, in vec2 texSize) {
 	coord01 = (coord01 + 0.5) * rec_nrCP;
 	coord11 = (coord11 + 0.5) * rec_nrCP;
 
-	float tex00 = tex2Dlod(tex, vec4(coord00, 0, 0)).x;
-	float tex10 = tex2Dlod(tex, vec4(coord10, 0, 0)).x;
-	float tex01 = tex2Dlod(tex, vec4(coord01, 0, 0)).x;
-	float tex11 = tex2Dlod(tex, vec4(coord11, 0, 0)).x;
+	float tex00 = tex2D(tex, coord00).x;
+	float tex10 = tex2D(tex, coord10).x;
+	float tex01 = tex2D(tex, coord01).x;
+	float tex11 = tex2D(tex, coord11).x;
 
 	tex00 = lerp(tex01, tex00, g0.y);
 	tex10 = lerp(tex11, tex10, g0.y);

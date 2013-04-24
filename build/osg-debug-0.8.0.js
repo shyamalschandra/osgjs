@@ -4155,6 +4155,22 @@ osg.Light.prototype = osg.objectLibraryClass( osg.objectInehrit(osg.StateAttribu
         osg.Matrix.inverse(uniform.invMatrix.get(), uniform.invMatrix.get());
         osg.Matrix.transpose(uniform.invMatrix.get(), uniform.invMatrix.get());
         uniform.invMatrix.dirty();
+        /*
+        Done in shader using invmatrix...
+        here position is to set if lightspace or world space lighting
+        this._position[0] = -matrix[12];
+        this._position[1] = -matrix[13];
+        this._position[2] = -matrix[14];
+        uniform.position.set(this._position);
+        uniform.position.dirty();
+
+        here direction is to set axis aligned (Z is front going of not.)
+        this._direction[0] = matrix[8];
+        this._direction[1] = matrix[9];
+        this._direction[2] = matrix[10];
+        uniform.direction.set(this._direction);
+        uniform.direction.dirty();
+        */
     },
 
     apply: function(state)
@@ -8080,7 +8096,6 @@ osg.Texture.prototype = osg.objectLibraryClass(osg.objectInehrit(osg.StateAttrib
 
         gl.texParameteri(target, gl.TEXTURE_WRAP_S, this._wrapS);
         gl.texParameteri(target, gl.TEXTURE_WRAP_T, this._wrapT);
-
         },
 
         generateMipmap: function(gl, target) {
@@ -8809,7 +8824,7 @@ osg.CullVisitor.prototype = osg.objectInehrit(osg.CullStack.prototype ,osg.objec
         var matrix = this._reserveMatrixModelStack.getReserved();
         var recomputeMatrix = this._reserveMatrixModelStack.isDirty();
         if (recomputeMatrix) {
-            //matrix = osg.Matrix.mult(this.getCurrentViewMatrix(), this.getCurrentModelviewMatrix(), matrix);
+            matrix = osg.Matrix.mult(this.getCurrentViewMatrix(), this.getCurrentModelMatrix(), matrix);
         }
         this._currentRenderBin.getStage().positionedAttribute.push([matrix, attribute]);
     },
@@ -15944,8 +15959,10 @@ function makeDebugContext(ctx, opt_onErrorFunc) {
                 loseContextIfTime();
                 var err;
                 if (!contextLost_) {
-                    while (err = unwrappedContext_.getError()) {
+                    err = unwrappedContext_.getError();
+                    while (err) {
                         glErrorShadow_[err] = true;
+                        err = unwrappedContext_.getError();
                     }
                 }
                 for (err in glErrorShadow_) {
@@ -19043,8 +19060,7 @@ osgDB.ObjectWrapper.serializers.osgAnimation.StackedRotateAxis = function(input,
  *  @class ShadowScene
  */
 osg.ShadowScene = function(sceneCamera, lightNode, technique, ReceivesShadowTraversalMask) {
-	osg.Transform.call(this);
-	osg.CullSettings.call(this);
+	osg.Node.call(this);
 
 	if (!ReceivesShadowTraversalMask) ReceivesShadowTraversalMask = 0x1;
 	this._receivesShadowTraversalMask = ReceivesShadowTraversalMask;
@@ -19054,29 +19070,16 @@ osg.ShadowScene = function(sceneCamera, lightNode, technique, ReceivesShadowTrav
 	this._technique = technique;
 
 	// scene models (shadow receiver)
-	this._shadowReceiverScene = new osg.Node();
-	this._stateSet = this.getorCreateStateSet();
 };
 
 /** @lends osg.ShadowScene.prototype */
 osg.ShadowScene.prototype = osg.objectLibraryClass(osg.objectInehrit(
-osg.CullSettings.prototype,
-osg.objectInehrit(osg.Transform.prototype, {
-	hasChild: function(child) {
-		return this._ShadowedScene.hasChild(child);
+osg.Node.prototype, {
+	setSceneCamera: function(light) {
+		this._camera = _camera;
 	},
-	removeChildren: function() {
-		this._ShadowedScene.removeChildren();
-	},
-	removeChild: function(child) {
-		this._ShadowedScene.removeChild(child);
-	},
-	addChild: function(child) {
-		child.setNodeMask(child.getNodeMask() | this._receivesShadowTraversalMask);
-		return this._ShadowedScene.addChild(child);
-	},
-	getChildren: function() {
-		return this._ShadowedScene.getChildren();
+	getSceneCamera: function() {
+		return this._camera;
 	},
 	setLightSource: function(light) {
 		this._lightNode = _lightSource;
@@ -19091,7 +19094,7 @@ osg.objectInehrit(osg.Transform.prototype, {
 		return this._technique;
 	}
 
-})), "osg", "Shadow");
+}), "osg", "Shadow");
 osg.ShadowScene.prototype.objectType = osg.objectType.generate("ShadowScene");
 /** -*- compile-command: "jslint-cli Node.js" -*- */
 
@@ -19255,7 +19258,213 @@ osg.ShadowTechnique.prototype = osg.objectLibraryClass(osg.objectInehrit(osg.Sta
 			return this._shaderCommon[type].call(this);
 		}
 		return "";
+	},
+	setShadowReceiving: function(receivers, sceneCamera, ReceivesShadowTraversalMask) {
+
+		//sceneCamera.traversalMask = ReceivesShadowTraversalMask;
+		// applies on receivers selection for material state set apply only ?
+
+		// scene models (shadow receiver)
+		var shadowReceiverScene = new osg.Node();
+		shadowReceiverScene.addChild(receivers);
+
+		var shadowmapReceiverVertex;
+		var shadowmapReceiverFragment;
+		var floatTexSupp = osg.profile.extensions['OES_texture_float'];
+		if (floatTexSupp && window.location.href.indexOf("EVSM") != -1) {
+			shadowmapReceiverVertex = "shadowmap_evsm_receive.vert";
+			shadowmapReceiverFragment = "shadowmap_evsm_receive.frag";
+		} else if (floatTexSupp && window.location.href.indexOf("VSM") != -1) {
+			shadowmapReceiverVertex = "shadowmap_vsm_receive.vert";
+			shadowmapReceiverFragment = "shadowmap_vsm_receive.frag";
+		} else {
+			shadowmapReceiverVertex = "shadowmap_receive.vert";
+			shadowmapReceiverFragment = "shadowmap_receive.frag";
+		}
+
+		var stateSet = new osg.StateSet();
+		prg = getProgramFromShaders(shadowmapReceiverVertex, shadowmapReceiverFragment);
+		stateSet.setAttributeAndMode(prg, osg.StateAttribute.ON | osg.StateAttribute.OVERRIDE);
+
+		stateSet.addUniform(osg.Uniform.createInt1(0, "Texture0"));
+
+		prg.trackAttributes = {};
+		prg.trackAttributes.attributeKeys = [];
+		prg.trackAttributes.attributeKeys.push('Material');
+
+		prg.trackAttributes.attributeKeys.push('Light0');
+		prg.trackAttributes.attributeKeys.push('Light1');
+		prg.trackAttributes.attributeKeys.push('Light2');
+
+		var texturedebug = window.location.href.indexOf('textureDebug') !== -1 ? 0 : 1;
+		var debugUniform = osg.Uniform.createFloat1(texturedebug, 'debug');
+		stateSet.addUniform(debugUniform);
+
+
+		shadowReceiverScene.setStateSet(stateSet);
+		return shadowReceiverScene;
+	},
+
+	setShadowCasting: function(receivers, lightsource, position, num, CastsShadowTraversalMask) {
+
+
+
+		var shadowCamera = new osg.Camera();
+		shadowCamera.setName("light_perspective_camera" + num);
+		shadowCamera.traversalMask = CastsShadowTraversalMask;
+		// scene models (shadow caster)
+		//  filled upon distance from light and node/geom mask and transparency
+		var shadowCasterScene = new osg.MatrixTransform();
+		shadowCasterScene.addChild(receivers);
+		shadowCamera.addChild(shadowCasterScene);
+
+		var mapsize = 256;
+		shadowSize = [mapsize, mapsize, 1.0 / mapsize, 1.0 / mapsize];
+
+		// important because we use linear zbuffer
+		var near = 0.0;
+		var far = 1.0;
+
+
+		// update projection each frame, at least near/far but better a computed matrix
+		shadowCamera.setProjectionMatrix(osg.Matrix.makePerspective(15, 1, near, far));
+
+		// update order upon render shadow/ render scene/postproc/etc. inehritance.
+		shadowCamera.setRenderOrder(osg.Camera.PRE_RENDER, 0);
+		shadowCamera.setReferenceFrame(osg.Transform.ABSOLUTE_RF);
+		shadowCamera.setViewport(new osg.Viewport(0, 0, shadowSize[0], shadowSize[1]));
+		shadowCamera.setClearColor([1.0, 1.0, 1.0, 1.0]);
+
+
+
+		var shadowmapCasterVertex;
+		var shadowmapCasterFragment;
+		var floatTexSupp = osg.profile.extensions['OES_texture_float'];
+		var textureType, textureFormat;
+		if (floatTexSupp && window.location.href.indexOf("EVSM") != -1) {
+			shadowmapCasterVertex = "shadowmap_evsm_cast.vert";
+			shadowmapCasterFragment = "shadowmap_evsm_cast.frag";
+			textureType = osg.Texture.FLOAT;
+			textureFormat = osg.Texture.RGBA;
+		} else if (floatTexSupp && window.location.href.indexOf("VSM") != -1) {
+			shadowmapCasterVertex = "shadowmap_vsm_cast.vert";
+			shadowmapCasterFragment = "shadowmap_vsm_cast.frag";
+			textureType = osg.Texture.FLOAT;
+			textureFormat = osg.Texture.RGB;
+		} else {
+			shadowmapCasterVertex = "shadowmap_cast.vert";
+			shadowmapCasterFragment = "shadowmap_cast.frag";
+			textureType = osg.Texture.UNSIGNED_BYTE;
+			textureFormat = osg.Texture.RGBA;
+		}
+
+
+		var prg = getProgramFromShaders(shadowmapCasterVertex, shadowmapCasterFragment);
+		var casterStateSet = shadowCasterScene.getOrCreateStateSet();
+		casterStateSet.setAttributeAndMode(prg, osg.StateAttribute.ON | osg.StateAttribute.OVERRIDE);
+
+		//casterStateSet.setAttributeAndMode(new osg.CullFace(osg.CullFace.DISABLE), osg.StateAttribute.ON | osg.StateAttribute.OVERRIDE);
+		//casterStateSet.setAttributeAndMode(new osg.CullFace(osg.CullFace.BACK), osg.StateAttribute.ON | osg.StateAttribute.OVERRIDE);
+
+		//prevent unessecary texture bindings
+		casterStateSet.setTextureAttributeAndMode(0, new osg.Texture(), osg.StateAttribute.OFF | osg.StateAttribute.OVERRIDE);
+		casterStateSet.setTextureAttributeAndMode(1, new osg.Texture(), osg.StateAttribute.OFF | osg.StateAttribute.OVERRIDE);
+		casterStateSet.setTextureAttributeAndMode(2, new osg.Texture(), osg.StateAttribute.OFF | osg.StateAttribute.OVERRIDE);
+		casterStateSet.setTextureAttributeAndMode(3, new osg.Texture(), osg.StateAttribute.OFF | osg.StateAttribute.OVERRIDE);
+
+		//casterStateSet.setAttributeAndMode(new osg.BlendFunc('ONE', 'ZERO'));
+		//casterStateSet.setAttributeAndMode(new osg.Depth('LESS', 0.0, 1.0, false));
+
+
+		var depthRange = new osg.Uniform.createFloat4([near, far, far - near, 1.0 / (far - near)], "Shadow_DepthRange");
+		var projectionShadowCast = new osg.Uniform.createMatrix4(osg.Matrix.makeIdentity([]), "Shadow_Projection");
+		var viewShadowCast = new osg.Uniform.createMatrix4(osg.Matrix.makeIdentity([]), "Shadow_View");
+		//var invShadowViewMatrixUniform = osg.Uniform.createMatrix4(shadowCamera.getViewMatrix(), 'invShadowViewMatrix');
+
+		casterStateSet.addUniform(depthRange);
+		casterStateSet.addUniform(projectionShadowCast);
+		casterStateSet.addUniform(viewShadowCast);
+		//casterStateSet.addUniform(invShadowViewMatrixUniform);
+
+
+		var shadowTexture = new osg.Texture();
+		shadowTexture.setName("shadow" + num);
+		shadowTexture.setTextureSize(shadowSize[0], shadowSize[1]);
+		shadowTexture.setType(textureType);
+		shadowTexture.setInternalFormat(textureFormat);
+
+		//shadowTexture.setMinFilter('NEAREST');
+		//shadowTexture.setMagFilter('NEAREST');
+
+		shadowTexture.setMinFilter('LINEAR');
+		shadowTexture.setMagFilter('LINEAR');
+
+		shadowTexture.setWrapS(osg.Texture.CLAMP_TO_EDGE);
+		shadowTexture.setWrapT(osg.Texture.CLAMP_TO_EDGE);
+		shadowCamera.attachTexture(gl.COLOR_ATTACHMENT0, shadowTexture, 0);
+		shadowCamera.attachRenderBuffer(gl.DEPTH_ATTACHMENT, gl.DEPTH_COMPONENT16);
+
+
+		// LIGHT SHADOW RELATION
+		lightsource.addChild(shadowCamera);
+
+		var doBlur = true;
+		var doDownSample = 1;
+		var shadowTextureFinal = shadowTexture;
+		var shadowSizeFinal = shadowSize;
+		//var shadowSizeFinal shadowSize.slice(0);//cp by value
+		while (doDownSample-- && shadowSizeFinal[0] > 64) {
+			var halfPass;
+			halfPass = addHalfDownSample(shadowTextureFinal, shadowSizeFinal);
+			shadowTextureFinal = halfPass.texture;
+			shadowSizeFinal[0] *= 0.5;
+			shadowSizeFinal[1] *= 0.5;
+			shadowSizeFinal[2] *= 2.0;
+			shadowSizeFinal[3] *= 2.0;
+			lightsource.addChild(halfPass.camera);
+
+		}
+		if (doBlur) {
+			var blurPass;
+			blurPass = addBlur(shadowTextureFinal, shadowSizeFinal);
+			shadowTextureFinal = blurPass.texture;
+			lightsource.addChild(blurPass.camera);
+		}
+
+		lightsource.getOrCreateStateSet().setAttributeAndMode(lightsource.getLight());
+
+
+		var stateSet = receivers.getOrCreateStateSet();
+
+		stateSet.setTextureAttributeAndMode(num + 1, shadowTextureFinal, osg.StateAttribute.ON | osg.StateAttribute.OVERRIDE);
+		stateSet.addUniform(osg.Uniform.createInt1(num + 1, "Texture" + (num + 1)));
+
+		var depthRangeNum = new osg.Uniform.createFloat4([near, far, far - near, 1.0 / (far - near)], "Shadow_DepthRange" + num);
+		var shadowMapSizeNum = new osg.Uniform.createFloat4(shadowSize, "Shadow_MapSize" + num);
+		var projectionShadowNum = new osg.Uniform.createMatrix4(osg.Matrix.makeIdentity([]), "Shadow_Projection" + num);
+		var viewShadowNum = new osg.Uniform.createMatrix4(osg.Matrix.makeIdentity([]), "Shadow_View" + num);
+
+		stateSet.addUniform(projectionShadowNum);
+		stateSet.addUniform(viewShadowNum);
+		stateSet.addUniform(depthRangeNum);
+		stateSet.addUniform(shadowMapSizeNum);
+
+		lightsource.setUpdateCallback(new LightUpdateCallbackShadowMap({
+			'projectionShadow': projectionShadowNum,
+			'viewShadow': viewShadowNum,
+			'depthRangeNum': depthRangeNum,
+			'projectionShadowCast': projectionShadowCast,
+			'viewShadowCast': viewShadowCast,
+			'camera': shadowCamera,
+			'position': position,
+			'shadowCasterScene': shadowCasterScene,
+			'depthRange': depthRange
+			//'invShadowViewMatrix': invShadowViewMatrixUniform
+		}));
+
+		return lightsource;
 	}
+
 
 
 }), "osg", "ShadowTechnique");

@@ -80,32 +80,42 @@ var paramCurrent = {};
 var iframeChange = function(option, type) {
   var myIframe = document.getElementById('iframedemo');
   var url, param;
-  param = '';
   url = myIframe.src;
+  param = '?';
+  var parametersURL = {};
   if (url.indexOf('?') !== -1) {
       //todo: handle models and debug option
     param = '?';
-    url = url.split('?')[0];
-  }
-  else {
-    param = '?';
+    parametersURL = url.split('?');
+    url = parametersURL[0];
+    if (parametersURL.length > 1){
+        parametersURL = parametersURL[1];
+        parametersURL = parametersURL.replace(/^&/g, "").replace(/&/g, "\",\"").replace(/=/g,"\":\"");
+        parametersURL = decodeURI(parametersURL);
+        parametersURL = JSON.parse('{"' + parametersURL + '"}');
+    }
+    else{
+      parametersURL = {};
+    }
   }
 
-  switch (type){
-  case 'scene':
+
+  if (type === 'scene')
       url = "../examples/" + option ;
-      break;
-  case 'debug':
+  else if (type === 'debug'){
       if (option.indexOf('debug') !== -1)
         param += "&debug=1";
       if (option.indexOf('stats') !== -1)
         param += "&stats=1";
       if (option.indexOf('DebugPromise') !== -1)
         param += "&DebugPromise=1";
-      break;
-  case 'model':
-      param += "&model=" + option ;
-      break;
+  }
+  else{
+      parametersURL[type] = option;
+  }
+
+  for (var optionName in parametersURL){
+    param += '&' + optionName + '=' + parametersURL[optionName];
   }
   console.log(url+param);
   myIframe.src = url + param;

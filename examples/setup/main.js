@@ -18,21 +18,112 @@
  *
  */
 
-var shaderLoader;
+var started, parametersURL, parameterUniform = {}, lights = [], shaderLoader;
 
-var viewMatrixCallbackShadowMap = function(options) {
-    this.invViewMatrix = options.invViewMatrix;
-    this.camera = options.camera;
-    this.invViewMat = [];
+// UI auto-tweaking parameters utilities using url params
+// with memory/overwrite
+// and combobox, slider, checkbox initialisation
+// with default value  and url parameters
+parametersURL = {
+    'texturesize': 256,
+    'shadow': 'Variance Shadow Map (VSM)',
+    'textureformat': 'Autodetect',
+    'lightnum': 1,
+    'bias': 0.001,
+    'VsmEpsilon': 0.001,
+    'exponent': 40,
+    'blur': 1,
+    'msaa': 1,
+    'model' : 'ogre',
+    'shadowstable': 'World Position',
+    'shadowproj': 'fov',
+    'fov': 30,
+    'exponent1': 10.0,
+    'lightselect': 0,
+    '_spotCutoff' : 180.0,
+    '_spotBlend' : 0.01,
+    '_constantAttenuation' : 1.0,
+    '_linearAttenuation' : 0.0,
+    '_quadraticAttenuation' : 0.0
 };
-viewMatrixCallbackShadowMap.prototype = {
-    update: function(node, nv) {
-        osg.Matrix.inverse(this.camera.getViewMatrix(),  this.invViewMat );
-        this.invViewMatrix.set(this.invViewMat);
-        node.traverse(nv);
+
+var urlParam = window.location.href;
+if (urlParam.indexOf('?') !== -1) {
+    urlParam = urlParam.split('?')[1];
+    if (urlParam.length > 1) {
+        urlParam = urlParam.replace(/^&/g, "").replace(/&/g, "\",\"").replace(/=/g, "\":\"");
+        urlParam = decodeURI(urlParam);
+        urlParam = JSON.parse('{"' + urlParam + '"}');
+        for (var option in urlParam) {
+            var val = parseFloat(urlParam[option]);
+            if (!isNaN(val))
+                parametersURL[option] = val;
+            else
+                parametersURL[option] = urlParam[option];
+        }
+    }
+}
+
+
+var paramChange = function(valueName, optionName, noReload, light) {
+    if (started){
+
+        var url = window.location.href;
+        if (url.indexOf('?') !== -1) {
+            param = '?';
+            url = url.split('?')[0];
+        } else {
+            param = '?';
+        }
+        var didChange = false;
+        if (valueName.indexOf('+') !== -1){
+            if (parametersURL[debug]){
+                parametersURL['vanilla'] = undefined;
+                parametersURL['stats'] = undefined;
+                parametersURL['debug'] = undefined;
+                parametersURL['stats'] = undefined;
+                parametersURL['DebugPromise'] = undefined;
+            }
+            var valueEnabled = valueName.split('+');
+            var i = valueEnabled.length;
+            while (i--){
+                parametersURL[valueName[i]] = 1;
+            }
+        }
+        else{
+            var val = parseFloat(valueName);
+            if (!isNaN(val)){
+                didChange =  parametersURL[optionName] !== val;
+                parametersURL[optionName] = val;
+            }
+            else{
+                didChange =  parametersURL[optionName] !== valueName;
+                parametersURL[optionName] = valueName;
+            }
+        }
+
+        for (var option in parametersURL) {
+            param += '&' + option + '=' + parametersURL[option];
+        }
+        if (!noReload){
+            if (didChange)
+                window.location.href = url + param;
+        }
+        else{
+            if (light){
+                currentLight = lights[parametersURL['lightselect']];
+                currentLight[ optionName] = parametersURL[optionName];
+                currentLight.dirty();
+            }
+            else{
+                for (option in parametersURL) {
+                    if (parameterUniform[option])
+                        parameterUniform[option].set(parametersURL[option]);
+                }
+            }
+        }
     }
 };
-
 
 var LightUpdateCallbackShadowMap = function(options) {
 
@@ -47,7 +138,6 @@ var LightUpdateCallbackShadowMap = function(options) {
     //this.invShadowViewMatrix = options.invShadowViewMatrix;
     this.lightTarget = [0.0, 0.0, -5.0];
     this.worldlightTarget = [];
-    this.invViewMat  = [];
     if (options.position) this.lightPositionProjTexOrig = options.position;
     else this.lightPositionProjTexOrig = [50.0, 50.0, 80.0, 0.0];
     this.lightPositionProjTex = [0.0, 0.0, 0.0, 0.0];
@@ -73,7 +163,7 @@ LightUpdateCallbackShadowMap.prototype = {
         var currentTime = nv.getFrameStamp().getSimulationTime() * 0.25;
 
 
-        if (node.getLight()._enabled){
+        if (node.getLight()._enabled) {
 
             // animation !
             this.lightPositionProjTex[0] = this.lightPositionProjTexOrig[0] * (Math.cos(currentTime) + this.lightPositionProjTexOrig[3]); //x
@@ -93,12 +183,11 @@ LightUpdateCallbackShadowMap.prototype = {
 
 
 
-            var up = [0, 0, 1]; //  Z camera up
+            var up = [0, 1, 0]; //  Y camera up
             // Check it's not coincident with lightdir
-            if (Math.abs(osg.Vec3.dot(up, lightDir)) >= 1.0)
-            {
-                // Use Y camera up
-                up = [0, 1, 0];
+            if (Math.abs(osg.Vec3.dot(up, lightDir)) >= 1.0) {
+                // Use Z camera up
+                up = [1, 0, 0];
             }
 
 
@@ -116,35 +205,42 @@ LightUpdateCallbackShadowMap.prototype = {
             osg.Matrix.makeLookAt(this.worldLightPos, this.worldlightTarget, up, this.camera.getViewMatrix());
             //this.shadowCasterScene.setMatrix(worldMatrix);
 
-           // osg.Matrix.mult(this.camera.pureViewMatrix, worldMatrix, this.shadowView);
+            // osg.Matrix.mult(this.camera.pureViewMatrix, worldMatrix, this.shadowView);
             osg.Matrix.copy(this.camera.getViewMatrix(), this.shadowView);
 
             // LIGHT PROJ MATRIX
             // update depth range camera with  light parameters
             // camera proj matrix should be automatically updated by update/culling ?
-            if (this.camera.near !== undefined && this.camera.far !== undefined){
+            if (this.camera.near !== undefined && this.camera.far !== undefined) {
                 var near = this.camera.near;
-                var far =  this.camera.far + 1;
-
+                var far = this.camera.far;
+                if (near === far) {
+                    far += 1;
+                }
 
                 this.depthRange.set([near, far, far - near, 1.0 / (far - near)]);
                 this.depthRangeNum.set([near, far, far - near, 1.0 / (far - near)]);
 
+                if (parametersURL['shadowproj'] === 'fov'){
+                    // spot light get spot light angle/frustum
+                    var fov =parametersURL['fov'];
+                    this.camera.setProjectionMatrix(osg.Matrix.makePerspective(fov, 1, near, far));
+                }
+                else{
+                    // Dir light
+                    // get scene bbox ?
+                    var min = this.camera.boundingbox._min;
+                    var max = this.camera.boundingbox._max;
+                    /*   var ortho = [
+                        2.0 / max[0] - min[0], 0.0, 0.0, 0.0,
+                        0.0, 2.0 / max[1] - min[1], 0.0, 0.0,
+                        0.0, 0.0, 1.0 / (far - near), -1.0 * near / (far - near),
+                        0.0, 0.0, 0.0, 1.0];
 
-                // spot light get spot light angle/frustum
-                this.camera.setProjectionMatrix(osg.Matrix.makePerspective(30, 1, near, far));
-
-                // Dir light
-                // get scene bbox ?
-                var min = this.camera.boundingbox._min;
-                var max = this.camera.boundingbox._max;
-           /*   var ortho = [
-                    2.0 / width, 0.0, 0.0, 0.0,
-                    0.0, 2.0 / height, 0.0, 0.0,
-                    0.0, 0.0, 1.0 / (far - near), -1.0 * near / (far - near),
-                    0.0, 0.0, 0.0, 1.0]
-        */
-                this.camera.setProjectionMatrix(osg.Matrix.makeOrtho(min[0], max[0], min[1], max[1], min[2], max[2]));
+                    this.camera.setProjectionMatrix(ortho);
+            */
+                    this.camera.setProjectionMatrix(osg.Matrix.makeOrtho(min[0], max[0], min[1], max[1], min[2], max[2]));
+                }
 
             }
 
@@ -153,7 +249,7 @@ LightUpdateCallbackShadowMap.prototype = {
 
             // udpate shader Parameters
             //this.projectionShadowCast.set(this.shadowProj);
-           // this.viewShadowCast.set(this.shadowView);
+            // this.viewShadowCast.set(this.shadowView);
 
             this.projectionShadow.set(this.shadowProj);
             this.viewShadow.set(this.shadowView);
@@ -170,10 +266,10 @@ LightUpdateCallbackShadowMap.prototype = {
 };
 
 
-function getProgramFromShaders(vs, ps) {
+function getProgramFromShaders(vs, ps, defines) {
 
-    var vertexshader = shaderLoader.getShaderText(vs);
-    var fragmentshader = shaderLoader.getShaderText(ps);
+    var vertexshader = shaderLoader.getShaderText(vs, defines);
+    var fragmentshader = shaderLoader.getShaderText(ps, defines);
     console.log(fragmentshader);
 
     var program = new osg.Program(
@@ -193,20 +289,35 @@ function setShadowReceiving(receivers, sceneCamera, ReceivesShadowTraversalMask)
 
     var shadowmapReceiverVertex;
     var shadowmapReceiverFragment;
-    var floatTexSupp = osg.profile.extensions['OES_texture_float'];
-    if (floatTexSupp && window.location.href.indexOf("EVSM") != -1) {
+    var defines = [];
+    if(parametersURL['shadowstable'] === 'World Position')
+        defines.push('#define NUM_STABLE');
+    var floatTexSupp = osg.profile.extensions['OES_texture_float'] && parametersURL['textureformat'] !== 'Force8bits';
+    if (floatTexSupp && parametersURL['shadow'] === 'Exponential Variance Shadow Map (EVSM)') {
         shadowmapReceiverVertex = "shadowmap_evsm_receive.vert";
         shadowmapReceiverFragment = "shadowmap_evsm_receive.frag";
-    } else if (floatTexSupp && window.location.href.indexOf("VSM") != -1) {
+    } else if (floatTexSupp && parametersURL['shadow'] === 'Variance Shadow Map (VSM)') {
         shadowmapReceiverVertex = "shadowmap_vsm_receive.vert";
         shadowmapReceiverFragment = "shadowmap_vsm_receive.frag";
     } else {
+        if (parametersURL['shadow'] === 'Exponential Shadow Map (ESM)'){
+            defines.push('#define _ESM');
+        }
+        else if (parametersURL['shadow'] === 'Shadow Map'){
+            defines.push('#define _NONE');
+        }
+        else if (parametersURL['shadow'] === 'Shadow Map Percentage Close Filtering (PCF)'){
+            defines.push('#define _PCF');
+        }
+        else if (parametersURL['shadow'] === 'Variance Shadow Map (VSM)'){
+            defines.push('#define _VSM');
+        }
         shadowmapReceiverVertex = "shadowmap_receive.vert";
         shadowmapReceiverFragment = "shadowmap_receive.frag";
     }
 
     var stateSet = new osg.StateSet();
-    prg = getProgramFromShaders(shadowmapReceiverVertex, shadowmapReceiverFragment);
+    prg = getProgramFromShaders(shadowmapReceiverVertex, shadowmapReceiverFragment, defines);
     stateSet.setAttributeAndMode(prg, osg.StateAttribute.ON | osg.StateAttribute.OVERRIDE);
 
     stateSet.addUniform(osg.Uniform.createInt1(0, "Texture0"));
@@ -219,23 +330,39 @@ function setShadowReceiving(receivers, sceneCamera, ReceivesShadowTraversalMask)
     prg.trackAttributes.attributeKeys.push('Light1');
     prg.trackAttributes.attributeKeys.push('Light2');
 
-    var texturedebug = window.location.href.indexOf('textureDebug') !== -1 ? 0 : 1;
-    var debugUniform = osg.Uniform.createFloat1(texturedebug, 'debug');
-    stateSet.addUniform(debugUniform);
+    var myuniform;
 
-    var invViewMatrixUniform = osg.Uniform.createMatrix4(sceneCamera.getViewMatrix(), 'invViewMatrix');
-    stateSet.addUniform(invViewMatrixUniform);
+    var texturedebug = parametersURL['lightonly'];
+    myuniform = osg.Uniform.createFloat1(texturedebug, 'debug');
+    stateSet.addUniform(myuniform);
+    parameterUniform['lightonly'] = myuniform;
 
-    shadowReceiverScene.setUpdateCallback(new viewMatrixCallbackShadowMap({
-        'camera': sceneCamera,
-        'invViewMatrix': invViewMatrixUniform
-    }));
+    var bias = parametersURL['bias'];
+    myuniform = osg.Uniform.createFloat1(bias, 'bias');
+    stateSet.addUniform(myuniform);
+    parameterUniform['bias'] = myuniform;
+
+    var exponent = parametersURL['exponent'];
+    myuniform = osg.Uniform.createFloat1(exponent, 'exponent');
+    stateSet.addUniform(myuniform);
+    parameterUniform['exponent'] = myuniform;
+
+    var exponent1 = parametersURL['exponent1'];
+    myuniform = osg.Uniform.createFloat1(exponent1, 'exponent1');
+    stateSet.addUniform(myuniform);
+    parameterUniform['exponent1'] = myuniform;
+
+    var VsmEpsilon = parametersURL['VsmEpsilon'];
+    myuniform = osg.Uniform.createFloat1(VsmEpsilon, 'VsmEpsilon');
+    stateSet.addUniform(myuniform);
+    parameterUniform['VsmEpsilon'] = myuniform;
+
 
     shadowReceiverScene.setStateSet(stateSet);
     return shadowReceiverScene;
 }
 
-function setShadowCasting(receivers,  lightsource, position, num, CastsShadowTraversalMask) {
+function setShadowCasting(receivers, lightsource, position, num, CastsShadowTraversalMask) {
 
 
 
@@ -248,7 +375,7 @@ function setShadowCasting(receivers,  lightsource, position, num, CastsShadowTra
     shadowCasterScene.addChild(receivers);
     shadowCamera.addChild(shadowCasterScene);
 
-    var mapsize = 512;
+    var mapsize = parametersURL['texturesize'];
     shadowSize = [mapsize, mapsize, 1.0 / mapsize, 1.0 / mapsize];
 
     // important because we use linear zbuffer
@@ -269,33 +396,47 @@ function setShadowCasting(receivers,  lightsource, position, num, CastsShadowTra
 
     var shadowmapCasterVertex;
     var shadowmapCasterFragment;
-    var floatTexSupp = osg.profile.extensions['OES_texture_float'];
-    var textureType, textureFormat;
-    if (floatTexSupp && window.location.href.indexOf("EVSM") != -1) {
+    var floatTexSupp = osg.profile.extensions['OES_texture_float'] && parametersURL['textureformat'] !== 'Force8bits';
+    var textureType, textureFormat, defines = [];
+
+    if(parametersURL['shadowstable'] === 'World Position')
+        defines.push('#define NUM_STABLE');
+     if (floatTexSupp && parametersURL['shadow'] === 'Exponential Variance Shadow Map (EVSM)') {
         shadowmapCasterVertex = "shadowmap_evsm_cast.vert";
         shadowmapCasterFragment = "shadowmap_evsm_cast.frag";
         textureType = osg.Texture.FLOAT;
         textureFormat = osg.Texture.RGBA;
-    } else if (floatTexSupp  && window.location.href.indexOf("VSM") != -1) {
+    } else if (floatTexSupp && parametersURL['shadow'] === 'Variance Shadow Map (VSM)') {
         shadowmapCasterVertex = "shadowmap_vsm_cast.vert";
         shadowmapCasterFragment = "shadowmap_vsm_cast.frag";
         textureType = osg.Texture.FLOAT;
         textureFormat = osg.Texture.RGB;
     } else {
+        if (parametersURL['shadow'] === 'Exponential Shadow Map (ESM)'){
+            defines.push('#define _ESM');
+        }
+        else if (parametersURL['shadow'] === 'Shadow Map'){
+            defines.push('#define _NONE');
+        }
+        else if (parametersURL['shadow'] === 'Shadow Map Percentage Close Filtering (PCF)'){
+            defines.push('#define _PCF');
+        }
+        else if (parametersURL['shadow'] === 'Variance Shadow Map (VSM)'){
+            defines.push('#define _VSM');
+        }
         shadowmapCasterVertex = "shadowmap_cast.vert";
         shadowmapCasterFragment = "shadowmap_cast.frag";
         textureType = osg.Texture.UNSIGNED_BYTE;
         textureFormat = osg.Texture.RGBA;
     }
 
+    var prg = getProgramFromShaders(shadowmapCasterVertex, shadowmapCasterFragment, defines);
+    var casterStateSet = shadowCasterScene.getOrCreateStateSet();
+    casterStateSet.setAttributeAndMode(prg, osg.StateAttribute.ON | osg.StateAttribute.OVERRIDE);
 
-    var prg = getProgramFromShaders(shadowmapCasterVertex, shadowmapCasterFragment);
-    var casterStateSet =  shadowCasterScene.getOrCreateStateSet();
-   casterStateSet.setAttributeAndMode(prg, osg.StateAttribute.ON | osg.StateAttribute.OVERRIDE);
-
-    casterStateSet.setAttributeAndMode(new osg.CullFace(osg.CullFace.DISABLE), osg.StateAttribute.ON | osg.StateAttribute.OVERRIDE);
+    //casterStateSet.setAttributeAndMode(new osg.CullFace(osg.CullFace.DISABLE), osg.StateAttribute.ON | osg.StateAttribute.OVERRIDE);
     //casterStateSet.setAttributeAndMode(new osg.CullFace(osg.CullFace.BACK), osg.StateAttribute.ON | osg.StateAttribute.OVERRIDE);
-    
+
     //prevent unessecary texture bindings
     casterStateSet.setTextureAttributeAndMode(0, new osg.Texture(), osg.StateAttribute.OFF | osg.StateAttribute.OVERRIDE);
     casterStateSet.setTextureAttributeAndMode(1, new osg.Texture(), osg.StateAttribute.OFF | osg.StateAttribute.OVERRIDE);
@@ -325,7 +466,7 @@ function setShadowCasting(receivers,  lightsource, position, num, CastsShadowTra
 
     //shadowTexture.setMinFilter('NEAREST');
     //shadowTexture.setMagFilter('NEAREST');
-    
+
     shadowTexture.setMinFilter('LINEAR');
     shadowTexture.setMagFilter('LINEAR');
 
@@ -338,12 +479,18 @@ function setShadowCasting(receivers,  lightsource, position, num, CastsShadowTra
     // LIGHT SHADOW RELATION
     lightsource.addChild(shadowCamera);
 
-    var doBlur = true;
-    var doDownSample = 1;
+    var doBlur = parametersURL['blur'] !== 0;
+    var doDownSample = parametersURL['msaa'];
     var shadowTextureFinal = shadowTexture;
     var shadowSizeFinal = shadowSize;
     //var shadowSizeFinal shadowSize.slice(0);//cp by value
-    while (doDownSample-- && shadowSizeFinal[0] > 64){
+    if (doBlur) {
+        var blurPass;
+        blurPass = addBlur(shadowTextureFinal, shadowSizeFinal);
+        shadowTextureFinal = blurPass.texture;
+        lightsource.addChild(blurPass.camera);
+    }
+    while (doDownSample-- && shadowSizeFinal[0] > 64) {
         var halfPass;
         halfPass = addHalfDownSample(shadowTextureFinal, shadowSizeFinal);
         shadowTextureFinal = halfPass.texture;
@@ -353,12 +500,6 @@ function setShadowCasting(receivers,  lightsource, position, num, CastsShadowTra
         shadowSizeFinal[3] *= 2.0;
         lightsource.addChild(halfPass.camera);
 
-    }
-    if (doBlur){
-        var  blurPass;
-       blurPass = addBlur(shadowTextureFinal, shadowSizeFinal);
-       shadowTextureFinal = blurPass.texture;
-       lightsource.addChild(blurPass.camera);
     }
 
     lightsource.getOrCreateStateSet().setAttributeAndMode(lightsource.getLight());
@@ -491,27 +632,9 @@ var addPostProcess = function(scene, camera, viewer) {
 
 var getModel = function(func) {
     var modelName;
-    modelName = 'ogre';
-    //modelName = 'monkey';
-    //modelName = 'sponza';
-    //modelName = 'raceship';
-    var url = window.location.href;
-    if (window.location.href.indexOf('model') != -1) {
-        var urlParts = url.split('?');
-        if (urlParts.length > 1) {
-            urlParts = urlParts[1].split('&');
-            for (var k in urlParts) {
-                if (urlParts[k].indexOf('model') !== -1) {
-                    urlParts = urlParts[k].split('=');
-                    modelName = urlParts[1];
-                    break;
-                }
-            }
-        }
-    }
+    modelName = parametersURL['model'];
     var node = new osg.MatrixTransform();
-    if (modelName == 'none')
-        return node;
+    if (!modelName) return node;
 
 
     var defer = osgDB.Promise.defer();
@@ -520,11 +643,15 @@ var getModel = function(func) {
         osg.log("loading " + url);
         var req = new XMLHttpRequest();
         req.open('GET', url, true);
+        var options = {};
+        var urlParts = url.split('/');
+        urlParts = urlParts.slice(0, urlParts.length - 1);
+        options.prefixURL = urlParts.join('/') + '/';
         req.onreadystatechange = function(aEvt) {
             if (req.readyState == 4) {
                 var child;
                 if (req.status == 200) {
-                    osgDB.Promise.when(osgDB.parseSceneGraph(JSON.parse(req.responseText))).then(function(child) {
+                    osgDB.Promise.when(osgDB.parseSceneGraph(JSON.parse(req.responseText), options)).then(function(child) {
                         node.addChild(child);
                         defer.resolve(node);
                         osg.log("success " + url);
@@ -541,14 +668,15 @@ var getModel = function(func) {
     return defer.promise;
 };
 
-var addHalfDownSample = function (rttTexture, rttSize){
-    var w = rttSize[0] / 2, h = rttSize[1] / 2;
+var addHalfDownSample = function(rttTexture, rttSize) {
+    var w = rttSize[0] / 2,
+        h = rttSize[1] / 2;
 
     var halfDownedTexture = new osg.Texture();
     halfDownedTexture.setTextureSize(w, h);
 
-    halfDownedTexture.setMinFilter('LINEAR');
-    halfDownedTexture.setMagFilter('LINEAR');
+    halfDownedTexture.setMinFilter('NEAREST');
+    halfDownedTexture.setMagFilter('NEAREST');
 
     halfDownedTexture.setType(rttTexture.getGLType());
     halfDownedTexture.setInternalFormat(rttTexture.getInternalFormat());
@@ -573,19 +701,24 @@ var addHalfDownSample = function (rttTexture, rttSize){
 
     halfDownCam.addChild(halfDownQuad);
 
-    return {camera: halfDownCam, texture: halfDownedTexture, quad: halfDownQuad};
+    return {
+        camera: halfDownCam,
+        texture: halfDownedTexture,
+        quad: halfDownQuad
+    };
 
 };
 
-var addBlur = function (rttTexture, rttSize){
+var addBlur = function(rttTexture, rttSize) {
 
-    var w = rttSize[0] , h = rttSize[1];
+    var w = rttSize[0],
+        h = rttSize[1];
 
     var blurredTexture = new osg.Texture();
     blurredTexture.setTextureSize(w, h);
 
     blurredTexture.setMinFilter('LINEAR');
-    blurredTexture.setMagFilter('LINEAR');
+    blurredTexture.setMagFilter('LINEAR_MIPMAP_LINEAR', 16);
 
     blurredTexture.setType(rttTexture.getGLType());
     blurredTexture.setInternalFormat(rttTexture.getInternalFormat());
@@ -610,14 +743,24 @@ var addBlur = function (rttTexture, rttSize){
 
     blurCam.addChild(blurQuad);
 
-    return {camera: blurCam, texture: blurredTexture, quad: blurQuad};
+    return {
+        camera: blurCam,
+        texture: blurredTexture,
+        quad: blurQuad
+    };
 };
 
 var startViewer = function() {
 
 
+    for (var option in parametersURL) {
+        var elem = document.getElementById(option);
+        if (elem)
+            elem.value = parametersURL[option];
+    }
+
     var shaderOptions = {
-        inline: (window.location.href.indexOf("debug") === -1),
+        inline: parametersURL['debug'] ? false : true,
         async: false,
         callbacksingle: function(e) {
             //console.log(e + "is loaded");
@@ -640,6 +783,7 @@ var startViewer = function() {
 
     var viewer;
     viewer = new osgViewer.Viewer(canvas, {
+        light: "0",
         antialias: true,
         premultipliedAlpha: true
     });
@@ -673,34 +817,34 @@ var startViewer = function() {
         });
     })();
     var cubeNode = new osg.Node();
-    if (1 || window.location.href.indexOf('cube') != -1){
+    if (1 || window.location.href.indexOf('cube') != -1) {
         var size = 2;
         var dist = 15;
-        var cube = osg.createTexturedBox(0, 0, 0, size,size,size*10);
+        var cube = osg.createTexturedBox(0, 0, 0, size, size, size * 10);
         var cubeSubNode = new osg.MatrixTransform();
         cubeSubNode.setName('cubeSubNode');
 
-        cubeSubNode.setMatrix(osg.Matrix.makeTranslate(-dist, -dist , dist/2, []));
+        cubeSubNode.setMatrix(osg.Matrix.makeTranslate(-dist, -dist, dist / 2, []));
         cubeSubNode.addChild(cube);
         cubeNode.addChild(cubeSubNode);
-        if (1 || window.location.href.indexOf('cubes') != -1){
+        if (1 || window.location.href.indexOf('cubes') != -1) {
             cubeSubNode = new osg.MatrixTransform();
-            cubeSubNode.setMatrix(osg.Matrix.makeTranslate(dist, 0 ,0, []));
+            cubeSubNode.setMatrix(osg.Matrix.makeTranslate(dist, 0, 0, []));
             cubeSubNode.addChild(cube);
             cubeNode.addChild(cubeSubNode);
 
             cubeSubNode = new osg.MatrixTransform();
-            cubeSubNode.setMatrix(osg.Matrix.makeTranslate(dist, dist ,0, []));
+            cubeSubNode.setMatrix(osg.Matrix.makeTranslate(dist, dist, 0, []));
             cubeSubNode.addChild(cube);
             cubeNode.addChild(cubeSubNode);
 
             cubeSubNode = new osg.MatrixTransform();
-            cubeSubNode.setMatrix(osg.Matrix.makeTranslate(0, dist ,0, []));
+            cubeSubNode.setMatrix(osg.Matrix.makeTranslate(0, dist, 0, []));
             cubeSubNode.addChild(cube);
             cubeNode.addChild(cubeSubNode);
 
             cubeSubNode = new osg.MatrixTransform();
-            cubeSubNode.setMatrix(osg.Matrix.makeTranslate(-dist, dist ,-dist/2, []));
+            cubeSubNode.setMatrix(osg.Matrix.makeTranslate(-dist, dist, -dist / 2, []));
             cubeSubNode.addChild(cube);
             cubeNode.addChild(cubeSubNode);
 
@@ -728,10 +872,10 @@ var startViewer = function() {
     //ground.getOrCreateStateSet().setAttributeAndMode(new osg.CullFace(osg.CullFace.DISABLE), osg.StateAttribute.ON | osg.StateAttribute.OVERRIDE);
 
     var groundSubNode;
-    for (var wG = 0; wG < 5; wG++){
-        for (var wH = 0; wH < 5; wH++){
+    for (var wG = 0; wG < 5; wG++) {
+        for (var wH = 0; wH < 5; wH++) {
             groundSubNode = new osg.MatrixTransform();
-            groundSubNode.setMatrix(osg.Matrix.makeTranslate(wG*groundSize - 100, wH*groundSize -100 , -5.0, []));
+            groundSubNode.setMatrix(osg.Matrix.makeTranslate(wG * groundSize - 100, wH * groundSize - 100, -5.0, []));
             groundSubNode.setName('groundSubNode');
             groundSubNode.addChild(ground);
             groundNode.addChild(groundSubNode);
@@ -771,6 +915,7 @@ var startViewer = function() {
     var light0 = new osg.Light(0);
     light0.setName('light0');
     lightNode0.setLight(light0);
+    lights.push(light0);
 
     var lightPos1 = [-15, -5, 30, 1.2];
     var lightNode1 = new osg.LightSource();
@@ -778,6 +923,7 @@ var startViewer = function() {
     var light1 = new osg.Light(1);
     light1.setName('light1');
     lightNode1.setLight(light1);
+    lights.push(light1);
 
     var lightPos2 = [25, 25, 30, 2.0];
     var lightNode2 = new osg.LightSource();
@@ -785,13 +931,23 @@ var startViewer = function() {
     var light2 = new osg.Light(2);
     light2.setName('light2');
     lightNode2.setLight(light2);
+    lights.push(light2);
 
-    light0._enabled = 1;
-    light1._enabled = 1;
-    light2._enabled = 1;
+    light0._enabled = 0;
+    light1._enabled = 0;
+    light2._enabled = 0;
+    if(parametersURL['lightnum'] >= 1){
+        light0._enabled = 1;
+    }
+    if(parametersURL['lightnum'] >= 2){
+        light1._enabled = 1;
+    }
+    if(parametersURL['lightnum'] >= 3){
+        light2._enabled = 1;
+    }
 
     //
-    var rootShadowScene = new osg.Node();// will handle lights and scene
+    var rootShadowScene = new osg.Node(); // will handle lights and scene
     rootShadowScene.setName('rootShadowScene');
     //
     //rootShadowScene.addChild(ShadowScene);
@@ -805,7 +961,7 @@ var startViewer = function() {
     //
     var sceneCamera = viewer.getCamera();
     sceneCamera.setName("mainShadowReceivingCam");
-    sceneCamera.addChild(rootShadowScene);  // Shadowed scene root, all lights
+    sceneCamera.addChild(rootShadowScene); // Shadowed scene root, all lights
     // Node Mask
     var ReceivesShadowTraversalMask = 0x1;
     var CastsShadowTraversalMask = 0x2;
@@ -814,36 +970,76 @@ var startViewer = function() {
     modelNode.setNodeMask(ReceivesShadowTraversalMask | CastsShadowTraversalMask);
     cubeNode.setNodeMask(ReceivesShadowTraversalMask | CastsShadowTraversalMask);
     // needed for VSM
-    //groundNode.setNodeMask(ReceivesShadowTraversalMask| CastsShadowTraversalMask);
+    groundNode.setNodeMask(ReceivesShadowTraversalMask | CastsShadowTraversalMask);
     // PCF ok with this
-    groundNode.setNodeMask(ReceivesShadowTraversalMask);
+    //groundNode.setNodeMask(ReceivesShadowTraversalMask);
     //
-    var isNative = false;// window.location.href.indexOf('custom') === -1;
- 
+    var isNative = false;//window.location.href.indexOf('custom') === -1;
+
+    var technique = '';
+    var defines = [];
+
+    var showhide = {};
+    showhide['bias'] = true;
+    showhide['VsmEpsilon'] = true;
+    showhide['exponent'] = true;
+    showhide['exponent1'] = true;
+    var floatTexSupp = osg.profile.extensions['OES_texture_float'] && parametersURL['textureformat'] !== 'Force8bits';
+     if (floatTexSupp && parametersURL['shadow'] === 'Exponential Variance Shadow Map (EVSM)') {
+                technique = 'EVSM';
+    } else if (floatTexSupp && parametersURL['shadow'] === 'Variance Shadow Map (VSM)') {
+                technique = 'VSM';
+                showhide['exponent'] = false;
+                showhide['exponent1'] = false;
+    } else {
+        if (parametersURL['shadow'] === 'Exponential Shadow Map (ESM)'){
+            defines.push('#define _ESM');
+                showhide['exponent1'] = false;
+                showhide['VsmEpsilon'] = false;
+        }
+        else if (parametersURL['shadow'] === 'Shadow Map'){
+            defines.push('#define _NONE');
+                showhide['exponent'] = false;
+                showhide['exponent1'] = false;
+                showhide['VsmEpsilon'] = false;
+        }
+        else if (parametersURL['shadow'] === 'Shadow Map Percentage Close Filtering (PCF)'){
+            defines.push('#define _PCF');
+                showhide['exponent'] = false;
+                showhide['exponent1'] = false;
+                showhide['VsmEpsilon'] = false;
+        }
+        else if (parametersURL['shadow'] === 'Variance Shadow Map (VSM)'){
+            defines.push('#define _VSM');
+                showhide['exponent'] = false;
+                showhide['exponent1'] = false;
+            technique = 'PCF';
+        }
+    }
     //
+    for (var id in showhide){
+        var el = document.getElementById(id);
+        if (el) {
+            el.style.display = showhide[id] ? 'block' : 'none';
+            el.previousSibling.style.display = showhide[id] ? 'block' : 'none';
+        }
+    }
+
     //
     if (isNative) {
 
-        var technique = '';
-        var floatTexSupp = osg.profile.extensions['OES_texture_float'];
-        if (floatTexSupp && window.location.href.indexOf("EVSM") != -1) {
-            technique = 'EVSM';
-        } else if (floatTexSupp && window.location.href.indexOf("VSM") != -1) {
-            technique = 'VSM';
-        } else {
-            technique = 'PCF';
-        }
-        if (light0._enabled){
+
+        if (light0._enabled) {
             lightedmodel0 = new osg.ShadowScene(sceneCamera, lightNode0, new osg['ShadowTechnique' + technique](0, CastsShadowTraversalMask), ReceivesShadowTraversalMask);
             lightedmodel0.addChild(ShadowScene);
         }
-        if (light1._enabled){
-            lightedmodel1 = new osg.ShadowScene(sceneCamera, lightNode1,new osg['ShadowTechnique' + technique](0, CastsShadowTraversalMask, ReceivesShadowTraversalMask));
+        if (light1._enabled) {
+            lightedmodel1 = new osg.ShadowScene(sceneCamera, lightNode1, new osg['ShadowTechnique' + technique](0, CastsShadowTraversalMask, ReceivesShadowTraversalMask));
             lightedmodel0.addChild(ShadowScene);
         }
 
-        if (light2._enabled){
-            lightedmodel2 = new osg.ShadowScene(sceneCamera, lightNode2,new osg['ShadowTechnique' + technique](0, CastsShadowTraversalMask), ReceivesShadowTraversalMask);
+        if (light2._enabled) {
+            lightedmodel2 = new osg.ShadowScene(sceneCamera, lightNode2, new osg['ShadowTechnique' + technique](0, CastsShadowTraversalMask), ReceivesShadowTraversalMask);
             lightedmodel0.addChild(ShadowScene);
         }
 
@@ -854,22 +1050,16 @@ var startViewer = function() {
         rootShadowScene.addChild(shadowReceiverScene);
 
         //casting scene
-        if (light0._enabled)
-            setShadowCasting(shadowReceiverScene, lightNode0, lightPos0, 0, CastsShadowTraversalMask);
-        if (light1._enabled)
-            setShadowCasting(shadowReceiverScene, lightNode1, lightPos1, 1, CastsShadowTraversalMask);
-        if (light2._enabled)
-            setShadowCasting(shadowReceiverScene, lightNode2, lightPos2, 2, CastsShadowTraversalMask);
+        if (light0._enabled) setShadowCasting(shadowReceiverScene, lightNode0, lightPos0, 0, CastsShadowTraversalMask);
+        if (light1._enabled) setShadowCasting(shadowReceiverScene, lightNode1, lightPos1, 1, CastsShadowTraversalMask);
+        if (light2._enabled) setShadowCasting(shadowReceiverScene, lightNode2, lightPos2, 2, CastsShadowTraversalMask);
     }
-    if (light0._enabled)
-        lightNode0.addChild(lightNodemodelNode0);
-    if (light1._enabled)
-        lightNode1.addChild(lightNodemodelNode1);
-    if (light2._enabled)
-        lightNode2.addChild(lightNodemodelNode2);
+    if (light0._enabled) lightNode0.addChild(lightNodemodelNode0);
+    if (light1._enabled) lightNode1.addChild(lightNodemodelNode1);
+    if (light2._enabled) lightNode2.addChild(lightNodemodelNode2);
 
 
-    var root = new osg.Node();// All pure native root.
+    var root = new osg.Node(); // All pure native root.
     //root.addChild(sceneCamera);
 
     //root = addPostProcess(root, sceneCamera, viewer);
@@ -883,7 +1073,8 @@ var startViewer = function() {
     osg.UniformScalingEnabled = true;
 
 
-    viewer.setLight(light0);
+    // will cause double positionned atributes store...
+    //viewer.setLight(light0);
 
     viewer.getCamera().setClearColor([0.0, 0.0, 0.0, 0.0]);
 
@@ -892,133 +1083,6 @@ var startViewer = function() {
 
     viewer.run();
 
-    osgUtil.ParameterVisitor.createSlider({
-        min: 1,
-        max: 10,
-        step: 1,
-        value: 2,
-        name: "fogdensity",
-        object: root,
-        field: '_noiseTextureSize',
-        onchange: function(value) {
-            // fix to a power of two
-            root._noiseTextureSize = Math.pow(2, value);
-            root._noiseTextureSize = Math.min(root._noiseTextureSize, 512);
-        },
-        html: document.getElementById('fogparameters')
-    });
-
-    osgUtil.ParameterVisitor.createSlider({
-        min: 1,
-        max: 10,
-        step: 1,
-        value: 2,
-        name: "fogStart",
-        object: root,
-        field: '_noiseTextureSize',
-        onchange: function(value) {
-            // fix to a power of two
-            root._noiseTextureSize = Math.pow(2, value);
-            root._noiseTextureSize = Math.min(root._noiseTextureSize, 512);
-        },
-        html: document.getElementById('fogparameters')
-    });
-
-    osgUtil.ParameterVisitor.createSlider({
-        min: 1,
-        max: 10,
-        step: 1,
-        value: 2,
-        name: "fogEnd",
-        object: root,
-        field: '_noiseTextureSize',
-        onchange: function(value) {
-            // fix to a power of two
-            root._noiseTextureSize = Math.pow(2, value);
-            root._noiseTextureSize = Math.min(root._noiseTextureSize, 512);
-        },
-        html: document.getElementById('fogparameters')
-    });
-
-
-    osgUtil.ParameterVisitor.createSlider({
-        min: 1,
-        max: 10,
-        step: 1,
-        value: 2,
-        name: "mirrorCoef",
-        object: root,
-        field: '_noiseTextureSize',
-        onchange: function(value) {
-            // fix to a power of two
-            root.mirrorCoef = Math.pow(2, value);
-            root.mirrorCoef = Math.min(root.mirrorCoef, 512);
-        },
-        html: document.getElementById('groundparameters')
-    });
-    osgUtil.ParameterVisitor.createSlider({
-        min: 1,
-        max: 10,
-        step: 1,
-        value: 2,
-        name: "mirrorBlur",
-        object: root,
-        field: '_mirrorBlur',
-        onchange: function(value) {
-            // fix to a power of two
-            root.mirrorBlur = Math.pow(2, value);
-            root.mirrorBlur = Math.min(root.mirrorBlur, 512);
-        },
-        html: document.getElementById('groundparameters')
-    });
-    osgUtil.ParameterVisitor.createSlider({
-        min: 1,
-        max: 10,
-        step: 1,
-        value: 2,
-        name: "_mirrorTexSize",
-        object: root,
-        field: '_mirrorTexSize',
-        onchange: function(value) {
-            // fix to a power of two
-            root._mirrorTexSize = Math.pow(2, value);
-            root._mirrorTexSize = Math.min(root._mirrorTexSize, 512);
-        },
-        html: document.getElementById('groundparameters')
-    });
-
-
-
-     osgUtil.ParameterVisitor.createSlider({
-                min: 0.0,
-                max: 0.1,
-                step: 0.0001,
-                value: 0.001,
-                name: "bias",
-                object: root,
-                field: '_shadowBias',
-                onchange: function(value) {
-                    // fix to a power of two
-                    root._shadowBias = value;
-                },
-                html: document.getElementById('shadowparameters')
-            });
-  osgUtil.ParameterVisitor.createSlider({
-            min: 1,
-            max: 8,
-            step: 0.5,
-            value: 1,
-            name: "blurPixelDistance",
-            object: root,
-            field: '_pixelSize',
-            onchange: function(value) {
-                root.setPixelSize = value;
-                root.setPixelSize = value;
-            },
-            html: document.getElementById('shadowblurparameters')
-        });
-
-
 
 
     var mousedown = function(ev) {
@@ -1026,11 +1090,13 @@ var startViewer = function() {
     };
     document.getElementById("explanation").addEventListener("mousedown", mousedown, false);
 
+    started = true;
 };
 
 extensions = [
-   // "/js/osgUtil/ShaderLoader.js",
-    "/examples/setup/shaderlib.js"];
+// "/js/osgUtil/ShaderLoader.js",
+"/examples/setup/shaderlib.js"];
+
 
 if (!window.multidemo) {
     window.addEventListener("load", function() {
@@ -1043,35 +1109,3 @@ if (!window.multidemo) {
         }
     }, true);
 }
-
-
-
-var paramCurrent = {};
-var paramChange = function(option, type) {
-  var url = window.location.href;
-  var param = '';
-  if (url.indexOf('?') !== -1) {
-      //todo: handle models and debug option
-    param = '?';
-    url = url.split('?')[0];
-  }
-  else {
-    param = '?';
-  }
-
-  switch (type){
-  case 'debug':
-      if (option.indexOf('debug') !== -1)
-        param += "&debug=1";
-      if (option.indexOf('stats') !== -1)
-        param += "&stats=1";
-      if (option.indexOf('DebugPromise') !== -1)
-        param += "&DebugPromise=1";
-      break;
-  case 'model':
-      param += "&model=" + option ;
-      break;
-  }
-  console.log(url+param);
-  window.location.href = url + param;
-};

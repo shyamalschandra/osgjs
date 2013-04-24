@@ -407,7 +407,7 @@ osg.CullVisitor.prototype = osg.objectInehrit(osg.CullStack.prototype ,osg.objec
         var matrix = this._reserveMatrixModelStack.getReserved();
         var recomputeMatrix = this._reserveMatrixModelStack.isDirty();
         if (recomputeMatrix) {
-            //matrix = osg.Matrix.mult(this.getCurrentViewMatrix(), this.getCurrentModelviewMatrix(), matrix);
+            matrix = osg.Matrix.mult(this.getCurrentViewMatrix(), this.getCurrentModelMatrix(), matrix);
         }
         this._currentRenderBin.getStage().positionedAttribute.push([matrix, attribute]);
     },

@@ -108,7 +108,8 @@ vec4 computeLightContribution(vec4 materialAmbient,   vec4 materialDiffuse,   ve
             if (cosCurAngle < lightCosSpotCutoff) {
                 spot = 0.0;
             } else {
-                if (lightSpotBlend > 0.0)    spot = cosCurAngle * smoothstep(0.0, 1.0, (cosCurAngle - lightCosSpotCutoff) / (lightSpotBlend));
+                if (lightSpotBlend > 0.0)    
+                    spot = cosCurAngle * smoothstep(0.0, 1.0, (cosCurAngle - lightCosSpotCutoff) / (lightSpotBlend));
             }
         }
         diffuse = lightDiffuse * ((halfTerm));

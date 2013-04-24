@@ -563,8 +563,10 @@ function makeDebugContext(ctx, opt_onErrorFunc) {
                 loseContextIfTime();
                 var err;
                 if (!contextLost_) {
-                    while (err = unwrappedContext_.getError()) {
+                    err = unwrappedContext_.getError();
+                    while (err) {
                         glErrorShadow_[err] = true;
+                        err = unwrappedContext_.getError();
                     }
                 }
                 for (err in glErrorShadow_) {

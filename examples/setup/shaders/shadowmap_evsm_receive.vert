@@ -65,18 +65,36 @@ void main(void) {
 	FragEyeVector = computeEyeVertex();
 	FragNormal = computeNormal();
 
+	//reuse var accross lights
+	vec4 shadowPosition;
 	vec4 worldPosition =  ModelMatrix *  vec4(Vertex,1.0);
+	//#define NUM_STABLE
 	if (Light0_uniform_enable == 1) {
-		Shadow_Z0 =  Shadow_View0 * worldPosition;
-		Shadow_VertexProjected0 =  Shadow_Projection0 * Shadow_Z0;
+	    #ifndef NUM_STABLE
+			Shadow_Z0 = Shadow_View0 *  worldPosition;
+			Shadow_VertexProjected0 = Shadow_Projection0 * Shadow_Z0;
+		#else
+			Shadow_Z0 =  worldPosition;
+			Shadow_VertexProjected0 = Shadow_Projection0 * Shadow_View0 * Shadow_Z0;
+	    #endif
 	}
 	if (Light1_uniform_enable == 1) {
-		Shadow_Z1 =  Shadow_View1 * worldPosition;
-		Shadow_VertexProjected1 =  Shadow_Projection1  * Shadow_Z1;
+	    #ifndef NUM_STABLE
+			Shadow_Z1 = Shadow_View1 *  worldPosition;
+			Shadow_VertexProjected1 = Shadow_Projection1 * Shadow_Z1;
+		#else
+			Shadow_Z1 =  worldPosition;
+			Shadow_VertexProjected1 = Shadow_Projection1 * Shadow_View1 * Shadow_Z1;
+	    #endif
 	}
 	if (Light2_uniform_enable == 1) {
-		Shadow_Z2 =  Shadow_View2 * worldPosition;
-		Shadow_VertexProjected2 =  Shadow_Projection2   *  Shadow_Z2;
+	    #ifndef NUM_STABLE
+			Shadow_Z2 = Shadow_View2 *  worldPosition;
+			Shadow_VertexProjected2 = Shadow_Projection2 * Shadow_Z2;
+		#else
+			Shadow_Z2 =  worldPosition;
+			Shadow_VertexProjected2 = Shadow_Projection2 * Shadow_View2 * Shadow_Z2;
+	    #endif
 	}
 
 	FragTexCoord0 = TexCoord0;

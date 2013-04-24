@@ -77,7 +77,15 @@ ol.tree
     {
       width: 150px;
     }
-  li input
+  li input[type="range"]
+  {
+    float: right;
+  }
+  li span
+  {
+    display: block;
+  }
+  li input[type="checkbox"]
   {
     position: absolute;
     left: 0;
@@ -106,7 +114,6 @@ ol.tree
 
   li input:checked + ol
   {
-    background: url(toggle-small.png) 40px 5px no-repeat;
     margin: -1.25em 0 0 -44px; /* 20px */
     padding: 1.563em 0 0 80px;
     height: auto;
@@ -136,8 +143,8 @@ ol.tree
       <h1> Lights&Shadows</h1>
       <ol>
           <li>
-              <label for="subfolder1">Explanations</label>
-              <input type="checkbox" id="subfolder1" />
+              <label for="subfolder0">Explanations</label>
+              <input type="checkbox" id="subfolder0" class="folder_"/>
               <ol>
                   <li class="file">
                     <p>
@@ -148,10 +155,10 @@ ol.tree
           </li>
           <li>
               <label for="subfolder1">Model</label>
-              <input type="checkbox" id="subfolder1" />
+              <input type="checkbox" id="subfolder1" class="folder_"/>
               <ol>
                   <li class="file">
-                <select class="combobox" name="modeltype" onChange="paramChange(this.options[this.selectedIndex].value, 'model');"  >
+                <select class="combobox" id="model" name="model" onChange="paramChange(this.options[this.selectedIndex].value, 'model');"  >
                        <option>raceship</option>
                        <option>monkey</option>
                        <option>ogre</option>
@@ -163,7 +170,7 @@ ol.tree
 
           <li>
               <label for="subfolder2">Fog</label>
-              <input type="checkbox" id="subfolder2" />
+              <input type="checkbox" id="subfolder2" class="folder_"/>
               <ol>
                   <li class="file">
                     <div id="fogparameters">
@@ -174,7 +181,7 @@ ol.tree
 
           <li>
               <label for="subfolder3">Ground</label>
-              <input type="checkbox" id="subfolder3" />
+              <input type="checkbox" id="subfolder3" class="folder_"/>
               <ol>
                   <li class="file">
                     <div id="groundparameters">
@@ -184,26 +191,100 @@ ol.tree
           </li>
 
           <li>
-              <label for="subfolder4">Lights&shadow</label>
-              <input type="checkbox" id="subfolder4" />
+              <label for="subfolder90">Light</label>
+              <input type="checkbox" id="subfolder90" class="folder_"/>
               <ol>
                   <li class="file">
-                     <select name="scenetype" onChange="paramChange(this.options[this.selectedIndex].value,'shadow');"  >
-                       <option>Shadow Map Percentage Close Filtering</option>
-                       <option>Exponential Variance Shadow Map (VSM)</option>
+                    <span>Num Lights Enabled: </span><input id="lightnum" type="range" min="0" max="3" value="1" step="1" onMouseUp="paramChange(this.value,'lightnum');"/>
+                    <br />
+                    <span>Light Selected: </span><input id="lightselect" type="range" min="0" max="3" value="1" step="1" onMouseUp="this.previousSibling.innerHTML = this.previousSibling.innerHTML.split(':')[0] + ': ' + this.value;paramChange(this.value,'lightselect', true, true);"/>
+                    <br />
+<!--
+                      <span>enabled : </span><input id="enabled" type="range" min="0" max="1" value="1" step="1"  onchange="this.previousSibling.innerHTML = this.previousSibling.innerHTML.split(':')[0] + ': ' + this.value;paramChange(this.value, this.id);"/>
+                      <br/>
+!-->
+                    <!--this._direction = [ 0.0, 0.0, -1.0 ]!-->
+                      
+                      <span>spotCutoff : </span><input id="_spotCutoff" type="range" min="-180" max="180" value="30" step="5"  onchange="this.previousSibling.innerHTML = this.previousSibling.innerHTML.split(':')[0] + ': ' + this.value;paramChange(this.value, this.id, true, true);"/>
+                      <br/>
+                      <span>spotBlend : </span><input id="_spotBlend" type="range" min="0" max="1" value="0.01" step="0.01"  onchange="this.previousSibling.innerHTML = this.previousSibling.innerHTML.split(':')[0] + ': ' + this.value;paramChange(this.value, this.id, true, true);"/>
+                      <br/>
+                      <span>constantAttenuation : </span><input id="_constantAttenuation" type="range" min="0" max="1" value="1.0" step="0.01"  onchange="this.previousSibling.innerHTML = this.previousSibling.innerHTML.split(':')[0] + ': ' + this.value;paramChange(this.value, this.id, true, true);"/>
+                      <br/>
+                      <span>linearAttenuation : </span><input id="_linearAttenuation" type="range" min="0" max="1" value="0" step="0.01"  onchange="this.previousSibling.innerHTML = this.previousSibling.innerHTML.split(':')[0] + ': ' + this.value;paramChange(this.value, this.id, true, true);"/>
+                      <br/>
+                      <span>quadraticAttenuation : </span><input id="_quadraticAttenuation" type="range" min="0" max="1" value="0" step="0.01"  onchange="this.previousSibling.innerHTML = this.previousSibling.innerHTML.split(':')[0] + ': ' + this.value;paramChange(this.value, this.id, true, true);"/>
+                      <br/>
+                  </li>
+              </ol>
+          </li>
+
+          <li>
+              <label for="subfolder4">Shadow</label>
+              <input type="checkbox" id="subfolder4" class="folder_"/>
+              <ol>
+                  <li class="file">
+                     <select id="shadow" name="shadow" onChange="paramChange(this.options[this.selectedIndex].value,'shadow');"  >
+                       <option>Shadow Map</option>
+                       <option>Shadow Map Percentage Close Filtering (PCF)</option>
+                       <option>Exponential Shadow Map (ESM)</option>
+                       <option>Variance Shadow Map (VSM)</option>
                         <option>Exponential Variance Shadow Map (EVSM)</option>
                     </select>
-                    <div id="shadowparameters">
-                    </div>
-                    <div id="shadowblurparameters">
-                    </div>
+
+                     <select id="textureformat" name="textureformat" onChange="paramChange(this.options[this.selectedIndex].value,'textureformat');"  >
+                       <option>Autodetect</option>
+                       <option>Force8bits</option>
+                       <option>ForceFloat</option>
+                    </select>
+                     <select id="texturesize" name="texturesize" onChange="paramChange(this.options[this.selectedIndex].value,'texturesize');"  >
+                       <option>64</option>
+                       <option>128</option>
+                       <option>256</option>
+                       <option>1024</option>
+                       <option>2048</option>
+                       <option>4096</option>
+                       <option>8192</option>
+                    </select>
+                    <select id="shadowstable" name="shadowstable" onChange="paramChange(this.options[this.selectedIndex].value,'shadowstable');"  >
+                       <option>Light Position</option>
+                       <option>World Position</option>
+                    </select>
+
+                    <br />
+                    <select id="shadowproj" name="shadowproj" onChange="paramChange(this.options[this.selectedIndex].value,'shadowproj', true);"  >
+                       <option>fov</option>
+                       <option>orthographic</option>
+                    </select>
+                      <span>light fov : </span><input id="fov" type="range" min="0" max="180" value="30" step="5"  onchange="this.previousSibling.innerHTML = this.previousSibling.innerHTML.split(':')[0] + ': ' + this.value;paramChange(this.value, this.id, true);"/>
+
+                    <br />
+                     Light Only:<select id="lightonly" name="lightonly" onChange="paramChange(this.options[this.selectedIndex].value,'lightonly',true);"  >
+                       <option>0</option>
+                       <option>1</option>
+                    </select>
+                    <br />
+
+                      <span>Bias (all): </span><input id="bias" type="range" min="0" max="0.1" value="0.001" step="0.001"  onchange="this.previousSibling.innerHTML = this.previousSibling.innerHTML.split(':')[0] + ': ' + this.value;paramChange(this.value,this.id, true);"/>
+                    <br />
+                       <span>VsmEspilon (vsm/evsm):  </span><input id="VsmEpsilon" type="range" min="0" max="0.1" value="0.001" step="0.001"  onchange="this.previousSibling.innerHTML = this.previousSibling.innerHTML.split(':')[0] + ': ' + this.value;paramChange(this.value,this.id, true);"/>
+                    <br />
+                      <span>Exponent0 (esm/evsm): </span><input id="exponent" type="range" min="0" max="100" value="40" step="5"  onchange="this.previousSibling.innerHTML = this.previousSibling.innerHTML.split(':')[0] + ': ' + this.value;paramChange(this.value, this.id, true);"/>
+                    <br />
+                      <span>Exponent1 (evsm): </span><input id="exponent1" type="range" min="0" max="100" value="40" step="5"  onchange="this.previousSibling.innerHTML = this.previousSibling.innerHTML.split(':')[0] + ': ' + this.value;paramChange(this.value, this.id, true);"/>
+                    <br />
+                    <span >Blur (0 == disabled): </span><input id="blur" type="range" min="0" max="16" value="1.0" step="1.0" onchange="this.previousSibling.innerHTML = this.previousSibling.innerHTML.split(':')[0] + ': ' + this.value;" onMouseUp="paramChange(this.value,'blur');"/>
+                    <br />
+                      <span>Msaa (tex * 1/msaa => finalTexSize): </span><input id="msaa" type="range" min="0" max="8" value="1" step="1" onchange="this.previousSibling.innerHTML = this.previousSibling.innerHTML.split(':')[0] + ': ' + this.value;" onMouseUp="paramChange(this.value,this.id);" />
+                    <br />
+
                   </li>
               </ol>
           </li>
 
           <li>
               <label for="subfolder5">Post-processing: depth of field</label>
-              <input type="checkbox" id="subfolder5" />
+              <input type="checkbox" id="subfolder5" class="folder_"/>
               <ol>
                   <li class="file">
                     <div id="dofparameters">
@@ -213,12 +294,12 @@ ol.tree
           </li>
 
           <li>
-              <label for="subfolder5">debug</label>
-              <input type="checkbox" id="subfolder5" />
+              <label for="subfolder6">debug</label>
+              <input type="checkbox" id="subfolder6" class="folder_"/>
               <ol>
                   <li class="file">
 
-                      <select class="combobox" name="debugtype" onChange="paramChange(this.options[this.selectedIndex].value,'debug');"  >
+                      <select class="combobox" id="debug" name="debug" onChange="paramChange(this.options[this.selectedIndex].value,'debug');"  >
                            <option>vanilla</option>
                            <option>stats</option>
                            <option>debug</option>
