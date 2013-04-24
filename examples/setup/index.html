@@ -197,7 +197,7 @@ ol.tree
                   <li class="file">
                     <span>Num Lights Enabled: </span><input id="lightnum" type="range" min="0" max="3" value="1" step="1" onMouseUp="paramChange(this.value,'lightnum');"/>
                     <br />
-                    <span>Light Selected: </span><input id="lightselect" type="range" min="0" max="3" value="1" step="1" onMouseUp="this.previousSibling.innerHTML = this.previousSibling.innerHTML.split(':')[0] + ': ' + this.value;paramChange(this.value,'lightselect', true, true);"/>
+                    <span>Light Selected: </span><input id="lightselect" type="range" min="0" max="2" value="0" step="1" onMouseUp="this.previousSibling.innerHTML = this.previousSibling.innerHTML.split(':')[0] + ': ' + this.value;paramChange(this.value,'lightselect', true, true);"/>
                     <br />
 <!--
                       <span>enabled : </span><input id="enabled" type="range" min="0" max="1" value="1" step="1"  onchange="this.previousSibling.innerHTML = this.previousSibling.innerHTML.split(':')[0] + ': ' + this.value;paramChange(this.value, this.id);"/>

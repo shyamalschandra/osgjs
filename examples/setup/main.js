@@ -869,7 +869,7 @@ var startViewer = function() {
     groundTex.setWrapT('MIRRORED_REPEAT');
     groundTex.setWrapS('MIRRORED_REPEAT');
     ground.getOrCreateStateSet().setTextureAttributeAndMode(0, groundTex);
-    //ground.getOrCreateStateSet().setAttributeAndMode(new osg.CullFace(osg.CullFace.DISABLE), osg.StateAttribute.ON | osg.StateAttribute.OVERRIDE);
+    ground.getOrCreateStateSet().setAttributeAndMode(new osg.CullFace(osg.CullFace.DISABLE), osg.StateAttribute.ON | osg.StateAttribute.OVERRIDE);
 
     var groundSubNode;
     for (var wG = 0; wG < 5; wG++) {
