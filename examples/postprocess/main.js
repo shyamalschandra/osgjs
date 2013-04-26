@@ -23,6 +23,7 @@ var UpdateCallback = function() {
         var currentTime = nv.getFrameStamp().getSimulationTime();
         var x = Math.cos(currentTime);
         osg.Matrix.makeRotate(x, 0,0,1, node.getMatrix());
+        node.setDirtyMatrix();
         node.traverse(nv);
     };
 };

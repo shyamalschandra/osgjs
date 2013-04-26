@@ -121,8 +121,53 @@ ol.tree
     li input:checked + ol > li { display: block; margin: 0 0 0.125em;  /* 2px */}
     li input:checked + ol > li:last-child { margin: 0 0 0.063em; /* 1px */ }
 
+.combobox:hover{
+background: -webkit-gradient(linear, 50% 0%, 50% 100%, color-stop(0%, #749619), color-stop(100%, #527f0e));
+  background: -webkit-linear-gradient(#749619, #527f0e);
+  background: -moz-linear-gradient(#749619, #527f0e);
+  background: -o-linear-gradient(#749619, #527f0e);
+  background: -ms-linear-gradient(#749619, #527f0e);
+  background: linear-gradient(#749619, #527f0e);
+  background-color: #659e10;
+  border: 1px solid #527f0e;
+  -moz-box-shadow: inset 0px 1px 1px rgba(0, 0, 0, 0.2), 0px 1px 0px rgba(0, 0, 0, 0);
+  -webkit-box-shadow: inset 0px 1px 1px rgba(0, 0, 0, 0.2), 0px 1px 0px rgba(0, 0, 0, 0);
+  -o-box-shadow: inset 0px 1px 1px rgba(0, 0, 0, 0.2), 0px 1px 0px rgba(0, 0, 0, 0);
+  box-shadow: inset 0px 1px 1px rgba(0, 0, 0, 0.2), 0px 1px 0px rgba(0, 0, 0, 0);
+  text-align: center;
+   -webkit-appearance: none;
+}
+.combobox{
+color: white;
+  border: 1px solid #5d910b;
+  background: -webkit-gradient(linear, 50% 0%, 50% 100%, color-stop(0%, #93bd20), color-stop(100%, #659e10));
+  background: -webkit-linear-gradient(#93bd20, #659e10);
+  background: -moz-linear-gradient(#93bd20, #659e10);
+  background: -o-linear-gradient(#93bd20, #659e10);
+  background: -ms-linear-gradient(#93bd20, #659e10);
+  background: linear-gradient(#93bd20, #659e10);
+  -moz-border-radius: 2px;
+  -webkit-border-radius: 2px;
+  -o-border-radius: 2px;
+  -ms-border-radius: 2px;
+  -khtml-border-radius: 2px;
+  border-radius: 2px;
+  -moz-box-shadow: inset 0px 1px 0px rgba(255, 255, 255, 0.3), 0px 3px 7px rgba(0, 0, 0, 0.7);
+  -webkit-box-shadow: inset 0px 1px 0px rgba(255, 255, 255, 0.3), 0px 3px 7px rgba(0, 0, 0, 0.7);
+  -o-box-shadow: inset 0px 1px 0px rgba(255, 255, 255, 0.3), 0px 3px 7px rgba(0, 0, 0, 0.7);
+  box-shadow: inset 0px 1px 0px rgba(255, 255, 255, 0.3), 0px 3px 7px rgba(0, 0, 0, 0.7);
+  background-color: #93bd20;
+  padding: 10px 12px;
+  margin-top: 6px;
+  line-height: 14px;
+  font-size: 14px;
+  display: inline-block;
+  text-align: center;
+   -webkit-appearance: none;
+}
 
 </style>
+
 <title>Scene Setup</title>
 <meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
 
@@ -199,6 +244,16 @@ ol.tree
                     <br />
                     <span>Light Selected: </span><input id="lightselect" type="range" min="0" max="2" value="0" step="1" onMouseUp="this.previousSibling.innerHTML = this.previousSibling.innerHTML.split(':')[0] + ': ' + this.value;paramChange(this.value,'lightselect', true, true);"/>
                     <br />
+                     Light Only:<select  class="combobox" id="lightonly" name="lightonly" onChange="paramChange(this.options[this.selectedIndex].value,'lightonly',true);"  >
+                       <option>0</option>
+                       <option>1</option>
+                    </select>
+                    <br />
+                     Light Rotate:<select  class="combobox"  id="lightrotate" name="lightrotate" onChange="paramChange(this.options[this.selectedIndex].value,'lightrotate',true);"  >
+                       <option>0</option>
+                       <option>1</option>
+                    </select>
+                    <br />
 <!--
                       <span>enabled : </span><input id="enabled" type="range" min="0" max="1" value="1" step="1"  onchange="this.previousSibling.innerHTML = this.previousSibling.innerHTML.split(':')[0] + ': ' + this.value;paramChange(this.value, this.id);"/>
                       <br/>
@@ -209,11 +264,11 @@ ol.tree
                       <br/>
                       <span>spotBlend : </span><input id="_spotBlend" type="range" min="0" max="1" value="0.01" step="0.01"  onchange="this.previousSibling.innerHTML = this.previousSibling.innerHTML.split(':')[0] + ': ' + this.value;paramChange(this.value, this.id, true, true);"/>
                       <br/>
-                      <span>constantAttenuation : </span><input id="_constantAttenuation" type="range" min="0" max="1" value="1.0" step="0.01"  onchange="this.previousSibling.innerHTML = this.previousSibling.innerHTML.split(':')[0] + ': ' + this.value;paramChange(this.value, this.id, true, true);"/>
+                      <span>constantAttenuation : </span><input id="_constantAttenuation" type="range" min="0" max="5" value="0.1" step="0.01"  onchange="this.previousSibling.innerHTML = this.previousSibling.innerHTML.split(':')[0] + ': ' + this.value;paramChange(this.value, this.id, true, true);"/>
                       <br/>
-                      <span>linearAttenuation : </span><input id="_linearAttenuation" type="range" min="0" max="1" value="0" step="0.01"  onchange="this.previousSibling.innerHTML = this.previousSibling.innerHTML.split(':')[0] + ': ' + this.value;paramChange(this.value, this.id, true, true);"/>
+                      <span>linearAttenuation : </span><input id="_linearAttenuation" type="range" min="0" max="5" value="0" step="0.1"  onchange="this.previousSibling.innerHTML = this.previousSibling.innerHTML.split(':')[0] + ': ' + this.value;paramChange(this.value, this.id, true, true);"/>
                       <br/>
-                      <span>quadraticAttenuation : </span><input id="_quadraticAttenuation" type="range" min="0" max="1" value="0" step="0.01"  onchange="this.previousSibling.innerHTML = this.previousSibling.innerHTML.split(':')[0] + ': ' + this.value;paramChange(this.value, this.id, true, true);"/>
+                      <span>quadraticAttenuation : </span><input id="_quadraticAttenuation" type="range" min="0" max="5" value="0" step="0.1"  onchange="this.previousSibling.innerHTML = this.previousSibling.innerHTML.split(':')[0] + ': ' + this.value;paramChange(this.value, this.id, true, true);"/>
                       <br/>
                   </li>
               </ol>
@@ -224,7 +279,7 @@ ol.tree
               <input type="checkbox" id="subfolder4" class="folder_"/>
               <ol>
                   <li class="file">
-                     <select id="shadow" name="shadow" onChange="paramChange(this.options[this.selectedIndex].value,'shadow');"  >
+                     <select  class="combobox" id="shadow" class="combobox" name="shadow" onChange="paramChange(this.options[this.selectedIndex].value,'shadow');"  >
                        <option>Shadow Map</option>
                        <option>Shadow Map Percentage Close Filtering (PCF)</option>
                        <option>Exponential Shadow Map (ESM)</option>
@@ -232,37 +287,33 @@ ol.tree
                         <option>Exponential Variance Shadow Map (EVSM)</option>
                     </select>
 
-                     <select id="textureformat" name="textureformat" onChange="paramChange(this.options[this.selectedIndex].value,'textureformat');"  >
+                     <select  class="combobox" id="textureformat" name="textureformat" onChange="paramChange(this.options[this.selectedIndex].value,'textureformat');"  >
                        <option>Autodetect</option>
                        <option>Force8bits</option>
                        <option>ForceFloat</option>
                     </select>
-                     <select id="texturesize" name="texturesize" onChange="paramChange(this.options[this.selectedIndex].value,'texturesize');"  >
+                     <select  class="combobox" id="texturesize" name="texturesize" onChange="paramChange(this.options[this.selectedIndex].value,'texturesize');"  >
                        <option>64</option>
                        <option>128</option>
                        <option>256</option>
+                       <option>512</option>
                        <option>1024</option>
                        <option>2048</option>
                        <option>4096</option>
                        <option>8192</option>
                     </select>
-                    <select id="shadowstable" name="shadowstable" onChange="paramChange(this.options[this.selectedIndex].value,'shadowstable');"  >
+                    <select class="combobox"  id="shadowstable" name="shadowstable" onChange="paramChange(this.options[this.selectedIndex].value,'shadowstable');"  >
                        <option>Light Position</option>
                        <option>World Position</option>
                     </select>
 
                     <br />
-                    <select id="shadowproj" name="shadowproj" onChange="paramChange(this.options[this.selectedIndex].value,'shadowproj', true);"  >
+                    <select  class="combobox" id="shadowproj" name="shadowproj" onChange="paramChange(this.options[this.selectedIndex].value,'shadowproj', true);"  >
                        <option>fov</option>
                        <option>orthographic</option>
                     </select>
                       <span>light fov : </span><input id="fov" type="range" min="0" max="180" value="30" step="5"  onchange="this.previousSibling.innerHTML = this.previousSibling.innerHTML.split(':')[0] + ': ' + this.value;paramChange(this.value, this.id, true);"/>
 
-                    <br />
-                     Light Only:<select id="lightonly" name="lightonly" onChange="paramChange(this.options[this.selectedIndex].value,'lightonly',true);"  >
-                       <option>0</option>
-                       <option>1</option>
-                    </select>
                     <br />
 
                       <span>Bias (all): </span><input id="bias" type="range" min="0" max="0.1" value="0.001" step="0.001"  onchange="this.previousSibling.innerHTML = this.previousSibling.innerHTML.split(':')[0] + ': ' + this.value;paramChange(this.value,this.id, true);"/>
@@ -311,7 +362,9 @@ ol.tree
               </ol>
           </li>
       </ol> 
+
       <div  style="float:right; font-style:italic;">made with <a href="http://osgjs.org">OSGJS</a></div>
+      <div class="combobox"  onMouseUp="paramChange('','')">Refresh</div>
 
   </div>
 </body>

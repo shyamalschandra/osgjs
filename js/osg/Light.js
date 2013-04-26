@@ -90,7 +90,6 @@ osg.Light.prototype = osg.objectLibraryClass( osg.objectInehrit(osg.StateAttribu
     applyPositionedUniform: function(matrix, state) {
         var uniform = this.getOrCreateUniforms();
         osg.Matrix.copy(matrix, uniform.matrix.get());
-        uniform.matrix.dirty();
 
         osg.Matrix.copy(matrix, uniform.invMatrix.get());
         uniform.invMatrix.get()[12] = 0;
@@ -98,23 +97,9 @@ osg.Light.prototype = osg.objectLibraryClass( osg.objectInehrit(osg.StateAttribu
         uniform.invMatrix.get()[14] = 0;
         osg.Matrix.inverse(uniform.invMatrix.get(), uniform.invMatrix.get());
         osg.Matrix.transpose(uniform.invMatrix.get(), uniform.invMatrix.get());
+       
+        uniform.matrix.dirty();
         uniform.invMatrix.dirty();
-        /*
-        Done in shader using invmatrix...
-        here position is to set if lightspace or world space lighting
-        this._position[0] = -matrix[12];
-        this._position[1] = -matrix[13];
-        this._position[2] = -matrix[14];
-        uniform.position.set(this._position);
-        uniform.position.dirty();
-
-        here direction is to set axis aligned (Z is front going of not.)
-        this._direction[0] = matrix[8];
-        this._direction[1] = matrix[9];
-        this._direction[2] = matrix[10];
-        uniform.direction.set(this._direction);
-        uniform.direction.dirty();
-        */
     },
 
     apply: function(state)

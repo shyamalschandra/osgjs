@@ -10,7 +10,6 @@ uniform float ArrayColorEnabled;
 
  uniform mat4 ViewMatrix;
  uniform mat4 ModelMatrix;
-uniform mat4 ModelViewMatrix;
 uniform mat4 ProjectionMatrix;
 uniform mat4 NormalMatrix;
 
@@ -55,19 +54,36 @@ varying vec3 FragEyeVector;
 #pragma include "common.vert"
 
 void main(void) {
-	gl_Position = ftransform();
+
+	
+	vec4 Local_Vertex = vec4(Vertex.xyz, 1.0);
+	vec4 Local_Normal = vec4(Normal.xyz, 0.0);
+	mat4 ProjViewModelMatrix;
+	mat4 ModelViewMatrix;
+	vec4 WorldPos;
+	vec4 EyePos;
+	vec4 EyeNormal;
+	vec4 ProjEyePos;
+
+	eye_world_transform(ProjectionMatrix, ViewMatrix, ModelMatrix,
+		Local_Vertex, Local_Normal,
+		ProjViewModelMatrix,  ModelViewMatrix,
+		WorldPos, EyePos, EyeNormal, ProjEyePos);
+
+	gl_Position 	= ProjEyePos;
+	FragEyeVector 	= EyePos.xyz;
+	FragNormal 		= EyeNormal.xyz;
+
+
 	if (ArrayColorEnabled == 1.0)
 		VertexColor = Color;
 	else
 		VertexColor = vec4(1.0,1.0,1.0,1.0);
 	gl_PointSize = 1.0;
 
-	FragEyeVector = computeEyeVertex();
-	FragNormal = computeNormal();
-
 	//reuse var accross lights
 	vec4 shadowPosition;
-	vec4 worldPosition =  ModelMatrix *  vec4(Vertex,1.0);
+	vec4 worldPosition =  WorldPos;
 	//#define NUM_STABLE
 	if (Light0_uniform_enable == 1) {
 	    #ifndef NUM_STABLE

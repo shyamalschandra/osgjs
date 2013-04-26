@@ -126,10 +126,17 @@ float bicubicInterpolationFast(in vec2 uv, in sampler2D tex, in vec4 texSize) {
   coord01 = (coord01 + 0.5) * rec_nrCP;
   coord11 = (coord11 + 0.5) * rec_nrCP;
 
+      #ifndef _FLOATTEX
   float tex00 = DecodeFloatRGBA(texture2D(tex, coord00));
   float tex10 = DecodeFloatRGBA(texture2D(tex, coord10));
   float tex01 = DecodeFloatRGBA(texture2D(tex, coord01));
   float tex11 = DecodeFloatRGBA(texture2D(tex, coord11));
+      #else
+  float tex00 = texture2D(tex, coord00).x;
+  float tex10 = texture2D(tex, coord10).x;
+  float tex01 = texture2D(tex, coord01).x;
+  float tex11 = texture2D(tex, coord11).x;
+      #endif
 
   tex00 = lerp(tex01, tex00, g0.y);
   tex10 = lerp(tex11, tex10, g0.y);
@@ -138,7 +145,11 @@ float bicubicInterpolationFast(in vec2 uv, in sampler2D tex, in vec4 texSize) {
 }
 
  float texture2DCompare(sampler2D depths, vec2 uv, float compare){
-    float depth = DecodeFloatRGBA(texture2D(depths, uv));
+      #ifndef _FLOATTEX
+        float depth = DecodeFloatRGBA(texture2D(depths, uv));
+      #else
+        float depth = texture2D(depths, uv).x;
+      #endif
     return step(compare, depth);
 }
 
@@ -188,32 +199,23 @@ float PCF(sampler2D tex, vec4 shadowMapSize, vec2 shadowUV, float shadowZ) {
     fetch[13] = shadowUV.xy + vec2(-0.5, 1.5)*o;
     fetch[14] = shadowUV.xy + vec2(0.5, 1.5)*o;
     fetch[15] = shadowUV.xy + vec2(1.5, 1.5)*o;
+
     for(int i = 0; i < 16; i++) {
-       float zz = DecodeFloatRGBA(texture2D(tex, fetch[i]));
+      #ifndef _FLOATTEX
+        float zz = DecodeFloatRGBA(texture2D(tex, fetch[i]));
+      #else
+        float zz = texture2D(tex, fetch[i]).x;
+      #endif
        shadowed += step(shadowZ - bias , zz);
      }
     shadowed = shadowed / 16.0;
     return shadowed;
 }
 
-float getShadowedTermPCFLerp(vec2 uv, float shadowZ, sampler2D tex, vec4 texSize) {
-    float d = PCFLerp(tex, texSize, uv, shadowZ -bias) ;
-    return d;
-}
-float getShadowedTermPCF(vec2 uv, float shadowZ, sampler2D tex, vec4 texSize) {
-    float d = PCF(tex, texSize, uv, shadowZ -bias);
-    return d;
-}
-
-float getShadowedTerm(vec2 uv, float shadowZ, sampler2D tex) {
-    float d = shadowZ - DecodeFloatRGBA(texture2D(tex, uv));
-    return (d >=bias) ? (0.0) : (1.0);
-}
 
 float getShadowedTermUnified(vec2 shadowUV, float shadowZ, sampler2D tex, vec4 shadowMapSize) {
   //
   // Calculate shadow amount
-  //vec2 uv, float shadowZ, sampler2D tex
   float shadow = 1.0;
 
 
@@ -222,27 +224,35 @@ float getShadowedTermUnified(vec2 shadowUV, float shadowZ, sampler2D tex, vec4 s
 //#define  _PCF
 //#define _NONE
     #ifdef _NONE
-        // "Peter Panning"/"Shadow Acne"
-        //shadowZ.z *= 0.96;
+      #ifndef _FLOATTEX
         float shadowDepth = DecodeFloatRGBA(texture2D(tex, shadowUV.xy));
+      #else
+        float shadowDepth = texel.x;
+      #endif
         shadow = ( shadowZ - bias > shadowDepth ) ? 0.0 : 1.0;
     #elif defined( _PCF )
-        // "Peter Panning"/"Shadow Acne"
-      //shadowZ.z *= 0.96;
       shadow = PCF(tex, shadowMapSize, shadowUV, shadowZ);
       //shadow = PCFLerp(tex, shadowMapSize, shadowUV, shadowZ);
       //shadow = (shadowZ -bias > bicubicInterpolationFast(shadowUV, tex, shadowMapSize)) ? 0.0 : 1.0;
-
     #elif defined( _ESM )
       //http://research.edm.uhasselt.be/tmertens/papers/gi_08_esm.pdf
       float c = exponent;
       vec4 texel = texture2D(tex, shadowUV.xy);
-      shadow = clamp(exp(-c * (shadowZ  - bias - DecodeFloatRGBA(texel))), 0.0, 1.0);
-      //shadow = (1.0 - shadow >=bias) ? (0.0) : (1.0);
+      #ifndef _FLOATTEX
+        float lightDistance = DecodeFloatRGBA(texel);
+      #else
+        float lightDistance = texel.x;
+      #endif
+      shadow = clamp(exp(-c * (shadowZ  - bias -lightDistance)), 0.0, 1.0);
+      shadow = (1.0 - shadow >=bias) ? (0.0) : (1.0);
       //shadow *= 0.9;
     #elif  defined( _VSM )
       vec4 texel = texture2D(tex, shadowUV.xy);
-      vec2 moments = DecodeHalfFloatRGBA(texel);
+      #ifndef _FLOATTEX
+        vec2 moments = DecodeHalfFloatRGBA(texel);
+      #else
+        vec2 moments = texel.xy;
+      #endif
       float shadowBias = bias;
       shadow = ChebyshevUpperBound(moments, shadowZ, shadowBias, VsmEpsilon);
       //shadow = ChebychevInequality(moments, shadowZ.z);
@@ -252,7 +262,11 @@ float getShadowedTermUnified(vec2 shadowUV, float shadowZ, sampler2D tex, vec4 s
       //shadow = shadow * 0.9;
     #elif  defined( _EVSM )
       vec4 texel = texture2D(tex, shadowUV.xy);
-      vec2 moments = DecodeHalfFloatRGBA(texel);
+      #ifndef _FLOATTEX
+        vec2 moments = DecodeHalfFloatRGBA(texel);
+      #else
+        vec2 moments = texel.xy;
+      #endif
       evsmEpsilon = -vsmEpsilon;
       float shadowBias = bias;
       shadow = ChebyshevUpperBound(moments, shadowZ, shadowBias, VsmEpsilon);
@@ -262,7 +276,7 @@ float getShadowedTermUnified(vec2 shadowUV, float shadowZ, sampler2D tex, vec4 s
     return shadow;
 }
 
-float computeShadowTerm(vec4 shadowVertexProjected, vec4 shadowZ, sampler2D tex, vec4 texSize, vec4 depthRange, vec4 LightPosition) {
+float computeShadowTerm(vec4 shadowVertexProjected, vec4 shadowZ, sampler2D tex, vec4 texSize, vec4 depthRange, vec3 LightPosition) {
     float shadowed = 0.0;
     vec4 shadowUV;
     shadowUV = shadowVertexProjected / shadowVertexProjected.w;
@@ -290,19 +304,7 @@ float computeShadowTerm(vec4 shadowVertexProjected, vec4 shadowZ, sampler2D tex,
     //bias = clamp(bias, 0,0.01);
 
     return getShadowedTermUnified(shadowUV.xy, objDepth, tex, texSize);
-    /*
-    #define _PCF
-      #ifdef _PCF
-      //#define _PCFLERP
-      #ifdef _PCFLERP
-        return getShadowedTermPCFLerp(shadowUV.xy, depth, tex, texSize);
-      #else
-        return getShadowedTermPCF(shadowUV.xy, depth, tex, texSize);
-      #endif
-    #else // only one fetch to debug
-        return getShadowedTerm(shadowUV.xy, depth, tex);
-    #endif
-    */
+  
 }
 
 
@@ -314,20 +316,31 @@ void main(void) {
     if (diffuse.x != 0.0 && diffuse.y != 0.0 && diffuse.z != 0.0)
       fragColor *= diffuse;
 
-
     vec3 normal = normalize(FragNormal);
+    if (!gl_FrontFacing)
+    {
+      //back facing
+       normal = -normal;
+    }
     vec3 eyeVector = normalize(-FragEyeVector);
+
+
+
     vec3 Light0_lightEye = vec3(Light0_uniform_matrix * Light0_uniform_position);
     vec3 Light0_lightDir;
     if (Light0_uniform_position[3] == 1.0) {
         Light0_lightDir = Light0_lightEye - FragEyeVector;
     } else {
         Light0_lightDir = Light0_lightEye;
-    }
-    vec3 Light0_spotDirection = normalize(mat3(vec3(Light0_uniform_invMatrix[0]), vec3(Light0_uniform_invMatrix[1]), vec3(Light0_uniform_invMatrix[2])) * Light0_uniform_direction);
+    }    
+    vec3 Light0_spotDirection = normalize(mat3(vec3(Light0_uniform_invMatrix[0]), vec3(Light0_uniform_invMatrix[1]), vec3(Light0_uniform_invMatrix[2])) * Light0_uniform_direction);    
     float Light0_attenuation = getLightAttenuation(Light0_lightDir, Light0_uniform_constantAttenuation, Light0_uniform_linearAttenuation, Light0_uniform_quadraticAttenuation);
     Light0_lightDir = normalize(Light0_lightDir);
-    vec4 LightColor0 = computeLightContribution(MaterialAmbient,  MaterialDiffuse,  MaterialSpecular,  MaterialShininess,  Light0_uniform_ambient,  Light0_uniform_diffuse,  Light0_uniform_specular,  normal,  eyeVector,  Light0_lightDir,  Light0_spotDirection,  Light0_uniform_spotCutoff,  Light0_uniform_spotBlend,  Light0_attenuation);
+    vec4 LightColor0 = computeLightContribution(MaterialAmbient,  MaterialDiffuse,  MaterialSpecular,  MaterialShininess, 
+     Light0_uniform_ambient,  Light0_uniform_diffuse,  Light0_uniform_specular,
+       normal,  eyeVector,
+       Light0_lightDir,  Light0_spotDirection,  Light0_uniform_spotCutoff,  Light0_uniform_spotBlend,  Light0_attenuation);
+
 
 
     vec4 lightColor1 = MaterialEmission;
@@ -384,20 +397,20 @@ void main(void) {
   #else
       #define SHADOW_ONLY
       #ifdef SHADOW_ONLY
-          lightColor += Light0_uniform_enable == 0 ? nullColor : vec4(1.0, 1.0, 1.0, 1.0) * computeShadowTerm(Shadow_VertexProjected0, Shadow_Z0, Texture1, Shadow_MapSize0, Shadow_DepthRange0, Light0_uniform_position);
-          lightColor += Light1_uniform_enable == 0 ? nullColor : vec4(1.0, 1.0, 1.0, 1.0) * computeShadowTerm(Shadow_VertexProjected1, Shadow_Z1, Texture2, Shadow_MapSize1, Shadow_DepthRange1, Light1_uniform_position);
-          lightColor += Light2_uniform_enable == 0 ? nullColor : vec4(1.0, 1.0, 1.0, 1.0) * computeShadowTerm(Shadow_VertexProjected2, Shadow_Z2, Texture3, Shadow_MapSize2, Shadow_DepthRange2, Light2_uniform_position);
+          lightColor += Light0_uniform_enable == 0 ? nullColor : vec4(1.0, 1.0, 1.0, 1.0) * computeShadowTerm(Shadow_VertexProjected0, Shadow_Z0, Texture1, Shadow_MapSize0, Shadow_DepthRange0, Light0_lightEye);
+          lightColor += Light1_uniform_enable == 0 ? nullColor : vec4(1.0, 1.0, 1.0, 1.0) * computeShadowTerm(Shadow_VertexProjected1, Shadow_Z1, Texture2, Shadow_MapSize1, Shadow_DepthRange1, Light1_lightEye);
+          lightColor += Light2_uniform_enable == 0 ? nullColor : vec4(1.0, 1.0, 1.0, 1.0) * computeShadowTerm(Shadow_VertexProjected2, Shadow_Z2, Texture3, Shadow_MapSize2, Shadow_DepthRange2, Light2_lightEye);
 
       #else
-          lightColor += Light0_uniform_enable == 0 ? nullColor : (LightColor0 * 0.5 + 0.5 * (computeShadowTerm(Shadow_VertexProjected0, Shadow_Z0, Texture1, Shadow_MapSize0, Shadow_DepthRange0, Light0_uniform_position)));
-          lightColor += Light1_uniform_enable == 0 ? nullColor : (LightColor1 * 0.5 + 0.5 * (computeShadowTerm(Shadow_VertexProjected1, Shadow_Z1, Texture2, Shadow_MapSize1, Shadow_DepthRange1, Light1_uniform_position)));
-          lightColor += Light2_uniform_enable == 0 ? nullColor : (LightColor2 * 0.5 + 0.5 * (computeShadowTerm(Shadow_VertexProjected2, Shadow_Z2, Texture3, Shadow_MapSize2, Shadow_DepthRange2, Light2_uniform_position)));
+          lightColor += Light0_uniform_enable == 0 ? nullColor : (LightColor0 * 0.5 + 0.5 * (computeShadowTerm(Shadow_VertexProjected0, Shadow_Z0, Texture1, Shadow_MapSize0, Shadow_DepthRange0, Light0_lightEye)));
+          lightColor += Light1_uniform_enable == 0 ? nullColor : (LightColor1 * 0.5 + 0.5 * (computeShadowTerm(Shadow_VertexProjected1, Shadow_Z1, Texture2, Shadow_MapSize1, Shadow_DepthRange1, Light1_lightEye)));
+          lightColor += Light2_uniform_enable == 0 ? nullColor : (LightColor2 * 0.5 + 0.5 * (computeShadowTerm(Shadow_VertexProjected2, Shadow_Z2, Texture3, Shadow_MapSize2, Shadow_DepthRange2, Light2_lightEye)));
       #endif
   #endif
 #else
-      lightColor += Light0_uniform_enable == 0 ? nullColor : (LightColor0 * (computeShadowTerm(Shadow_VertexProjected0, Shadow_Z0, Texture1, Shadow_MapSize0, Shadow_DepthRange0, Light0_uniform_position)));
-      lightColor += Light1_uniform_enable == 0 ? nullColor : (LightColor1 * (computeShadowTerm(Shadow_VertexProjected1, Shadow_Z1, Texture2, Shadow_MapSize1, Shadow_DepthRange1, Light1_uniform_position)));
-      lightColor += Light2_uniform_enable == 0 ? nullColor : (LightColor2 * (computeShadowTerm(Shadow_VertexProjected2, Shadow_Z2, Texture3, Shadow_MapSize2, Shadow_DepthRange2, Light2_uniform_position)));
+      lightColor += Light0_uniform_enable == 0 ? nullColor : (LightColor0 * (computeShadowTerm(Shadow_VertexProjected0, Shadow_Z0, Texture1, Shadow_MapSize0, Shadow_DepthRange0, Light0_lightEye)));
+      lightColor += Light1_uniform_enable == 0 ? nullColor : (LightColor1 * (computeShadowTerm(Shadow_VertexProjected1, Shadow_Z1, Texture2, Shadow_MapSize1, Shadow_DepthRange1, Light1_lightEye)));
+      lightColor += Light2_uniform_enable == 0 ? nullColor : (LightColor2 * (computeShadowTerm(Shadow_VertexProjected2, Shadow_Z2, Texture3, Shadow_MapSize2, Shadow_DepthRange2, Light2_lightEye)));
 #endif
 
     fragColor = linearrgb_to_srgb(MaterialEmission + fragColor * lightColor);

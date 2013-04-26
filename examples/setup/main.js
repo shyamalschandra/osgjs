@@ -40,11 +40,12 @@ parametersURL = {
     'fov': 30,
     'exponent1': 10.0,
     'lightselect': 0,
-    '_spotCutoff' : 180.0,
+    'lightrotate': 1,
+    '_spotCutoff' : 35.0,
     '_spotBlend' : 0.01,
     '_constantAttenuation' : 1.0,
-    '_linearAttenuation' : 0.0,
-    '_quadraticAttenuation' : 0.0
+    '_linearAttenuation' : 0.1,
+    '_quadraticAttenuation' : 0.1
 };
 
 var urlParam = window.location.href;
@@ -90,7 +91,7 @@ var paramChange = function(valueName, optionName, noReload, light) {
                 parametersURL[valueName[i]] = 1;
             }
         }
-        else{
+        else if (valueName !== ''){
             var val = parseFloat(valueName);
             if (!isNaN(val)){
                 didChange =  parametersURL[optionName] !== val;
@@ -100,6 +101,9 @@ var paramChange = function(valueName, optionName, noReload, light) {
                 didChange =  parametersURL[optionName] !== valueName;
                 parametersURL[optionName] = valueName;
             }
+        }
+        else{
+            didChange = true;
         }
 
         for (var option in parametersURL) {
@@ -137,10 +141,14 @@ var LightUpdateCallbackShadowMap = function(options) {
     this.camera = options.camera;
     //this.invShadowViewMatrix = options.invShadowViewMatrix;
     this.lightTarget = [0.0, 0.0, -5.0];
+    //this.lightTarget = [15.0, 15.0, 0.0];
     this.worldlightTarget = [];
     if (options.position) this.lightPositionProjTexOrig = options.position;
     else this.lightPositionProjTexOrig = [50.0, 50.0, 80.0, 0.0];
-    this.lightPositionProjTex = [0.0, 0.0, 0.0, 0.0];
+
+    this.lightPos = [];
+    this.lightDir = [];
+
 
     this.worldLightPos = [];
     this.worldLightDir = [];
@@ -148,104 +156,88 @@ var LightUpdateCallbackShadowMap = function(options) {
     this.shadowProj = [];
     this.shadowView = [];
 
-    this.idlook = [0, 0, 1];
+    this.up = [0, 0, 1];
+    this.first = true;
 
-    this.biasScale = [];
-    this.move = [0.5, 0.5, 0.5];
-    this.Translate = [];
-    this.Translate = osg.Matrix.makeTranslate(this.move[0], this.move[1], this.move[2], this.Translate);
-    this.Scale = [];
-    this.Scale = osg.Matrix.makeScale(this.move[0], this.move[1], this.move[2], this.Scale);
-    this.biasScale = osg.Matrix.preMult(this.Translate, this.Scale);
 };
 LightUpdateCallbackShadowMap.prototype = {
-    update: function(node, nv) {
-        var currentTime = nv.getFrameStamp().getSimulationTime() * 0.25;
-
-
+    updateLightPos: function(node){
         if (node.getLight()._enabled) {
-
-            // animation !
-            this.lightPositionProjTex[0] = this.lightPositionProjTexOrig[0] * (Math.cos(currentTime) + this.lightPositionProjTexOrig[3]); //x
-            this.lightPositionProjTex[1] = this.lightPositionProjTexOrig[1] * (Math.sin(currentTime) + this.lightPositionProjTexOrig[3]); //y
-            this.lightPositionProjTex[2] = this.lightPositionProjTexOrig[2]; //z
-
-            //update osg objects
-            node.getLight().setPosition(this.lightPositionProjTex);
+            // TODO: check change
+            //if (this.lastPos !== &&& this.lastTargetPos !== ){
 
             //  GENERIC Code getting pos&dir from light
             // update shadow camera with  light parameters
-            var lightPos = node.getLight().getPosition();
-            var lightDir = node.getLight().getDirection();
-            osg.Vec3.sub(lightPos, this.lightTarget, lightDir);
-            osg.Vec3.normalize(lightDir, lightDir);
-            node.getLight().setDirection(lightDir);
-
-
-
-            var up = [0, 1, 0]; //  Y camera up
+            osg.Vec3.sub(this.lightPos, this.lightTarget, this.lightDir);
+            osg.Vec3.normalize(this.lightDir, this.lightDir);
+            this.up = [0, 0, 1]; //   camera up
             // Check it's not coincident with lightdir
-            if (Math.abs(osg.Vec3.dot(up, lightDir)) >= 1.0) {
-                // Use Z camera up
-                up = [1, 0, 0];
+            if (Math.abs(osg.Vec3.dot(this.up, this.lightDir)) >= 1.0) {
+                // another camera up
+               this.up = [0, 1, 0];
             }
 
+            var lightMatrix = node.getMatrix();
+            // update Light node
+            osg.Matrix.makeLookAt(this.lightPos, this.lightTarget, this.up, lightMatrix);
+            osg.Matrix.inverse(lightMatrix, lightMatrix);
+           // osg.Matrix.setTrans(lightMatrix, this.lightPos[0], this.lightPos[1], this.lightPos[2]);
+            //osg.Matrix.makeTranslate(this.lightPos[0], this.lightPos[1], this.lightPos[2], lightMatrix);
 
+            //
             // camera world matrix.
             var matrixList = node.parents[0].getWorldMatrices();
             var worldMatrix = matrixList[0];
 
             //  light pos & lightTarget in World Space
-            osg.Matrix.transformVec3(worldMatrix, lightPos, this.worldLightPos);
+            osg.Matrix.transformVec3(worldMatrix, this.lightPos, this.worldLightPos);
             osg.Matrix.transformVec3(worldMatrix, this.lightTarget, this.worldlightTarget);
-            //osg.Vec3.normalize(this.worldlightTarget, this.worldlightTarget);
-
+            //
             // LIGHT VIEW MATRIX
             // put that into shadow camera view matrix.
-            osg.Matrix.makeLookAt(this.worldLightPos, this.worldlightTarget, up, this.camera.getViewMatrix());
+            osg.Matrix.makeLookAt(this.worldLightPos, this.worldlightTarget, this.up, this.camera.getViewMatrix());
             //this.shadowCasterScene.setMatrix(worldMatrix);
 
-            // osg.Matrix.mult(this.camera.pureViewMatrix, worldMatrix, this.shadowView);
-            osg.Matrix.copy(this.camera.getViewMatrix(), this.shadowView);
 
             // LIGHT PROJ MATRIX
             // update depth range camera with  light parameters
             // camera proj matrix should be automatically updated by update/culling ?
-            if (this.camera.near !== undefined && this.camera.far !== undefined) {
-                var near = this.camera.near;
-                var far = this.camera.far;
-                if (near === far) {
-                    far += 1;
-                }
-
-                this.depthRange.set([near, far, far - near, 1.0 / (far - near)]);
-                this.depthRangeNum.set([near, far, far - near, 1.0 / (far - near)]);
-
-                if (parametersURL['shadowproj'] === 'fov'){
-                    // spot light get spot light angle/frustum
-                    var fov =parametersURL['fov'];
-                    this.camera.setProjectionMatrix(osg.Matrix.makePerspective(fov, 1, near, far));
-                }
-                else{
-                    // Dir light
-                    // get scene bbox ?
-                    var min = this.camera.boundingbox._min;
-                    var max = this.camera.boundingbox._max;
-                    /*   var ortho = [
-                        2.0 / max[0] - min[0], 0.0, 0.0, 0.0,
-                        0.0, 2.0 / max[1] - min[1], 0.0, 0.0,
-                        0.0, 0.0, 1.0 / (far - near), -1.0 * near / (far - near),
-                        0.0, 0.0, 0.0, 1.0];
-
-                    this.camera.setProjectionMatrix(ortho);
-            */
-                    this.camera.setProjectionMatrix(osg.Matrix.makeOrtho(min[0], max[0], min[1], max[1], min[2], max[2]));
-                }
-
+            var near = this.camera.near;
+            var far = this.camera.far;
+            if (near === undefined || far === undefined) {
+                near = 0.01;
+                far = 200;
             }
 
+            if (near === far) {
+                far += 1;
+            }
 
+            this.depthRange.set([near, far, far - near, 1.0 / (far - near)]);
+            this.depthRangeNum.set([near, far, far - near, 1.0 / (far - near)]);
+
+            if (parametersURL['shadowproj'] === 'fov' || this.camera.boundingbox === undefined ){
+                // spot light get spot light angle/frustum
+                var fov =parametersURL['fov'];
+                this.camera.setProjectionMatrix(osg.Matrix.makePerspective(fov, 1, near, far));
+            }
+            else{
+                // Dir light
+                // get scene bbox ?
+                var min = this.camera.boundingbox._min;
+                var max = this.camera.boundingbox._max;
+                /*   var ortho = [
+                    2.0 / max[0] - min[0], 0.0, 0.0, 0.0,
+                    0.0, 2.0 / max[1] - min[1], 0.0, 0.0,
+                    0.0, 0.0, 1.0 / (far - near), -1.0 * near / (far - near),
+                    0.0, 0.0, 0.0, 1.0];
+
+                this.camera.setProjectionMatrix(ortho);
+        */
+                this.camera.setProjectionMatrix(osg.Matrix.makeOrtho(min[0], max[0], min[1], max[1], min[2], max[2]));
+            }
             osg.Matrix.copy(this.camera.getProjectionMatrix(), this.shadowProj);
+            osg.Matrix.copy(this.camera.getViewMatrix(), this.shadowView);
 
             // udpate shader Parameters
             //this.projectionShadowCast.set(this.shadowProj);
@@ -255,11 +247,24 @@ LightUpdateCallbackShadowMap.prototype = {
             this.viewShadow.set(this.shadowView);
 
 
-            // update Light node
-            //osg.Matrix.makeLookAt(lightPos, lightDir, [0,0,1], node.getMatrix());
-            osg.Matrix.makeTranslate(lightPos[0], lightPos[1], lightPos[2], node.getMatrix());
-            node.getLight().dirty();
+            node.setDirtyMatrix(true);
             this.camera.setDirtyMatrix(true);
+        }
+    },
+    animation : function (currentTime){
+        this.lightPos[0] = this.lightPositionProjTexOrig[0] * (Math.cos(currentTime) + this.lightPositionProjTexOrig[3]); //x
+        this.lightPos[1] = this.lightPositionProjTexOrig[1] * (Math.sin(currentTime) + this.lightPositionProjTexOrig[3]); //y
+        this.lightPos[2] = this.lightPositionProjTexOrig[2]; //z
+    },
+    update: function(node, nv) {
+        if (node.getLight()._enabled) {
+            // animation !
+            if (this.first || (parametersURL['lightrotate'] && parametersURL['lightrotate'] !== 0)){
+                this.animation(nv.getFrameStamp().getSimulationTime() * 0.2);
+                this.updateLightPos(node);
+                this.first = false;
+            }
+
         }
         node.traverse(nv);
     }
@@ -520,7 +525,7 @@ function setShadowCasting(receivers, lightsource, position, num, CastsShadowTrav
     stateSet.addUniform(depthRangeNum);
     stateSet.addUniform(shadowMapSizeNum);
 
-    lightsource.setUpdateCallback(new LightUpdateCallbackShadowMap({
+    var lightCallback = new LightUpdateCallbackShadowMap({
         'projectionShadow': projectionShadowNum,
         'viewShadow': viewShadowNum,
         'depthRangeNum': depthRangeNum,
@@ -531,7 +536,9 @@ function setShadowCasting(receivers, lightsource, position, num, CastsShadowTrav
         'shadowCasterScene': shadowCasterScene,
         'depthRange': depthRange
         //'invShadowViewMatrix': invShadowViewMatrixUniform
-    }));
+    });
+
+    lightsource.setUpdateCallback(lightCallback);
 
     return lightsource;
 }
@@ -755,8 +762,11 @@ var startViewer = function() {
 
     for (var option in parametersURL) {
         var elem = document.getElementById(option);
-        if (elem)
+        if (elem){
             elem.value = parametersURL[option];
+            if (elem.previousSibling && elem.previousSibling.innerHTML)
+                elem.previousSibling.innerHTML = elem.previousSibling.innerHTML.split(':')[0] + ': ' + elem.value;
+        }
     }
 
     var shaderOptions = {
@@ -783,11 +793,11 @@ var startViewer = function() {
 
     var viewer;
     viewer = new osgViewer.Viewer(canvas, {
-        light: "0",
         antialias: true,
         premultipliedAlpha: true
     });
 
+    viewer.setLightingMode(osgViewer.View.LightingMode.NO_LIGHT);
     viewer.init();
     viewer.setupManipulator();
 
@@ -914,6 +924,18 @@ var startViewer = function() {
     lightNode0.setName('lightNode0');
     var light0 = new osg.Light(0);
     light0.setName('light0');
+
+    light0.setSpotCutoff(parametersURL['_spotCutoff']);
+    light0.setSpotBlend(parametersURL['_spotBlend']);
+    light0.setConstantAttenuation(parametersURL['_constantAttenuation']);
+    light0.setLinearAttenuation(parametersURL['_linearAttenuation']);
+    light0.setQuadraticAttenuation(parametersURL['_quadraticAttenuation']);
+
+/*
+    light0._ambient = [ 0, 0, 0, 1 ];
+    light0._diffuse = [ 0.8, 0, 0, 1.0 ];
+    light0._specular = [ 0, 0, 0.8, 1.0 ];
+*/
     lightNode0.setLight(light0);
     lights.push(light0);
 
@@ -921,6 +943,8 @@ var startViewer = function() {
     var lightNode1 = new osg.LightSource();
     lightNode1.setName('lightNode1');
     var light1 = new osg.Light(1);
+
+
     light1.setName('light1');
     lightNode1.setLight(light1);
     lights.push(light1);
@@ -985,12 +1009,35 @@ var startViewer = function() {
     showhide['exponent'] = true;
     showhide['exponent1'] = true;
     var floatTexSupp = osg.profile.extensions['OES_texture_float'] && parametersURL['textureformat'] !== 'Force8bits';
-     if (floatTexSupp && parametersURL['shadow'] === 'Exponential Variance Shadow Map (EVSM)') {
+     if (floatTexSupp){
+        if(parametersURL['shadow'] === 'Exponential Variance Shadow Map (EVSM)') {
                 technique = 'EVSM';
-    } else if (floatTexSupp && parametersURL['shadow'] === 'Variance Shadow Map (VSM)') {
+        }
+         else if (floatTexSupp && parametersURL['shadow'] === 'Variance Shadow Map (VSM)') {
                 technique = 'VSM';
                 showhide['exponent'] = false;
                 showhide['exponent1'] = false;
+        }
+        else if (parametersURL['shadow'] === 'Exponential Shadow Map (ESM)'){
+            defines.push('#define _ESM');
+            defines.push('#define _FLOATTEX');
+                showhide['exponent1'] = false;
+                showhide['VsmEpsilon'] = false;
+        }
+        else if (parametersURL['shadow'] === 'Shadow Map'){
+            defines.push('#define _NONE');
+            defines.push('#define _FLOATTEX');
+                showhide['exponent'] = false;
+                showhide['exponent1'] = false;
+                showhide['VsmEpsilon'] = false;
+        }
+        else if (parametersURL['shadow'] === 'Shadow Map Percentage Close Filtering (PCF)'){
+            defines.push('#define _PCF');
+            defines.push('#define _FLOATTEX');
+                showhide['exponent'] = false;
+                showhide['exponent1'] = false;
+                showhide['VsmEpsilon'] = false;
+        }
     } else {
         if (parametersURL['shadow'] === 'Exponential Shadow Map (ESM)'){
             defines.push('#define _ESM');
@@ -1060,7 +1107,6 @@ var startViewer = function() {
 
 
     var root = new osg.Node(); // All pure native root.
-    //root.addChild(sceneCamera);
 
     //root = addPostProcess(root, sceneCamera, viewer);
 

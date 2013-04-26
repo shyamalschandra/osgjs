@@ -401,14 +401,18 @@ osg.CullVisitor.prototype = osg.objectInehrit(osg.CullStack.prototype ,osg.objec
     getCurrentRenderBin: function() { return this._currentRenderBin; },
     setCurrentRenderBin: function(rb) { this._currentRenderBin = rb; },
     addPositionedAttribute: function (attribute) {
-        if (this._traceNode.isDirty()) {
-            this._reserveMatrixModelStack.dirty();
+       /* if (this._traceNode.isDirty()) {
+           this._reserveMatrixModelStack.dirty();
         }
         var matrix = this._reserveMatrixModelStack.getReserved();
-        var recomputeMatrix = this._reserveMatrixModelStack.isDirty();
+        var recomputeMatrix = this._reserveMatrixModelStack.isDirty() || this._reserveMatrixViewStack.isDirty();
         if (recomputeMatrix) {
-            matrix = osg.Matrix.mult(this.getCurrentViewMatrix(), this.getCurrentModelMatrix(), matrix);
-        }
+            */
+           
+           var matrix = [];
+
+            matrix = osg.Matrix.mult(this.getCurrentViewMatrix(), this.getCurrentModelMatrix(), []);
+        //}
         this._currentRenderBin.getStage().positionedAttribute.push([matrix, attribute]);
     },
 
@@ -485,16 +489,20 @@ osg.CullVisitor.prototype[osg.Camera.prototype.objectType] = function( camera ) 
 
     if (this._traceNode.isDirty() || camera.isDirtyMatrix() || this._reserveMatrixViewStack.isDirty()) {
         this._reserveMatrixViewStack.dirty();
+        if (camera.getRenderOrder() === osg.Camera.NESTED_RENDER){
+            this._reserveMatrixModelStack.dirty();
+        }
         this._reserveBoundingBoxStack.dirty();
         this._dirtyMatrixNode.logNode(camera);
+        recompute = true;
     }
 
     var view = this._reserveMatrixViewStack.getReserved();
     var model = this._reserveMatrixModelStack.getReserved();
-    var projection =this._reserveMatrixViewStack.getReserved();
+    var projection = this._reserveMatrixViewStack.getReserved();
 
     var boundingbox = this._reserveBoundingBoxStack.getReserved();
-    var recompute = this._reserveMatrixViewStack.isDirty();
+    //var recompute = this._reserveMatrixViewStack.isDirty();
     if (recompute) {
         if (camera.getReferenceFrame() === osg.Transform.RELATIVE_RF) {
             this._reserveMatrixModelStack.dirty();
@@ -707,8 +715,27 @@ osg.CullVisitor.prototype[osg.Node.prototype.objectType] = function (node) {
     }
 };
 osg.CullVisitor.prototype[osg.LightSource.prototype.objectType] = function (node) {
-    //   TODO: compute lightView (inverse of model view)
-    //   for shadows here
+
+    if (this._traceNode.isDirty() || node.isDirtyMatrix()) {
+        this._reserveMatrixModelStack.dirty();
+        this._dirtyMatrixNode.logNode(node);
+    }
+
+    var matrixModel = this._reserveMatrixModelStack.getReserved();
+
+    var recompute = this._reserveMatrixModelStack.isDirty();
+    if (recompute) {
+        if (node.getReferenceFrame() === osg.Transform.RELATIVE_RF) {
+
+            var lastmodelmatrixStack = this.getCurrentModelMatrix();
+            osg.Matrix.mult(lastmodelmatrixStack, node.getMatrix(), matrixModel);
+        } else {
+            // absolute
+            osg.Matrix.copy(node.getMatrix(), matrixModel);
+        }
+    }
+    this.pushModelMatrix(matrixModel);
+
     var stateset = node.getStateSet();
     if (stateset) {
         this.pushStateSet(stateset);
@@ -724,22 +751,22 @@ osg.CullVisitor.prototype[osg.LightSource.prototype.objectType] = function (node
     if (stateset) {
         this.popStateSet();
     }
+    this.popModelMatrix();
 };
 
 osg.CullVisitor.prototype[osg.Geometry.prototype.objectType] = function (node) {
 
+
     var view = this.getCurrentViewMatrix();
     var model = this.getCurrentModelMatrix();
-
     var recompute = this._traceNode.isDirty() || this._reserveMatrixModelStack.isDirty();
     if (recompute) {
-        this._reserveMatrixModelStack.dirty();
+        //this._reserveMatrixModelStack.dirty();
         this._reserveBoundingBoxStack.dirty();
     }
     var bb = this._reserveBoundingBoxStack.getReserved();
 
     if (recompute) {
-
         var localbb = node.getBoundingBox();
         osg.Matrix.transformBoundingbox( model, localbb,  bb);
     }

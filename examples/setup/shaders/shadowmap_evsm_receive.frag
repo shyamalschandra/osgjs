@@ -172,6 +172,8 @@ void main(void) {
 
     vec3 normal = normalize(FragNormal);
     vec3 eyeVector = normalize(-FragEyeVector);
+
+
     vec3 Light0_lightEye = vec3(Light0_uniform_matrix * Light0_uniform_position);
     vec3 Light0_lightDir;
     if (Light0_uniform_position[3] == 1.0) {
@@ -182,7 +184,10 @@ void main(void) {
     vec3 Light0_spotDirection = normalize(mat3(vec3(Light0_uniform_invMatrix[0]), vec3(Light0_uniform_invMatrix[1]), vec3(Light0_uniform_invMatrix[2])) * Light0_uniform_direction);
     float Light0_attenuation = getLightAttenuation(Light0_lightDir, Light0_uniform_constantAttenuation, Light0_uniform_linearAttenuation, Light0_uniform_quadraticAttenuation);
     Light0_lightDir = normalize(Light0_lightDir);
-    vec4 LightColor0 = computeLightContribution(MaterialAmbient,  MaterialDiffuse,  MaterialSpecular,  MaterialShininess,  Light0_uniform_ambient,  Light0_uniform_diffuse,  Light0_uniform_specular,  normal,  eyeVector,  Light0_lightDir,  Light0_spotDirection,  Light0_uniform_spotCutoff,  Light0_uniform_spotBlend,  Light0_attenuation);
+    vec4 LightColor0 = computeLightContribution(MaterialAmbient,  MaterialDiffuse,  MaterialSpecular,  MaterialShininess,
+      Light0_uniform_ambient,  Light0_uniform_diffuse,  Light0_uniform_specular,  
+      normal,  eyeVector,  
+      Light0_lightDir,  Light0_spotDirection,  Light0_uniform_spotCutoff,  Light0_uniform_spotBlend,  Light0_attenuation);
 
 
     vec4 lightColor1 = MaterialEmission;

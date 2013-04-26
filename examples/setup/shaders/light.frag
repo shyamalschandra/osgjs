@@ -84,7 +84,8 @@ float getLightAttenuation(vec3 lightDir, float constant, float linear, float qua
 }
 vec4 computeLightContribution(vec4 materialAmbient,   vec4 materialDiffuse,   vec4 materialSpecular,   float materialShininess,  
                              vec4 lightAmbient,   vec4 lightDiffuse,   vec4 lightSpecular,   
-                             vec3 normal,   vec3 eye,   vec3 lightDirection,   vec3 lightSpotDirection,   
+                             vec3 normal,   vec3 eye,   
+                             vec3 lightDirection,   vec3 lightSpotDirection,   
                              float lightCosSpotCutoff,   float lightSpotBlend,   float lightAttenuation) {
     vec3 L = lightDirection;
     vec3 N = normal;
@@ -102,16 +103,16 @@ vec4 computeLightContribution(vec4 materialAmbient,   vec4 materialDiffuse,   ve
             RdotE = pow(RdotE, materialShininess);
         }
         vec3 D = lightSpotDirection;
-        spot = 1.0;
+
         if (lightCosSpotCutoff > 0.0) {
             float cosCurAngle = dot(-L, D);
             if (cosCurAngle < lightCosSpotCutoff) {
                 spot = 0.0;
             } else {
-                if (lightSpotBlend > 0.0)    
-                    spot = cosCurAngle * smoothstep(0.0, 1.0, (cosCurAngle - lightCosSpotCutoff) / (lightSpotBlend));
+                if (lightSpotBlend > 0.0)    spot = cosCurAngle * smoothstep(0.0, 1.0, (cosCurAngle - lightCosSpotCutoff) / (lightSpotBlend));
             }
         }
+
         diffuse = lightDiffuse * ((halfTerm));
         specular = lightSpecular * RdotE;
     }
