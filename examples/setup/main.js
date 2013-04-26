@@ -35,7 +35,7 @@ parametersURL = {
     'blur': 1,
     'msaa': 1,
     'model' : 'ogre',
-    'shadowstable': 'World Position',
+    'shadowstable': 'Light Position',
     'shadowproj': 'fov',
     'fov': 30,
     'exponent1': 10.0,
