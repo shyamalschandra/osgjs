@@ -9,8 +9,8 @@ uniform mat4 Shadow_View;
 varying vec4 WorldPos;
 
 
-const vec2 g_EVSMExponents = vec2(20.0, 10.0);
-const float g_EVSM_Derivation = 0.0001;
+uniform float exponent;
+uniform float exponent1;
 
 // Convert depth to EVSM coefficients
 // Input depth should be in [0, 1]
@@ -26,7 +26,7 @@ vec2 WarpDepth(float depth, vec2 exponents)
 // Convert depth value to EVSM representation
 vec4 ShadowDepthToEVSM(float depth)
 {
-	vec2 exponents = g_EVSMExponents;
+	vec2 exponents = vec2(exponent, exponent1);
 	vec2 warpedDepth = WarpDepth(depth, exponents);
 	return  vec4(warpedDepth.xy, warpedDepth.xy * warpedDepth.xy);
 }

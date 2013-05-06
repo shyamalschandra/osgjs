@@ -3451,6 +3451,59 @@ osg.CullStack.prototype = {
 };
 
 /**
+ *  CameraStateAttribute
+ *  @class CameraStateAttribute
+ */
+osg.CameraStateAttribute = function (cameraUnit) {
+    osg.StateAttribute.call(this);
+    this._cameraUnit = cameraUnit;
+    this._worldCameraMatrix = [];
+    this._worldCameraPos = [ 0.0, 0.0, 1.0, 0.0 ];
+    this.uniforms = {};
+    this.dirty();
+};
+osg.CameraStateAttribute.prototype = osg.objectLibraryClass( osg.objectInehrit(osg.StateAttribute.prototype, {
+    attributeType: "Camera",
+    cloneType: function() {return new osg.CameraStateAttribute(this._cameraUnit); },
+    getType: function() { return this.attributeType; },
+    getTypeMember: function() {
+        return this.attributeType;// + this._cameraUnit;
+    },
+    getPrefix: function() { return this.getType(); },
+    getUniformName: function (name) { return this.getPrefix()+ "_uniform_" + name; },
+    getOrCreateUniforms: function() {
+        var uniforms = this.uniforms;
+        var typeMember = this.getTypeMember();
+        if (uniforms[typeMember] === undefined) {
+            var uFact = osg.Uniform;
+            uniforms[typeMember] = {
+                "position": uFact.createFloat4([ 0, 0, 0, 0], this.getUniformName('position'))
+                // TODO: might be a memory saver and stateset compilation life saver ?
+                //, "viewmatrix"
+                //, "projmatrix"
+                // Any other idea.
+            };
+
+            uniforms[typeMember].uniformKeys = Object.keys(uniforms[typeMember]);
+        }
+        return uniforms[typeMember];
+    },
+    applyPositionedUniform: function(matrix) {
+
+        var uniform = this.getOrCreateUniforms();
+        osg.Matrix.inverse(matrix, this._worldCameraMatrix);
+        this._position = [ this._worldCameraMatrix[12], this._worldCameraMatrix[13], this._worldCameraMatrix[14], 1.0 ]; // w == 1 spotlight pointlight , 0 for  dirlight,  
+        uniform.position.set(this._position);
+    },
+    apply: function(state)
+    {
+        var uniform = this.getOrCreateUniforms();
+        state.cameraPosition = uniform.position;
+        //this.setDirty(false);
+    }
+}),"osg","CameraStateAttribute");
+
+/**
  * Camera - is a subclass of Transform which represents encapsulates the settings of a Camera.
  * @class Camera
  * @inherits osg.Transform osg.CullSettings
@@ -3470,6 +3523,7 @@ osg.Camera = function() {
 
     this.renderOrder = osg.Camera.NESTED_RENDER;
     this.renderOrderNum = 0;
+    this.attributeState = new osg.CameraStateAttribute(this._objectID);
 };
 
 osg.Camera.PRE_RENDER = 0;
@@ -3609,6 +3663,8 @@ osg.objectInehrit(osg.Transform.prototype, {
 
 }))), "osg", "Camera");
 osg.Camera.prototype.objectType = osg.objectType.generate("Camera");
+
+
 
 osg.Depth = function (func, near, far, writeMask) {
     osg.StateAttribute.call(this);
@@ -4108,7 +4164,8 @@ osg.Light.prototype = osg.objectLibraryClass( osg.objectInehrit(osg.StateAttribu
                 "quadraticAttenuation": uFact.createFloat1( 0, this.getUniformName('quadraticAttenuation')),
                 "enable": uFact.createInt1( 0, this.getUniformName('enable')),
                 "matrix": uFact.createMatrix4(osg.Matrix.makeIdentity([]), this.getUniformName('matrix')),
-                "invMatrix": uFact.createMatrix4(osg.Matrix.makeIdentity([]), this.getUniformName('invMatrix'))
+                "invMatrix": uFact.createMatrix4(osg.Matrix.makeIdentity([]), this.getUniformName('invMatrix')),
+                "worldCameraPos": uFact.createFloat4([ 0, 0, 0, 0], this.getUniformName('worldCameraPos'))
             };
 
             uniforms[typeMember].uniformKeys = Object.keys(uniforms[typeMember]);
@@ -4144,7 +4201,9 @@ osg.Light.prototype = osg.objectLibraryClass( osg.objectInehrit(osg.StateAttribu
     getUniformName: function (name) { return this.getPrefix()+ "_uniform_" + name; },
 
     applyPositionedUniform: function(matrix, state) {
+
         var uniform = this.getOrCreateUniforms();
+
         osg.Matrix.copy(matrix, uniform.matrix.get());
 
         osg.Matrix.copy(matrix, uniform.invMatrix.get());
@@ -4153,9 +4212,15 @@ osg.Light.prototype = osg.objectLibraryClass( osg.objectInehrit(osg.StateAttribu
         uniform.invMatrix.get()[14] = 0;
         osg.Matrix.inverse(uniform.invMatrix.get(), uniform.invMatrix.get());
         osg.Matrix.transpose(uniform.invMatrix.get(), uniform.invMatrix.get());
-       
+
         uniform.matrix.dirty();
         uniform.invMatrix.dirty();
+
+        this._position = [ matrix[12], matrix[13], matrix[14], 1.0 ]; // w == 1 spotlight pointlight , 0 for  dirlight,  
+        this._direction = [ matrix[8], matrix[9], matrix[10], 0.0 ];
+        uniform.position.set(this._position);
+        uniform.direction.set(this._direction);
+
     },
 
     apply: function(state)
@@ -5315,6 +5380,7 @@ osg.RenderBin.prototype = {
         var modelUniform;
         var modelViewUniform;
         var projectionUniform;
+        var cameraPositionUniform;
         var program;
 
         var programPrevious;
@@ -5324,12 +5390,14 @@ osg.RenderBin.prototype = {
         var modelUniformUpdate;
         var modelViewUniformUpdate;
         var projectionUniformUpdate;
+        var cameraPositionUniformUpdate;
 
         var viewPrevious;
         var normalPrevious;
         var modelPrevious;
         var modelViewPrevious;
         var projectionPrevious;
+        var cameraPositionPrevious;
 
         var stateset;
         var previousLeaf = previousRenderLeaf;
@@ -5386,19 +5454,22 @@ osg.RenderBin.prototype = {
             modelUniformUpdate = false;
             modelViewUniformUpdate = false;
             projectionUniformUpdate = false;
+            cameraPositionUniformUpdate = false;
 
             if (!osg.updateCacheUniform || !state.programAlreadyApplied || program !== programPrevious){
-                modelViewUniform    = program.uniformsCache[state.modelViewMatrix.name];
-                modelUniform        = program.uniformsCache[state.modelMatrix.name];
-                viewUniform         = program.uniformsCache[state.viewMatrix.name];
-                projectionUniform   = program.uniformsCache[state.projectionMatrix.name];
-                normalUniform       = program.uniformsCache[state.normalMatrix.name];
+                modelViewUniform         = program.uniformsCache[state.modelViewMatrix.name];
+                modelUniform             = program.uniformsCache[state.modelMatrix.name];
+                viewUniform              = program.uniformsCache[state.viewMatrix.name];
+                projectionUniform        = program.uniformsCache[state.projectionMatrix.name];
+                normalUniform            = program.uniformsCache[state.normalMatrix.name];
+                cameraPositionUniform    = state.cameraPosition && program.uniformsCache[state.cameraPosition.name];
 
                 viewUniformUpdate           = viewUniform       !== undefined;
                 projectionUniformUpdate     = projectionUniform !== undefined;
                 modelUniformUpdate          = modelUniform      !== undefined;
                 modelViewUniformUpdate      = modelViewUniform  !== undefined;
                 normalUniformUpdate         = normalUniform     !== undefined;
+                cameraPositionUpdate        = cameraPositionUniform     !== undefined;
             }
             else{
                 // same program, check changes.
@@ -5407,8 +5478,13 @@ osg.RenderBin.prototype = {
                 modelUniformUpdate          = modelUniform      !== undefined && (!modelPrevious        || leaf.model       !== modelPrevious);
                 modelViewUniformUpdate      = modelViewUniform  !== undefined && (modelUniformUpdate    || viewUniformUpdate);
                 normalUniformUpdate         = normalUniform     !== undefined && (modelUniformUpdate    || viewUniformUpdate);
+                cameraPositionUpdate        = cameraPositionUniform     !== undefined && (cameraPositionUpdate    || cameraPositionUpdate);
             }
 
+            if (cameraPositionUpdate) {
+                state.cameraPosition.apply(cameraPositionUniform);
+                cameraPositionPrevious = cameraPositionUniform;
+            }
             if (viewUniformUpdate) {
                 state.viewMatrix.set(leaf.view);
                 state.viewMatrix.apply(viewUniform);
@@ -5500,19 +5576,22 @@ osg.RenderBin.prototype = {
                 modelUniformUpdate = false;
                 modelViewUniformUpdate = false;
                 projectionUniformUpdate = false;
+                cameraPositionUniformUpdate = false;
 
                 if (!osg.updateCacheUniform || !state.programAlreadyApplied || program !== programPrevious){
-                    modelViewUniform    = program.uniformsCache[state.modelViewMatrix.name];
-                    modelUniform        = program.uniformsCache[state.modelMatrix.name];
-                    viewUniform         = program.uniformsCache[state.viewMatrix.name];
-                    projectionUniform   = program.uniformsCache[state.projectionMatrix.name];
-                    normalUniform       = program.uniformsCache[state.normalMatrix.name];
+                    modelViewUniform         = program.uniformsCache[state.modelViewMatrix.name];
+                    modelUniform             = program.uniformsCache[state.modelMatrix.name];
+                    viewUniform              = program.uniformsCache[state.viewMatrix.name];
+                    projectionUniform        = program.uniformsCache[state.projectionMatrix.name];
+                    normalUniform            = program.uniformsCache[state.normalMatrix.name];
+                    cameraPositionUniform    = state.cameraPosition && program.uniformsCache[state.cameraPosition.name];
 
                     viewUniformUpdate           = viewUniform       !== undefined;
                     projectionUniformUpdate     = projectionUniform !== undefined;
                     modelUniformUpdate          = modelUniform      !== undefined;
                     modelViewUniformUpdate      = modelViewUniform  !== undefined;
                     normalUniformUpdate         = normalUniform     !== undefined;
+                    cameraPositionUpdate        = cameraPositionUniform     !== undefined;
                 }
                 else{
                     // same program, check changes.
@@ -5521,8 +5600,13 @@ osg.RenderBin.prototype = {
                     modelUniformUpdate          = modelUniform      !== undefined && (!modelPrevious        || leaf.model       !== modelPrevious);
                     modelViewUniformUpdate      = modelViewUniform  !== undefined && (modelUniformUpdate    || viewUniformUpdate);
                     normalUniformUpdate         = normalUniform     !== undefined && (modelUniformUpdate    || viewUniformUpdate);
+                    cameraPositionUpdate        = cameraPositionUniform     !== undefined && (cameraPositionUpdate    || cameraPositionUpdate);
                 }
 
+                if (cameraPositionUpdate) {
+                    state.cameraPosition.apply(cameraPositionUniform);
+                    cameraPositionPrevious = cameraPositionUniform;
+                }
                 if (viewUniformUpdate) {
                     state.viewMatrix.set(leaf.view);
                     state.viewMatrix.apply(viewUniform);
@@ -5598,7 +5682,7 @@ osg.RenderStage = function () {
     this._renderStage = this;
 };
 osg.RenderStage.prototype = osg.objectInehrit(osg.RenderBin.prototype, {
-    reset: function() { 
+    reset: function() {
         osg.RenderBin.prototype.reset.call(this);
         this.preRenderList.length = 0;
         this.postRenderList.length = 0;
@@ -5697,16 +5781,16 @@ osg.RenderStage.prototype = osg.objectInehrit(osg.RenderBin.prototype, {
                     var a = this.camera.attachments[key];
                     var attach;
                     if (a.texture === undefined) { //renderbuffer
-                        attach = { attachment: key, 
-                                   format: a.format, 
+                        attach = { attachment: key,
+                                   format: a.format,
                                    width: viewport.width(),
                                    height: viewport.height()
                                  };
                     } else if (a.texture !== undefined) {
-                        attach = { 
-                            attachment: key, 
-                            texture: a.texture, 
-                            level: a.level 
+                        attach = {
+                            attachment: key,
+                            texture: a.texture,
+                            level: a.level
                         };
                         if (a.format) {
                             attach.format = a.format;
@@ -5739,6 +5823,9 @@ osg.RenderStage.prototype = osg.objectInehrit(osg.RenderBin.prototype, {
             gl.clearDepth(this.clearDepth);
         }
         gl.clear(this.clearMask);
+
+
+        this.camera.attributeState.apply(state);
 
         if (this.positionedAttribute) {
             this.applyPositionedAttribute(state, this.positionedAttribute);
@@ -8591,6 +8678,8 @@ osg.CullVisitor.prototype = osg.objectInehrit(osg.CullStack.prototype ,osg.objec
             boundingbox.init();
         }
 
+        camera.attributeState.applyPositionedUniform(view);
+
         // as matrix allocated from reserved are
         // initialiazed  to identity
 
@@ -8605,7 +8694,7 @@ osg.CullVisitor.prototype = osg.objectInehrit(osg.CullStack.prototype ,osg.objec
         var bs = camera.getBound();
         this.pushBoundingbox(boundingbox);
         if (light) {
-            this.addPositionedAttribute(light);
+            this.addPositionedAttribute(light, model);
         }
         this.setCullSettings(camera);
 
@@ -8616,6 +8705,7 @@ osg.CullVisitor.prototype = osg.objectInehrit(osg.CullStack.prototype ,osg.objec
         this._rootRenderStage.setClearColor(camera.getClearColor());
         this._rootRenderStage.setClearMask(camera.getClearMask());
         this._rootRenderStage.setViewport(camera.getViewport());
+        this._rootRenderStage.setCamera(camera);
 
         //thid.handleCullCallbacksAndTraverse(camera);
         scene.accept(this);
@@ -8802,19 +8892,7 @@ osg.CullVisitor.prototype = osg.objectInehrit(osg.CullStack.prototype ,osg.objec
     },
     getCurrentRenderBin: function() { return this._currentRenderBin; },
     setCurrentRenderBin: function(rb) { this._currentRenderBin = rb; },
-    addPositionedAttribute: function (attribute) {
-       /* if (this._traceNode.isDirty()) {
-           this._reserveMatrixModelStack.dirty();
-        }
-        var matrix = this._reserveMatrixModelStack.getReserved();
-        var recomputeMatrix = this._reserveMatrixModelStack.isDirty() || this._reserveMatrixViewStack.isDirty();
-        if (recomputeMatrix) {
-            */
-           
-           var matrix = [];
-
-            matrix = osg.Matrix.mult(this.getCurrentViewMatrix(), this.getCurrentModelMatrix(), []);
-        //}
+    addPositionedAttribute: function (attribute, matrix) {
         this._currentRenderBin.getStage().positionedAttribute.push([matrix, attribute]);
     },
 
@@ -8924,6 +9002,8 @@ osg.CullVisitor.prototype[osg.Camera.prototype.objectType] = function( camera ) 
         }
         boundingbox.init();
     }
+
+    camera.attributeState.applyPositionedUniform(view);
 
     this.pushProjectionMatrix(projection);
     this.pushViewMatrix(view);
@@ -9145,7 +9225,7 @@ osg.CullVisitor.prototype[osg.LightSource.prototype.objectType] = function (node
 
     var light = node.getLight();
     if (light) {
-        this.addPositionedAttribute(light);
+        this.addPositionedAttribute(light, matrixModel);
     }
 
     this.handleCullCallbacksAndTraverse(node);
@@ -19071,16 +19151,16 @@ osgDB.ObjectWrapper.serializers.osgAnimation.StackedRotateAxis = function(input,
  *  Shadow
  *  @class ShadowScene
  */
-osg.ShadowScene = function(sceneCamera, lightNode, technique, ReceivesShadowTraversalMask) {
+osg.ShadowScene = function(sceneCamera, technique, ReceivesShadowTraversalMask) {
 	osg.Node.call(this);
 
 	if (!ReceivesShadowTraversalMask) ReceivesShadowTraversalMask = 0x1;
-	this._receivesShadowTraversalMask = ReceivesShadowTraversalMask;
 
+	this._receivesShadowTraversalMask = ReceivesShadowTraversalMask;
 	this._camera = sceneCamera;
-	this._lightNode = lightNode;
 	this._technique = technique;
 
+	this._technique.setShadowReceiving(this, sceneCamera, this._receivesShadowTraversalMask);
 	// scene models (shadow receiver)
 };
 
@@ -19104,7 +19184,11 @@ osg.Node.prototype, {
 	},
 	getTechnique: function() {
 		return this._technique;
+	},
+	addShadowCasting: function(lightSource){
+		this._technique.setShadowCasting(lightSource);
 	}
+
 
 }), "osg", "Shadow");
 osg.ShadowScene.prototype.objectType = osg.objectType.generate("ShadowScene");
@@ -19318,8 +19402,6 @@ osg.ShadowTechnique.prototype = osg.objectLibraryClass(osg.objectInehrit(osg.Sta
 	},
 
 	setShadowCasting: function(receivers, lightsource, position, num, CastsShadowTraversalMask) {
-
-
 
 		var shadowCamera = new osg.Camera();
 		shadowCamera.setName("light_perspective_camera" + num);

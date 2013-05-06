@@ -5,16 +5,16 @@
  *  Shadow
  *  @class ShadowScene
  */
-osg.ShadowScene = function(sceneCamera, lightNode, technique, ReceivesShadowTraversalMask) {
+osg.ShadowScene = function(sceneCamera, technique, ReceivesShadowTraversalMask) {
 	osg.Node.call(this);
 
 	if (!ReceivesShadowTraversalMask) ReceivesShadowTraversalMask = 0x1;
-	this._receivesShadowTraversalMask = ReceivesShadowTraversalMask;
 
+	this._receivesShadowTraversalMask = ReceivesShadowTraversalMask;
 	this._camera = sceneCamera;
-	this._lightNode = lightNode;
 	this._technique = technique;
 
+	this._technique.setShadowReceiving(this, sceneCamera, this._receivesShadowTraversalMask);
 	// scene models (shadow receiver)
 };
 
@@ -38,7 +38,11 @@ osg.Node.prototype, {
 	},
 	getTechnique: function() {
 		return this._technique;
+	},
+	addShadowCasting: function(lightSource){
+		this._technique.setShadowCasting(lightSource);
 	}
+
 
 }), "osg", "Shadow");
 osg.ShadowScene.prototype.objectType = osg.objectType.generate("ShadowScene");

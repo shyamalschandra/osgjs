@@ -21,7 +21,7 @@ osg.RenderStage = function () {
     this._renderStage = this;
 };
 osg.RenderStage.prototype = osg.objectInehrit(osg.RenderBin.prototype, {
-    reset: function() { 
+    reset: function() {
         osg.RenderBin.prototype.reset.call(this);
         this.preRenderList.length = 0;
         this.postRenderList.length = 0;
@@ -120,16 +120,16 @@ osg.RenderStage.prototype = osg.objectInehrit(osg.RenderBin.prototype, {
                     var a = this.camera.attachments[key];
                     var attach;
                     if (a.texture === undefined) { //renderbuffer
-                        attach = { attachment: key, 
-                                   format: a.format, 
+                        attach = { attachment: key,
+                                   format: a.format,
                                    width: viewport.width(),
                                    height: viewport.height()
                                  };
                     } else if (a.texture !== undefined) {
-                        attach = { 
-                            attachment: key, 
-                            texture: a.texture, 
-                            level: a.level 
+                        attach = {
+                            attachment: key,
+                            texture: a.texture,
+                            level: a.level
                         };
                         if (a.format) {
                             attach.format = a.format;
@@ -162,6 +162,9 @@ osg.RenderStage.prototype = osg.objectInehrit(osg.RenderBin.prototype, {
             gl.clearDepth(this.clearDepth);
         }
         gl.clear(this.clearMask);
+
+
+        this.camera.attributeState.apply(state);
 
         if (this.positionedAttribute) {
             this.applyPositionedAttribute(state, this.positionedAttribute);

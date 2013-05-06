@@ -175,6 +175,7 @@ osg.RenderBin.prototype = {
         var modelUniform;
         var modelViewUniform;
         var projectionUniform;
+        var cameraPositionUniform;
         var program;
 
         var programPrevious;
@@ -184,12 +185,14 @@ osg.RenderBin.prototype = {
         var modelUniformUpdate;
         var modelViewUniformUpdate;
         var projectionUniformUpdate;
+        var cameraPositionUniformUpdate;
 
         var viewPrevious;
         var normalPrevious;
         var modelPrevious;
         var modelViewPrevious;
         var projectionPrevious;
+        var cameraPositionPrevious;
 
         var stateset;
         var previousLeaf = previousRenderLeaf;
@@ -246,19 +249,22 @@ osg.RenderBin.prototype = {
             modelUniformUpdate = false;
             modelViewUniformUpdate = false;
             projectionUniformUpdate = false;
+            cameraPositionUniformUpdate = false;
 
             if (!osg.updateCacheUniform || !state.programAlreadyApplied || program !== programPrevious){
-                modelViewUniform    = program.uniformsCache[state.modelViewMatrix.name];
-                modelUniform        = program.uniformsCache[state.modelMatrix.name];
-                viewUniform         = program.uniformsCache[state.viewMatrix.name];
-                projectionUniform   = program.uniformsCache[state.projectionMatrix.name];
-                normalUniform       = program.uniformsCache[state.normalMatrix.name];
+                modelViewUniform         = program.uniformsCache[state.modelViewMatrix.name];
+                modelUniform             = program.uniformsCache[state.modelMatrix.name];
+                viewUniform              = program.uniformsCache[state.viewMatrix.name];
+                projectionUniform        = program.uniformsCache[state.projectionMatrix.name];
+                normalUniform            = program.uniformsCache[state.normalMatrix.name];
+                cameraPositionUniform    = state.cameraPosition && program.uniformsCache[state.cameraPosition.name];
 
                 viewUniformUpdate           = viewUniform       !== undefined;
                 projectionUniformUpdate     = projectionUniform !== undefined;
                 modelUniformUpdate          = modelUniform      !== undefined;
                 modelViewUniformUpdate      = modelViewUniform  !== undefined;
                 normalUniformUpdate         = normalUniform     !== undefined;
+                cameraPositionUpdate        = cameraPositionUniform     !== undefined;
             }
             else{
                 // same program, check changes.
@@ -267,8 +273,13 @@ osg.RenderBin.prototype = {
                 modelUniformUpdate          = modelUniform      !== undefined && (!modelPrevious        || leaf.model       !== modelPrevious);
                 modelViewUniformUpdate      = modelViewUniform  !== undefined && (modelUniformUpdate    || viewUniformUpdate);
                 normalUniformUpdate         = normalUniform     !== undefined && (modelUniformUpdate    || viewUniformUpdate);
+                cameraPositionUpdate        = cameraPositionUniform     !== undefined && (cameraPositionUpdate    || cameraPositionUpdate);
             }
 
+            if (cameraPositionUpdate) {
+                state.cameraPosition.apply(cameraPositionUniform);
+                cameraPositionPrevious = cameraPositionUniform;
+            }
             if (viewUniformUpdate) {
                 state.viewMatrix.set(leaf.view);
                 state.viewMatrix.apply(viewUniform);
@@ -360,19 +371,22 @@ osg.RenderBin.prototype = {
                 modelUniformUpdate = false;
                 modelViewUniformUpdate = false;
                 projectionUniformUpdate = false;
+                cameraPositionUniformUpdate = false;
 
                 if (!osg.updateCacheUniform || !state.programAlreadyApplied || program !== programPrevious){
-                    modelViewUniform    = program.uniformsCache[state.modelViewMatrix.name];
-                    modelUniform        = program.uniformsCache[state.modelMatrix.name];
-                    viewUniform         = program.uniformsCache[state.viewMatrix.name];
-                    projectionUniform   = program.uniformsCache[state.projectionMatrix.name];
-                    normalUniform       = program.uniformsCache[state.normalMatrix.name];
+                    modelViewUniform         = program.uniformsCache[state.modelViewMatrix.name];
+                    modelUniform             = program.uniformsCache[state.modelMatrix.name];
+                    viewUniform              = program.uniformsCache[state.viewMatrix.name];
+                    projectionUniform        = program.uniformsCache[state.projectionMatrix.name];
+                    normalUniform            = program.uniformsCache[state.normalMatrix.name];
+                    cameraPositionUniform    = state.cameraPosition && program.uniformsCache[state.cameraPosition.name];
 
                     viewUniformUpdate           = viewUniform       !== undefined;
                     projectionUniformUpdate     = projectionUniform !== undefined;
                     modelUniformUpdate          = modelUniform      !== undefined;
                     modelViewUniformUpdate      = modelViewUniform  !== undefined;
                     normalUniformUpdate         = normalUniform     !== undefined;
+                    cameraPositionUpdate        = cameraPositionUniform     !== undefined;
                 }
                 else{
                     // same program, check changes.
@@ -381,8 +395,13 @@ osg.RenderBin.prototype = {
                     modelUniformUpdate          = modelUniform      !== undefined && (!modelPrevious        || leaf.model       !== modelPrevious);
                     modelViewUniformUpdate      = modelViewUniform  !== undefined && (modelUniformUpdate    || viewUniformUpdate);
                     normalUniformUpdate         = normalUniform     !== undefined && (modelUniformUpdate    || viewUniformUpdate);
+                    cameraPositionUpdate        = cameraPositionUniform     !== undefined && (cameraPositionUpdate    || cameraPositionUpdate);
                 }
 
+                if (cameraPositionUpdate) {
+                    state.cameraPosition.apply(cameraPositionUniform);
+                    cameraPositionPrevious = cameraPositionUniform;
+                }
                 if (viewUniformUpdate) {
                     state.viewMatrix.set(leaf.view);
                     state.viewMatrix.apply(viewUniform);

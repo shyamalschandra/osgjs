@@ -12,11 +12,11 @@ void eye_world_transform(
 	in mat4 p_ProjectionMatrix, in mat4 p_ViewMatrix, in mat4 p_ModelMatrix,
 	in vec4 p_Vertex, in vec4 p_Normal,
 	out mat4 p_ProjViewModelMatrix, out mat4 p_ModelViewMatrix,
-	out vec4 p_WorldPos,
-	out vec4 p_EyePos,
-	out vec4 p_EyeNormal,
+	out vec4 p_WorldPos,	out vec4 p_WorldNormal,
+	out vec4 p_EyePos,	out vec4 p_EyeNormal,
 	out vec4 p_ProjEyePos) {
 	p_WorldPos = p_ModelMatrix * p_Vertex;
+	p_WorldNormal = p_ModelMatrix  * p_Normal;
 	p_ModelViewMatrix =  p_ViewMatrix * p_ModelMatrix;
 	p_EyePos = p_ModelViewMatrix * p_Vertex;
 	p_EyeNormal = p_ModelViewMatrix  * p_Normal;

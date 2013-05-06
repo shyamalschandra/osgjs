@@ -444,7 +444,7 @@ function createScene() {
     var mt = new osg.MatrixTransform();
     generatorQuad.getOrCreateStateSet().setTextureAttributeAndMode(0, texture);
     mt.addChild(generatorQuad);
-    mt.setMatrix(osg.Matrix.makeTranslate(0, 0, -4, []));
+    mt.setMatrix(osg.Matrix.makeTranslate(0, -4, -4, []));
 
     root.addChild(generator);
     root.addChild(mt);

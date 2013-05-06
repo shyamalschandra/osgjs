@@ -1,4 +1,57 @@
 /**
+ *  CameraStateAttribute
+ *  @class CameraStateAttribute
+ */
+osg.CameraStateAttribute = function (cameraUnit) {
+    osg.StateAttribute.call(this);
+    this._cameraUnit = cameraUnit;
+    this._worldCameraMatrix = [];
+    this._worldCameraPos = [ 0.0, 0.0, 1.0, 0.0 ];
+    this.uniforms = {};
+    this.dirty();
+};
+osg.CameraStateAttribute.prototype = osg.objectLibraryClass( osg.objectInehrit(osg.StateAttribute.prototype, {
+    attributeType: "Camera",
+    cloneType: function() {return new osg.CameraStateAttribute(this._cameraUnit); },
+    getType: function() { return this.attributeType; },
+    getTypeMember: function() {
+        return this.attributeType;// + this._cameraUnit;
+    },
+    getPrefix: function() { return this.getType(); },
+    getUniformName: function (name) { return this.getPrefix()+ "_uniform_" + name; },
+    getOrCreateUniforms: function() {
+        var uniforms = this.uniforms;
+        var typeMember = this.getTypeMember();
+        if (uniforms[typeMember] === undefined) {
+            var uFact = osg.Uniform;
+            uniforms[typeMember] = {
+                "position": uFact.createFloat4([ 0, 0, 0, 0], this.getUniformName('position'))
+                // TODO: might be a memory saver and stateset compilation life saver ?
+                //, "viewmatrix"
+                //, "projmatrix"
+                // Any other idea.
+            };
+
+            uniforms[typeMember].uniformKeys = Object.keys(uniforms[typeMember]);
+        }
+        return uniforms[typeMember];
+    },
+    applyPositionedUniform: function(matrix) {
+
+        var uniform = this.getOrCreateUniforms();
+        osg.Matrix.inverse(matrix, this._worldCameraMatrix);
+        this._position = [ this._worldCameraMatrix[12], this._worldCameraMatrix[13], this._worldCameraMatrix[14], 1.0 ]; // w == 1 spotlight pointlight , 0 for  dirlight,  
+        uniform.position.set(this._position);
+    },
+    apply: function(state)
+    {
+        var uniform = this.getOrCreateUniforms();
+        state.cameraPosition = uniform.position;
+        //this.setDirty(false);
+    }
+}),"osg","CameraStateAttribute");
+
+/**
  * Camera - is a subclass of Transform which represents encapsulates the settings of a Camera.
  * @class Camera
  * @inherits osg.Transform osg.CullSettings
@@ -18,6 +71,7 @@ osg.Camera = function() {
 
     this.renderOrder = osg.Camera.NESTED_RENDER;
     this.renderOrderNum = 0;
+    this.attributeState = new osg.CameraStateAttribute(this._objectID);
 };
 
 osg.Camera.PRE_RENDER = 0;
@@ -157,3 +211,5 @@ osg.objectInehrit(osg.Transform.prototype, {
 
 }))), "osg", "Camera");
 osg.Camera.prototype.objectType = osg.objectType.generate("Camera");
+
+

@@ -49,18 +49,17 @@ varying vec4  Shadow_VertexProjected2;
 varying vec4 Shadow_Z2;
 
 varying vec3 FragNormal;
-varying vec3 FragEyeVector;
+varying vec3 FragVector;
 
 #pragma include "common.vert"
 
 void main(void) {
-
-	
 	vec4 Local_Vertex = vec4(Vertex.xyz, 1.0);
 	vec4 Local_Normal = vec4(Normal.xyz, 0.0);
 	mat4 ProjViewModelMatrix;
 	mat4 ModelViewMatrix;
 	vec4 WorldPos;
+	vec4 WorldNormalPos;
 	vec4 EyePos;
 	vec4 EyeNormal;
 	vec4 ProjEyePos;
@@ -68,12 +67,12 @@ void main(void) {
 	eye_world_transform(ProjectionMatrix, ViewMatrix, ModelMatrix,
 		Local_Vertex, Local_Normal,
 		ProjViewModelMatrix,  ModelViewMatrix,
-		WorldPos, EyePos, EyeNormal, ProjEyePos);
+		WorldPos, WorldNormalPos,
+		EyePos, EyeNormal, ProjEyePos);
 
 	gl_Position 	= ProjEyePos;
-	FragEyeVector 	= EyePos.xyz;
-	FragNormal 		= EyeNormal.xyz;
-
+	FragVector 		= WorldPos.xyz;
+	FragNormal 		= WorldNormalPos.xyz;
 
 	if (ArrayColorEnabled == 1.0)
 		VertexColor = Color;
@@ -81,8 +80,8 @@ void main(void) {
 		VertexColor = vec4(1.0,1.0,1.0,1.0);
 	gl_PointSize = 1.0;
 
-	//reuse var accross lights
-	vec4 shadowPosition;
+
+	// Project the vertex from the light's point of view
 	vec4 worldPosition =  WorldPos;
 	//#define NUM_STABLE
 	if (Light0_uniform_enable == 1) {

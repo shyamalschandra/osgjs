@@ -2,14 +2,6 @@
 precision highp float;
 #endif
 
-varying vec4 VertexColor;
-uniform float ArrayColorEnabled;
-vec4 fragColor;
-varying vec3 FragNormal;
-varying vec3 FragEyeVector;
-
-uniform float debug;
-
 uniform int Light0_uniform_enable;
 uniform vec4 Light0_uniform_position;
 uniform vec3 Light0_uniform_direction;
@@ -52,12 +44,6 @@ uniform vec4 Light2_uniform_specular;
 uniform float Light2_uniform_spotCutoff;
 uniform float Light2_uniform_spotBlend;
 
-uniform vec4 MaterialAmbient;
-uniform vec4 MaterialDiffuse;
-uniform vec4 MaterialSpecular;
-uniform vec4 MaterialEmission;
-uniform float MaterialShininess;
-
 uniform vec4 Shadow_MapSize0;
 uniform vec4 Shadow_MapSize1;
 uniform vec4 Shadow_MapSize2;
@@ -83,13 +69,31 @@ varying vec4 Shadow_Z0;
 varying vec4 Shadow_Z1;
 varying vec4 Shadow_Z2;
 
+uniform float debug;
+
+
+uniform float ArrayColorEnabled;
+
+uniform vec4 MaterialAmbient;
+uniform vec4 MaterialDiffuse;
+uniform vec4 MaterialSpecular;
+uniform vec4 MaterialEmission;
+uniform float MaterialShininess;
+
+uniform vec4 Camera_uniform_position;
+
+varying vec4 VertexColor;
+varying vec3 FragNormal;
+varying vec3 FragVector;
 varying vec2 FragTexCoord0;
 
 #pragma include "common.frag"
 #pragma include "shadow.glsl"
 
 
-float computeShadowTerm(vec4 shadowVertexProjected, vec4 shadowZ, sampler2D tex, vec4 texSize, vec4 depthRange, vec4 lightPos){
+float computeShadowTerm(in vec4 shadowVertexProjected, in vec4 shadowZ, 
+  in sampler2D tex, in vec4 texSize, in vec4 depthRange, 
+  in vec3 lightPos, in float N_Dot_L){
 
     vec4 shadowUV;
 
@@ -114,113 +118,68 @@ float computeShadowTerm(vec4 shadowVertexProjected, vec4 shadowZ, sampler2D tex,
       objDepth =   clamp(objDepth, 0.0, 1.0);
 
     #endif
-    float shadowBias = bias;
+
+    float shadowBias = 0.005*tan(acos(N_Dot_L)); // cosTheta is dot( n, l ), clamped between 0 and 1
+    shadowBias = clamp(shadowBias, 0.0, bias);
+
     // Chebyshev inequality
     return ChebyshevUpperBound(moments, objDepth, shadowBias, VsmEpsilon);
 }
 
+#pragma include "light.frag"
+
+
 void main(void) {
-    fragColor = VertexColor;
+    vec4 fragColor = VertexColor;
     vec4 diffuse = (debug == 0.0) ? vec4(1.0, 1.0, 1.0, 1.0) : texture2D(Texture0, FragTexCoord0.xy);
     if (diffuse.x != 0.0 && diffuse.y != 0.0 && diffuse.z != 0.0)
       fragColor *= diffuse;
 
+
     vec3 normal = normalize(FragNormal);
-    vec3 eyeVector = normalize(-FragEyeVector);
-
-    vec3 Light0_lightEye = vec3(Light0_uniform_matrix * Light0_uniform_position);
-    vec3 Light0_lightDir;
-    if (Light0_uniform_position[3] == 1.0) {
-        Light0_lightDir = Light0_lightEye - FragEyeVector;
-    } else {
-        Light0_lightDir = Light0_lightEye;
+    if (!gl_FrontFacing)
+    {
+      //back facing
+       normal = -normal;
     }
-    vec3 Light0_spotDirection = normalize(mat3(vec3(Light0_uniform_invMatrix[0]), vec3(Light0_uniform_invMatrix[1]), vec3(Light0_uniform_invMatrix[2])) * Light0_uniform_direction);
-    float Light0_attenuation = getLightAttenuation(Light0_lightDir,
-      Light0_uniform_constantAttenuation,
-      Light0_uniform_linearAttenuation,
-      Light0_uniform_quadraticAttenuation);
-
-    Light0_lightDir = normalize(Light0_lightDir);
-
-    vec4 LightColor0 = computeLightContribution(MaterialAmbient,  MaterialDiffuse,  MaterialSpecular,  MaterialShininess,
-      Light0_uniform_ambient,  Light0_uniform_diffuse,  Light0_uniform_specular,
-      normal,  eyeVector,  Light0_lightDir,
-      Light0_spotDirection,  Light0_uniform_spotCutoff,
-      Light0_uniform_spotBlend,  Light0_attenuation);
 
 
-    vec4 lightColor1 = MaterialEmission;
-    vec3 Light1_lightEye = vec3(Light1_uniform_matrix * Light1_uniform_position);
-    vec3 Light1_lightDir;
-    if (Light1_uniform_position[3] == 1.0) {
-        Light1_lightDir = Light1_lightEye - FragEyeVector;
-    } else {
-        Light1_lightDir = Light1_lightEye;
-    }
-    vec3 Light1_spotDirection = normalize(mat3(vec3(Light1_uniform_invMatrix[0]), vec3(Light1_uniform_invMatrix[1]), vec3(Light1_uniform_invMatrix[2])) * Light1_uniform_direction);
-    float Light1_attenuation = getLightAttenuation(Light1_lightDir, Light1_uniform_constantAttenuation, Light1_uniform_linearAttenuation, Light1_uniform_quadraticAttenuation);
-    Light1_lightDir = normalize(Light1_lightDir);
-    vec4 LightColor1 = computeLightContribution(MaterialAmbient,  MaterialDiffuse,  MaterialSpecular,  MaterialShininess,  Light1_uniform_ambient,  Light1_uniform_diffuse,  Light1_uniform_specular,  normal,  eyeVector,  Light1_lightDir,  Light1_spotDirection,  Light1_uniform_spotCutoff,  Light1_uniform_spotBlend,  Light1_attenuation);
+  vec3 eyeVector = normalize(Camera_uniform_position.xyz - FragVector.xyz);
+  
+
+  vec4 lightColor = vec4(0.0, 0.0, 0.0, 0.0);
+  const vec4 nullColor = vec4(0.0, 0.0, 0.0, 0.0);
+
+ lightColor +=  Light0_uniform_enable == 0 ? nullColor :
+                      ComputeLigthShadow(Light0_uniform_position, Light0_uniform_direction, FragVector,
+                       normal,  eyeVector,
+                       MaterialAmbient,  MaterialDiffuse,  MaterialSpecular,  MaterialShininess,
+                       Light0_uniform_ambient,  Light0_uniform_diffuse,  Light0_uniform_specular,
+                       Light0_uniform_constantAttenuation, Light0_uniform_linearAttenuation, Light0_uniform_quadraticAttenuation,
+                       Light0_uniform_spotCutoff,  Light0_uniform_spotBlend,
+                       Shadow_VertexProjected0, Shadow_Z0, Texture1, Shadow_MapSize0, Shadow_DepthRange0);
 
 
-
-    vec3 Light2_lightEye = vec3(Light2_uniform_matrix * Light2_uniform_position);
-    vec3 Light2_lightDir;
-    if (Light2_uniform_position[3] == 1.0) {
-        Light2_lightDir = Light2_lightEye - FragEyeVector;
-    } else {
-        Light2_lightDir = Light2_lightEye;
-    }
-    vec3 Light2_spotDirection = normalize(mat3(vec3(Light2_uniform_invMatrix[0]), vec3(Light2_uniform_invMatrix[1]), vec3(Light2_uniform_invMatrix[2])) * Light2_uniform_direction);
-    float Light2_attenuation = getLightAttenuation(Light2_lightDir, Light2_uniform_constantAttenuation, Light2_uniform_linearAttenuation, Light2_uniform_quadraticAttenuation);
-    Light2_lightDir = normalize(Light2_lightDir);
-    vec4 LightColor2 = computeLightContribution(MaterialAmbient,
-    MaterialDiffuse,
-    MaterialSpecular,
-    MaterialShininess,
-    Light2_uniform_ambient,
-    Light2_uniform_diffuse,
-    Light2_uniform_specular,
-    normal,
-    eyeVector,
-    Light2_lightDir,
-    Light2_spotDirection,
-    Light2_uniform_spotCutoff,
-    Light2_uniform_spotBlend,
-    Light2_attenuation);
+ lightColor +=  Light1_uniform_enable == 0 ? nullColor :
+                      ComputeLigthShadow(Light1_uniform_position, Light1_uniform_direction, FragVector,
+                        normal,  eyeVector,
+                       MaterialAmbient,  MaterialDiffuse,  MaterialSpecular,  MaterialShininess,
+                       Light1_uniform_ambient,  Light1_uniform_diffuse,  Light1_uniform_specular,
+                       Light1_uniform_constantAttenuation, Light1_uniform_linearAttenuation, Light1_uniform_quadraticAttenuation,
+                       Light1_uniform_spotCutoff,  Light1_uniform_spotBlend,
+                       Shadow_VertexProjected1, Shadow_Z1, Texture2, Shadow_MapSize1, Shadow_DepthRange1);
 
 
-    vec4 nullColor = vec4(0.0, 0.0, 0.0, 0.0);
-    vec4 lightColor = nullColor;
-//#define PURE
-#ifdef PURE
-  //#define LIGHT_ONLY
-  #ifdef LIGHT_ONLY
-      lightColor += Light0_uniform_enable == 0 ? nullColor : LightColor0;
-      lightColor += Light1_uniform_enable == 0 ? nullColor : LightColor1;
-      lightColor += Light2_uniform_enable == 0 ? nullColor : LightColor2;
+ lightColor +=  Light2_uniform_enable == 0 ? nullColor :
+                      ComputeLigthShadow(Light2_uniform_position, Light2_uniform_direction, FragVector,
+                        normal,  eyeVector,
+                       MaterialAmbient,  MaterialDiffuse,  MaterialSpecular,  MaterialShininess,
+                       Light2_uniform_ambient,  Light2_uniform_diffuse,  Light2_uniform_specular,
+                       Light2_uniform_constantAttenuation, Light2_uniform_linearAttenuation, Light2_uniform_quadraticAttenuation,
+                       Light2_uniform_spotCutoff,  Light2_uniform_spotBlend,
+                       Shadow_VertexProjected2, Shadow_Z2, Texture3, Shadow_MapSize2, Shadow_DepthRange2);
 
-  #else
-      #define SHADOW_ONLY
-      #ifdef SHADOW_ONLY
-          lightColor += Light0_uniform_enable == 0 ? nullColor : vec4(1.0, 1.0, 1.0, 1.0) * computeShadowTerm(Shadow_VertexProjected0, Shadow_Z0, Texture1, Shadow_MapSize0, Shadow_DepthRange0, Light0_uniform_position);
-          lightColor += Light1_uniform_enable == 0 ? nullColor : vec4(1.0, 1.0, 1.0, 1.0) * computeShadowTerm(Shadow_VertexProjected1, Shadow_Z1, Texture2, Shadow_MapSize1, Shadow_DepthRange1, Light1_uniform_position);
-          lightColor += Light2_uniform_enable == 0 ? nullColor : vec4(1.0, 1.0, 1.0, 1.0) * computeShadowTerm(Shadow_VertexProjected2, Shadow_Z2, Texture3, Shadow_MapSize2, Shadow_DepthRange2, Light2_uniform_position);
-
-      #else
-          lightColor += Light0_uniform_enable == 0 ? nullColor : (LightColor0 * 0.5 + 0.5 * (computeShadowTerm(Shadow_VertexProjected0, Shadow_Z0, Texture1, Shadow_MapSize0, Shadow_DepthRange0, Light0_uniform_position)));
-          lightColor += Light1_uniform_enable == 0 ? nullColor : (LightColor1 * 0.5 + 0.5 * (computeShadowTerm(Shadow_VertexProjected1, Shadow_Z1, Texture2, Shadow_MapSize1, Shadow_DepthRange1, Light1_uniform_position)));
-          lightColor += Light2_uniform_enable == 0 ? nullColor : (LightColor2 * 0.5 + 0.5 * (computeShadowTerm(Shadow_VertexProjected2, Shadow_Z2, Texture3, Shadow_MapSize2, Shadow_DepthRange2, Light2_uniform_position)));
-      #endif
-  #endif
-#else
-      lightColor += Light0_uniform_enable == 0 ? nullColor : (LightColor0 * (computeShadowTerm(Shadow_VertexProjected0, Shadow_Z0, Texture1, Shadow_MapSize0, Shadow_DepthRange0, Light0_uniform_position)));
-      lightColor += Light1_uniform_enable == 0 ? nullColor : (LightColor1 * (computeShadowTerm(Shadow_VertexProjected1, Shadow_Z1, Texture2, Shadow_MapSize1, Shadow_DepthRange1, Light1_uniform_position)));
-      lightColor += Light2_uniform_enable == 0 ? nullColor : (LightColor2 * (computeShadowTerm(Shadow_VertexProjected2, Shadow_Z2, Texture3, Shadow_MapSize2, Shadow_DepthRange2, Light2_uniform_position)));
-#endif
-
-    fragColor = linearrgb_to_srgb(MaterialEmission + fragColor * lightColor);
+    fragColor = linearrgb_to_srgb(MaterialEmission +  fragColor * lightColor);
 
     gl_FragColor = fragColor;
 }

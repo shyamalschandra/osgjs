@@ -8,5 +8,5 @@ varying vec2 FragTexCoord0;
 
 void main(void) {
   vec2 shift = TexSize.zw;
-   gl_FragColor = texture2D( Texture0,  FragTexCoord0);
+  gl_FragColor = texture2D( Texture0,  FragTexCoord0);
 }

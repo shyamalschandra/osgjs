@@ -52,7 +52,8 @@ osg.Light.prototype = osg.objectLibraryClass( osg.objectInehrit(osg.StateAttribu
                 "quadraticAttenuation": uFact.createFloat1( 0, this.getUniformName('quadraticAttenuation')),
                 "enable": uFact.createInt1( 0, this.getUniformName('enable')),
                 "matrix": uFact.createMatrix4(osg.Matrix.makeIdentity([]), this.getUniformName('matrix')),
-                "invMatrix": uFact.createMatrix4(osg.Matrix.makeIdentity([]), this.getUniformName('invMatrix'))
+                "invMatrix": uFact.createMatrix4(osg.Matrix.makeIdentity([]), this.getUniformName('invMatrix')),
+                "worldCameraPos": uFact.createFloat4([ 0, 0, 0, 0], this.getUniformName('worldCameraPos'))
             };
 
             uniforms[typeMember].uniformKeys = Object.keys(uniforms[typeMember]);
@@ -88,7 +89,9 @@ osg.Light.prototype = osg.objectLibraryClass( osg.objectInehrit(osg.StateAttribu
     getUniformName: function (name) { return this.getPrefix()+ "_uniform_" + name; },
 
     applyPositionedUniform: function(matrix, state) {
+
         var uniform = this.getOrCreateUniforms();
+
         osg.Matrix.copy(matrix, uniform.matrix.get());
 
         osg.Matrix.copy(matrix, uniform.invMatrix.get());
@@ -97,9 +100,15 @@ osg.Light.prototype = osg.objectLibraryClass( osg.objectInehrit(osg.StateAttribu
         uniform.invMatrix.get()[14] = 0;
         osg.Matrix.inverse(uniform.invMatrix.get(), uniform.invMatrix.get());
         osg.Matrix.transpose(uniform.invMatrix.get(), uniform.invMatrix.get());
-       
+
         uniform.matrix.dirty();
         uniform.invMatrix.dirty();
+
+        this._position = [ matrix[12], matrix[13], matrix[14], 1.0 ]; // w == 1 spotlight pointlight , 0 for  dirlight,  
+        this._direction = [ matrix[8], matrix[9], matrix[10], 0.0 ];
+        uniform.position.set(this._position);
+        uniform.direction.set(this._direction);
+
     },
 
     apply: function(state)

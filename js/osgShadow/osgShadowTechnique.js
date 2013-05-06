@@ -209,8 +209,6 @@ osg.ShadowTechnique.prototype = osg.objectLibraryClass(osg.objectInehrit(osg.Sta
 
 	setShadowCasting: function(receivers, lightsource, position, num, CastsShadowTraversalMask) {
 
-
-
 		var shadowCamera = new osg.Camera();
 		shadowCamera.setName("light_perspective_camera" + num);
 		shadowCamera.traversalMask = CastsShadowTraversalMask;

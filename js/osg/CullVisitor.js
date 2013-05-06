@@ -189,6 +189,8 @@ osg.CullVisitor.prototype = osg.objectInehrit(osg.CullStack.prototype ,osg.objec
             boundingbox.init();
         }
 
+        camera.attributeState.applyPositionedUniform(view);
+
         // as matrix allocated from reserved are
         // initialiazed  to identity
 
@@ -203,7 +205,7 @@ osg.CullVisitor.prototype = osg.objectInehrit(osg.CullStack.prototype ,osg.objec
         var bs = camera.getBound();
         this.pushBoundingbox(boundingbox);
         if (light) {
-            this.addPositionedAttribute(light);
+            this.addPositionedAttribute(light, model);
         }
         this.setCullSettings(camera);
 
@@ -214,6 +216,7 @@ osg.CullVisitor.prototype = osg.objectInehrit(osg.CullStack.prototype ,osg.objec
         this._rootRenderStage.setClearColor(camera.getClearColor());
         this._rootRenderStage.setClearMask(camera.getClearMask());
         this._rootRenderStage.setViewport(camera.getViewport());
+        this._rootRenderStage.setCamera(camera);
 
         //thid.handleCullCallbacksAndTraverse(camera);
         scene.accept(this);
@@ -400,19 +403,7 @@ osg.CullVisitor.prototype = osg.objectInehrit(osg.CullStack.prototype ,osg.objec
     },
     getCurrentRenderBin: function() { return this._currentRenderBin; },
     setCurrentRenderBin: function(rb) { this._currentRenderBin = rb; },
-    addPositionedAttribute: function (attribute) {
-       /* if (this._traceNode.isDirty()) {
-           this._reserveMatrixModelStack.dirty();
-        }
-        var matrix = this._reserveMatrixModelStack.getReserved();
-        var recomputeMatrix = this._reserveMatrixModelStack.isDirty() || this._reserveMatrixViewStack.isDirty();
-        if (recomputeMatrix) {
-            */
-           
-           var matrix = [];
-
-            matrix = osg.Matrix.mult(this.getCurrentViewMatrix(), this.getCurrentModelMatrix(), []);
-        //}
+    addPositionedAttribute: function (attribute, matrix) {
         this._currentRenderBin.getStage().positionedAttribute.push([matrix, attribute]);
     },
 
@@ -522,6 +513,8 @@ osg.CullVisitor.prototype[osg.Camera.prototype.objectType] = function( camera ) 
         }
         boundingbox.init();
     }
+
+    camera.attributeState.applyPositionedUniform(view);
 
     this.pushProjectionMatrix(projection);
     this.pushViewMatrix(view);
@@ -743,7 +736,7 @@ osg.CullVisitor.prototype[osg.LightSource.prototype.objectType] = function (node
 
     var light = node.getLight();
     if (light) {
-        this.addPositionedAttribute(light);
+        this.addPositionedAttribute(light, matrixModel);
     }
 
     this.handleCullCallbacksAndTraverse(node);

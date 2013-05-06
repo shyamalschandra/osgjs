@@ -38,83 +38,105 @@ vec4 lit(float _ndotl, float _rdotv, float _m)
     float spec = step(0.0, _ndotl) * max(0.0, _rdotv * _m);
     return vec4(1.0, diff, spec, 1.0);
 }
-////////////////////////////
-// lambert style
-/*
-vec3 light = (
-                skyLight(worldNormal) +
-                lambert(lightSurfaceNormal, -lightPosNormal) *
-                influence(lightPosNormal, 55.0) *
-                attenuation(lightPos) *
-                illuminated
-            );
- */
-#define PI 3.1415926535897932384626433832795
 
-float attenuation(vec3 dir){
-    float dist = length(dir);
-    float radiance = 1.0/(1.0+pow(dist/10.0, 2.0));
-    return clamp(radiance*10.0, 0.0, 1.0);
-}
-
-float influence(vec3 normal, float coneAngle){
-    float minConeAngle = ((360.0-coneAngle-10.0)/360.0)*PI;
-    float maxConeAngle = ((360.0-coneAngle)/360.0)*PI;
-    return smoothstep(minConeAngle, maxConeAngle, acos(normal.z));
-}
-
-float lambert(vec3 surfaceNormal, vec3 lightDirNormal){
-    return max(0.0, dot(surfaceNormal, lightDirNormal));
-}
-
-vec3 skyLight(vec3 normal){
-    return vec3(smoothstep(0.0, PI, PI-acos(normal.y)))*0.4;
-}
-
-vec3 gamma(vec3 color){
-    return pow(color, vec3(2.2));
-}
 
 ////////////////////////////
 // sketchfab history lighting.
-float getLightAttenuation(vec3 lightDir, float constant, float linear, float quadratic) {
+float getLightAttenuation(in vec3 lightDir, in float constant, in float linear, in float quadratic) {
     float d = length(lightDir);
     float att = 1.0 / (constant + linear * d + quadratic * d * d);
     return att;
 }
-vec4 computeLightContribution(vec4 materialAmbient,   vec4 materialDiffuse,   vec4 materialSpecular,   float materialShininess,  
-                             vec4 lightAmbient,   vec4 lightDiffuse,   vec4 lightSpecular,   
-                             vec3 normal,   vec3 eye,   
-                             vec3 lightDirection,   vec3 lightSpotDirection,   
-                             float lightCosSpotCutoff,   float lightSpotBlend,   float lightAttenuation) {
+
+
+
+void computeLightContribution(in vec4 materialDiffuse,   in vec4 materialSpecular,   in float materialShininess,  
+                             in vec4 lightDiffuse, in   vec4 lightSpecular,   
+                             in vec3 normal,  in  vec3 eye,   
+                             in vec3 lightDirection,  in  vec3 lightSpotDirection,   
+                             in float lightCosSpotCutoff,  in  float lightSpotBlend,  in  float lightAttenuation,
+                             in float NdotL, out vec4 lightColor, out float spot) {
     vec3 L = lightDirection;
     vec3 N = normal;
-    float NdotL = max(dot(L, N), 0.0);
-    float halfTerm = NdotL;
-    vec4 ambient = lightAmbient;
+    vec3 E = eye;
+
+    NdotL = max(NdotL, 0.0);
+
     vec4 diffuse = vec4(0.0);
     vec4 specular = vec4(0.0);
-    float spot = 0.0;
-    if (NdotL > 0.0) {
-        vec3 E = eye;
+    spot = 1.0;
+    vec3 D = lightSpotDirection;
+
+    if (lightCosSpotCutoff > 0.0) {
+        float cosCurAngle = dot(-L, D);
+        float diffAngle = cosCurAngle - lightCosSpotCutoff;
+        if (diffAngle < 0.0 || lightSpotBlend <= 0.0) {
+            spot = 0.0;
+        } else {
+            spot = cosCurAngle * smoothstep(0.0, 1.0, (cosCurAngle - lightCosSpotCutoff) / (lightSpotBlend));
+        }
+    }
+    if (spot > 0.0){
+        float RdotE;
         vec3 R = reflect(-L, N);
-        float RdotE = max(dot(R, E), 0.0);
+        RdotE = max(dot(R, E), 0.0);
         if (RdotE > 0.0) {
             RdotE = pow(RdotE, materialShininess);
         }
-        vec3 D = lightSpotDirection;
 
-        if (lightCosSpotCutoff > 0.0) {
-            float cosCurAngle = dot(-L, D);
-            if (cosCurAngle < lightCosSpotCutoff) {
-                spot = 0.0;
-            } else {
-                if (lightSpotBlend > 0.0)    spot = cosCurAngle * smoothstep(0.0, 1.0, (cosCurAngle - lightCosSpotCutoff) / (lightSpotBlend));
-            }
-        }
-
-        diffuse = lightDiffuse * ((halfTerm));
+        float halfTerm = NdotL;
+        diffuse = lightDiffuse * halfTerm;
         specular = lightSpecular * RdotE;
     }
-    return (materialAmbient * ambient + (materialDiffuse * diffuse + materialSpecular * specular) * spot) * lightAttenuation;
+    lightColor = ((materialDiffuse * diffuse + materialSpecular * specular) * spot) * lightAttenuation;
+  
+}
+
+vec4 ComputeLigthShadow(in vec4 light_position, in vec3 light_direction, in vec3 fragVectorPos,
+                         in vec3 normal,  in  vec3 eye,
+                        in vec4 materialAmbient,   in vec4 materialDiffuse,   in vec4 materialSpecular,   in float materialShininess,
+                         in vec4 lightAmbient,   in vec4 lightDiffuse, in   vec4 lightSpecular,
+                         in float constantAtt, in float linearAtt, in float quadraticAtt, 
+                         in float lightCosSpotCutoff,  in  float lightSpotBlend,
+                         in vec4 shadowVertexProjected, in vec4 shadowZ, 
+                           in sampler2D tex, in vec4 texSize, 
+                             in vec4 depthRange )
+{
+    vec3 Light_pos = light_position.xyz;
+    vec3 Light_Dir;
+    if (light_position[3] == 1.0) {
+    Light_Dir = Light_pos.xyz - fragVectorPos;
+
+    } else {
+    Light_Dir = Light_pos;
+    }
+    
+    vec3 Light_spotDirection = normalize(-light_direction.xyz);
+    
+    float Light_attenuation = getLightAttenuation(Light_Dir, constantAtt, linearAtt, quadraticAtt);
+
+    Light_Dir = normalize(Light_Dir);
+    float NdotL = dot(Light_Dir, normal);
+
+    
+    vec4 lightColor = vec4(0.0, 0.0, 0.0, 1.0);
+    if (NdotL > 0.0 && Light_attenuation > 0.0) {
+        float spot = 1.0;
+        computeLightContribution(
+            materialDiffuse,   materialSpecular,  materialShininess,
+            lightDiffuse, lightSpecular,
+            normal,  eye,
+            Light_Dir,
+            Light_spotDirection.xyz,  lightCosSpotCutoff,  lightSpotBlend,
+            Light_attenuation,
+            NdotL, lightColor, spot);
+
+        float shadow_contrib = spot > 0.0 ? computeShadowTerm(shadowVertexProjected, shadowZ,
+            tex, texSize, depthRange,
+            Light_pos, NdotL) : 0.0;
+        lightColor *= shadow_contrib;
+    }
+
+    lightColor += materialAmbient * lightAmbient;
+    return lightColor;
 }

@@ -49,7 +49,7 @@ varying vec4  Shadow_VertexProjected2;
 varying vec4 Shadow_Z2;
 
 varying vec3 FragNormal;
-varying vec3 FragEyeVector;
+varying vec3 FragVector;
 
 #pragma include "common.vert"
 
@@ -60,6 +60,7 @@ void main(void) {
 	mat4 ProjViewModelMatrix;
 	mat4 ModelViewMatrix;
 	vec4 WorldPos;
+	vec4 WorldNormalPos;
 	vec4 EyePos;
 	vec4 EyeNormal;
 	vec4 ProjEyePos;
@@ -67,11 +68,12 @@ void main(void) {
 	eye_world_transform(ProjectionMatrix, ViewMatrix, ModelMatrix,
 		Local_Vertex, Local_Normal,
 		ProjViewModelMatrix,  ModelViewMatrix,
-		WorldPos, EyePos, EyeNormal, ProjEyePos);
+		WorldPos, WorldNormalPos,
+		EyePos, EyeNormal, ProjEyePos);
 
 	gl_Position 	= ProjEyePos;
-	FragEyeVector 	= EyePos.xyz;
-	FragNormal 		= EyeNormal.xyz;
+	FragVector 		= WorldPos.xyz;
+	FragNormal 		= WorldNormalPos.xyz;
 
 
 	if (ArrayColorEnabled == 1.0)
