@@ -66,21 +66,11 @@ var OSG = window.OSG;
 
 
     var main = function () {
-        //osg.ReportWebGLError = true;
 
         var canvas = document.getElementById( '3DView' );
-        var w = window.innerWidth;
-        var h = window.innerHeight;
-        osg.log( 'size ' + w + ' x ' + h );
-        canvas.style.width = w;
-        canvas.style.height = h;
-        canvas.width = w;
-        canvas.height = h;
 
         var viewer;
-        viewer = new osgViewer.Viewer( canvas, {
-            antialias: true
-        } );
+        viewer = new osgViewer.Viewer( canvas );
         Viewer = viewer;
         viewer.init();
         var rotate = new osg.MatrixTransform();
@@ -90,17 +80,7 @@ var OSG = window.OSG;
         viewer.setupManipulator();
         viewer.getManipulator().computeHomePosition();
 
-        //viewer.getManipulator().setDistance(100.0);
-        //viewer.getManipulator().setTarget([0,0,0]);
-
         viewer.run();
-
-
-        var mousedown = function ( ev ) {
-            ev.stopPropagation();
-        };
-
-        document.getElementById( 'explanation' ).addEventListener( 'mousedown', mousedown, false );
 
     };
 
@@ -180,6 +160,10 @@ var OSG = window.OSG;
             '  return texture2D(tex, vec2(pitch, yaw));',
             '}',
 
+            'vec3 linear2sRGB ( vec3 color ) {',
+            '  return pow( color , 1.0/ vec3( 2.2) );',
+            '}',
+
             'void main(void) {',
             '  vec3 normalWorld = normalize(osg_FragNormalWorld);',
             '  vec3 N = normalize(osg_FragNormal);',
@@ -188,9 +172,10 @@ var OSG = window.OSG;
             '  vec3 R = cubemapReflectionVector(CubemapTransform, E, N);',
 
             '  float NdotL = dot(-N, L);',
-            '  vec3 diffuse = toneMapHDR(decodeRGBE(textureSphere(Texture1, normalWorld)));',
-            '  vec3 specular = toneMapHDR(decodeRGBE(textureSphere(Texture0, R)));',
-            '  gl_FragColor = vec4(mix(diffuse, specular, 1.0), 1.0);',
+            '  vec3 diffuse = hdrExposure*decodeRGBE(textureSphere(Texture1, normalWorld));',
+            '  vec3 specular = hdrExposure*decodeRGBE(textureSphere(Texture0, R));',
+            '  vec3 gammaCorrected = linear2sRGB( mix(diffuse, specular, 1.0) );',
+            '  gl_FragColor = vec4( gammaCorrected, 1.0);',
             '}',
             ''
         ].join('\n');
@@ -337,17 +322,19 @@ var OSG = window.OSG;
     }
 
 
+    var TextureEnvs = {
+        'Alexs_Apartment': [ 'Alexs_Apt_2k.png', 'Alexs_Apt_Env.png' ],
+        'Arches_E_PineTree': [ 'Arches_E_PineTree_3k.png', 'Arches_E_PineTree_Env.png' ],
+        'GrandCanyon_C_YumaPoint': [ 'GCanyon_C_YumaPoint_3k.png', 'GCanyon_C_YumaPoint_Env.png' ],
+        'Milkyway': [ 'Milkyway_small.png', 'Milkyway_Light.png' ],
+        'Walk_Of_Fame': [ 'Mans_Outside_2k.png', 'Mans_Outside_Env.png' ]
+    };
+
     // change the environment maps (reflective included)
     // Images are 8-bit RGBE encoded based on the radiance file format
     // The example supports radiance .hdr files, but uses .png which contains the exact same information for better size and speed.
     function setEnvironment( name, background, ground ) {
-        var textures = {
-            'Alexs_Apartment': [ 'Alexs_Apt_2k.png', 'Alexs_Apt_Env.png' ],
-            'Arches_E_PineTree': [ 'Arches_E_PineTree_3k.png', 'Arches_E_PineTree_Env.png' ],
-            'GrandCanyon_C_YumaPoint': [ 'GCanyon_C_YumaPoint_3k.png', 'GCanyon_C_YumaPoint_Env.png' ],
-            'Milkyway': [ 'Milkyway_small.png', 'Milkyway_Light.png' ],
-            'Walk_Of_Fame': [ 'Mans_Outside_2k.png', 'Mans_Outside_Env.png' ]
-        };
+        var textures = TextureEnvs;
         var urls = textures[ name ];
 
         Q.all( [
@@ -376,7 +363,6 @@ var OSG = window.OSG;
     }
 
 
-
     function createScene()
     {
         var group = new osg.Node();
@@ -395,17 +381,25 @@ var OSG = window.OSG;
         ground.getOrCreateStateSet().addUniform( uniformCenter );
         ground.getOrCreateStateSet().addUniform( uniformGamma );
 
-        // gui
-        document.getElementById( 'rangeExposure' ).onchange = function () {
-            uniformCenter.set( parseFloat( this.value ) );
+        var ConfigUI = function() {
+            this.rangeExposure = 1.0;
+            this.environment = 'Alexs_Apartment';
         };
-        document.getElementById( 'rangeGamma' ).onchange = function () {
-            uniformGamma.set( parseFloat( this.value ) );
-        };
-        document.getElementById( 'texture' ).onchange = function () {
-            setEnvironment( this.value, background, ground );
-        };
+
+        var obj = new ConfigUI();
+        var gui = new dat.GUI();
+
+        var controller = gui.add( obj, 'rangeExposure' );
+        controller.onChange( function( value ) {
+            uniformCenter.set( value );
+        });
+
+        controller = gui.add( obj, 'environment', Object.keys(TextureEnvs) );
+        controller.onChange( function( value ) {
+            setEnvironment( value, background, ground );
+        });
         setEnvironment( 'Alexs_Apartment', background, ground );
+
 
         group.addChild( ground );
         return group;
