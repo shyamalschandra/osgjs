@@ -1,0 +1,152 @@
+{
+  "Generator": "OpenSceneGraph 3.1.4",
+  "Version": 7,
+  "osg.Node": {
+    "Children": [ {
+      "osg.Node": {
+        "UniqueID": 0,
+        "Name": "/root/Cerberus_by_Andrew_Maximov/Cerberus_LP.FBX",
+        "StateSet": {
+          "osg.StateSet": {
+            "UniqueID": 1
+          }
+        },
+        "Children": [ {
+          "osg.MatrixTransform": {
+            "UniqueID": 2,
+            "Name": "Cerberus00_Fixed",
+            "Matrix": [ 1, 0, 0, 0, 0, 2.22045e-16, -1, 0, 0, 1, 2.22045e-16, 0, 0, 0, 0, 1 ],
+            "Children": [ {
+              "osg.MatrixTransform": {
+                "UniqueID": 3,
+                "Matrix": [ 1, 0, -0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 2.25598e-06, 93.7202, 4.09664e-06, 1 ],
+                "Children": [ {
+                  "osg.Node": {
+                    "UniqueID": 4,
+                    "Name": "Cerberus00_Fixed",
+                    "Children": [ {
+                      "osg.Geometry": {
+                        "UniqueID": 5,
+                        "Name": "Cerberus00_Fixed",
+                        "StateSet": {
+                          "osg.StateSet": {
+                            "UniqueID": 6,
+                            "AttributeList": [ {
+                              "osg.Material": {
+                                "UniqueID": 8,
+                                "Name": "08 - Default",
+                                "Ambient": [ 0.588235, 0.588235, 0.588235, 1],
+                                "Diffuse": [ 0.588235, 0.588235, 0.588235, 1],
+                                "Emission": [ 0, 0, 0, 1],
+                                "Shininess": 2,
+                                "Specular": [ 0, 0, 0, 1]
+                              }
+                            } ],
+                            "TextureAttributeList": [ [ {
+                              "osg.Texture": {
+                                "UniqueID": 7,
+                                "File": "Cerberus_by_Andrew_Maximov/Textures/Cerberus_A.tga.png",
+                                "MagFilter": "LINEAR",
+                                "MinFilter": "LINEAR_MIPMAP_LINEAR",
+                                "WrapS": "REPEAT",
+                                "WrapT": "REPEAT"
+                              }
+                            } ] ]
+                          }
+                        },
+                        "PrimitiveSetList": [ {
+                          "DrawElementsUShort": {
+                            "UniqueID": 13,
+                            "Indices": {
+                              "Array": {
+                                "Uint16Array": {
+                                  "File": "Cerberus_by_Andrew_Maximov.bin",
+                                  "Size": 4455,
+                                  "Offset": 0
+                                }
+                              },
+                              "ItemSize": 1,
+                              "Type": "ELEMENT_ARRAY_BUFFER"
+                            },
+                            "Mode": "TRIANGLES"
+                          }
+                        },
+                        {
+                          "DrawElementsUShort": {
+                            "UniqueID": 14,
+                            "Indices": {
+                              "Array": {
+                                "Uint16Array": {
+                                  "File": "Cerberus_by_Andrew_Maximov.bin",
+                                  "Size": 55872,
+                                  "Offset": 8912
+                                }
+                              },
+                              "ItemSize": 1,
+                              "Type": "ELEMENT_ARRAY_BUFFER"
+                            },
+                            "Mode": "TRIANGLE_STRIP"
+                          }
+                        } ],
+                        "VertexAttributeList": {
+                          "Normal": {
+                            "UniqueID": 10,
+                            "Array": {
+                              "Float32Array": {
+                                "File": "Cerberus_by_Andrew_Maximov.bin",
+                                "Size": 27420,
+                                "Offset": 120656
+                              }
+                            },
+                            "ItemSize": 3,
+                            "Type": "ARRAY_BUFFER"
+                          },
+                          "Tangent": {
+                            "UniqueID": 12,
+                            "Array": {
+                              "Float32Array": {
+                                "File": "Cerberus_by_Andrew_Maximov.bin",
+                                "Size": 27420,
+                                "Offset": 449696
+                              }
+                            },
+                            "ItemSize": 4,
+                            "Type": "ARRAY_BUFFER"
+                          },
+                          "TexCoord0": {
+                            "UniqueID": 11,
+                            "Array": {
+                              "Float32Array": {
+                                "File": "Cerberus_by_Andrew_Maximov.bin",
+                                "Size": 27420,
+                                "Offset": 888416
+                              }
+                            },
+                            "ItemSize": 2,
+                            "Type": "ARRAY_BUFFER"
+                          },
+                          "Vertex": {
+                            "UniqueID": 9,
+                            "Array": {
+                              "Float32Array": {
+                                "File": "Cerberus_by_Andrew_Maximov.bin",
+                                "Size": 27420,
+                                "Offset": 1107776
+                              }
+                            },
+                            "ItemSize": 3,
+                            "Type": "ARRAY_BUFFER"
+                          }
+                        }
+                      }
+                    } ]
+                  }
+                } ]
+              }
+            } ]
+          }
+        } ]
+      }
+    } ]
+  }
+}

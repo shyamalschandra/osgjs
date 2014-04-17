@@ -1,4 +1,4 @@
-var readHDRImage =  (function ( Q, OSG ) {
+OSG.osgDB.readImageHDR =  (function ( Q ) {
 
     function decodeHDRHeader( buf ) {
         var info = {
@@ -58,8 +58,6 @@ var readHDRImage =  (function ( Q, OSG ) {
         info.size = size2 + 1;
         return info;
     }
-
-    var osg = OSG.osg;
 
 
     // Read a radiance .hdr file (http://radsite.lbl.gov/radiance/refer/filefmts.pdf)
@@ -181,4 +179,72 @@ var readHDRImage =  (function ( Q, OSG ) {
 
     return readHDRImage;
 
-})( window.Q, window.OSG );
+})( window.Q );
+
+OSG.osgDB.readImageTGA =  (function ( Q ) {
+
+    'use strict';
+
+
+    // code from toji
+    // httpssw pbr://github.com/toji/webgl-texture-utils/blob/master/texture-util/tga.js
+    function decodeTGA(arrayBuffer) {
+        var content = new Uint8Array(arrayBuffer),
+            contentOffset = 18 + content[0],
+            imagetype = content[2], // 2 = rgb, only supported format for now
+            width = content[12] + (content[13] << 8),
+            height = content[14] + (content[15] << 8),
+            bpp = content[16], // should be 8,16,24,32
+
+            bytesPerPixel = bpp / 8,
+            bytesPerRow = width * 4,
+            data, i, j, x, y;
+
+        if(!width || !height) {
+            console.error("Invalid dimensions");
+            return null;
+        }
+
+        if (imagetype != 2) {
+            console.error("Unsupported TGA format:", imagetype);
+            return null;
+        }
+
+        data = new Uint8Array(width * height * 4);
+        i = contentOffset;
+
+        // Oy, with the flipping of the rows...
+        for(y = height-1; y >= 0; --y) {
+            for(x = 0; x < width; ++x, i += bytesPerPixel) {
+                j = (x * 4) + (y * bytesPerRow);
+                data[j] = content[i+2];
+                data[j+1] = content[i+1];
+                data[j+2] = content[i+0];
+                data[j+3] = (bpp === 32 ? content[i+3] : 255);
+            }
+        }
+
+        return {
+            width: width,
+            height: height,
+            data: data
+        };
+    }
+
+    var loadImage = function( url, options ) {
+        var defer = Q.defer();
+
+        Q.when ( this.readBinaryArrayURL( url, options ), function( array ) {
+
+            var tga = new TGA();
+            tga.load(array);
+            defer.resolve ( tga.getCanvas() );
+
+        }).done();
+
+        return defer.promise;
+    };
+
+    return loadImage;
+
+})( window.Q );
