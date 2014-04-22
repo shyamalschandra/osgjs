@@ -151,6 +151,7 @@ PBRExample.prototype = {
 
             'attribute vec3 Vertex;',
             'attribute vec3 Normal;',
+            'attribute vec2 TexCoord0;',
 
             'uniform mat4 ModelViewMatrix;',
             'uniform mat4 ProjectionMatrix;',
@@ -160,12 +161,14 @@ PBRExample.prototype = {
             'varying vec3 osg_FragNormal;',
             'varying vec3 osg_FragNormalWorld;',
             'varying vec3 osg_FragLightDirection;',
+            'varying vec2 osg_FragTexCoord0;',
 
             'void main(void) {',
             '  osg_FragEye = vec3(ModelViewMatrix * vec4(Vertex, 1.0));',
             '  osg_FragNormal = vec3(NormalMatrix * vec4(Normal, 0.0));',
             '  osg_FragNormalWorld = Normal;',
             '  osg_FragLightDirection = vec3(NormalMatrix * vec4(0.0, -1.0, 0.0, 1.0));',
+            '  osg_FragTexCoord0 = TexCoord0;',
             '  gl_Position = ProjectionMatrix * ModelViewMatrix * vec4(Vertex,1.0);',
             '}'
         ].join('\n');
@@ -179,6 +182,7 @@ PBRExample.prototype = {
 
             'uniform sampler2D Texture0;',
             'uniform sampler2D Texture1;',
+            'uniform sampler2D Texture2;',
             'uniform float hdrExposure;',
             '//uniform float hdrGamma;',
             'uniform mat4 CubemapTransform;',
@@ -187,6 +191,8 @@ PBRExample.prototype = {
             'varying vec3 osg_FragNormal;',
             'varying vec3 osg_FragNormalWorld;',
             'varying vec3 osg_FragLightDirection;',
+            'varying vec2 osg_FragTexCoord0;',
+
             'float gamma = 2.2;',
 
             'vec3 cubemapReflectionVector(const in mat4 transform, const in vec3 view, const in vec3 normal)',
@@ -219,6 +225,12 @@ PBRExample.prototype = {
             '  return pow( color , 1.0/ vec3( gamma ) );',
             '}',
 
+
+            'vec3 diffuseIndirect( vec3 albedo, vec3 normal ) {',
+            '   vec3 lightDiffuse = hdrExposure * decodeRGBE(textureSphere(Texture1, normal));',
+            '   return lightDiffuse * albedo;',
+            '}',
+
             'void main(void) {',
             '  vec3 normalWorld = normalize(osg_FragNormalWorld);',
             '  vec3 N = normalize(osg_FragNormal);',
@@ -227,9 +239,11 @@ PBRExample.prototype = {
             '  vec3 R = cubemapReflectionVector(CubemapTransform, E, N);',
 
             '  float NdotL = dot(-N, L);',
-            '  vec3 diffuse = hdrExposure*decodeRGBE(textureSphere(Texture1, normalWorld));',
+            '  vec3 diffuse = diffuseIndirect( texture2D( Texture2, osg_FragTexCoord0 ).rgb, normalWorld) ; //hdrExposure*decodeRGBE(textureSphere(Texture1, normalWorld));',
             '  vec3 specular = hdrExposure*decodeRGBE(textureSphere(Texture0, R));',
-            '  vec3 gammaCorrected = linear2sRGB( mix(diffuse, specular, 1.0) );',
+            '  //diffuse = texture2D( Texture2, osg_FragTexCoord0 ).rgb;',
+
+            '  vec3 gammaCorrected = linear2sRGB( mix(diffuse, specular, 0.0) );',
             '  gl_FragColor = vec4( gammaCorrected, 1.0);',
             '}',
             ''
@@ -313,6 +327,7 @@ PBRExample.prototype = {
     },
 
     getShaderBackground: function() {
+
         var vertexshader = [
             '',
             '#ifdef GL_ES',
