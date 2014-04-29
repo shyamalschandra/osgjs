@@ -22,6 +22,27 @@ var PBRExample = function() {
 
 PBRExample.prototype = {
 
+    // http://holger.dammertz.org/stuff/notes_HammersleyOnHemisphere.html
+    computeHammersleyReverse: function( a ) {
+        a = (a << 16 | a >>> 16) >>> 0;
+        a = ((a & 1431655765) << 1 | (a & 2863311530) >>> 1) >>> 0;
+        a = ((a & 858993459) << 2 | (a & 3435973836) >>> 2) >>> 0;
+        a = ((a & 252645135) << 4 | (a & 4042322160) >>> 4) >>> 0;
+        return (((a & 16711935) << 8 | (a & 4278255360) >>> 8) >>> 0) / 4294967296;
+    },
+
+    computeHammersleySequence: function( size ) {
+        this._hammersley = [];
+        for ( var i = 0; i < size ; i++) {
+            var u = i / size;
+            var v = this.computeHammersleyReverse ( i );
+            this._hammersley.push( u );
+            this._hammersley.push( v );
+        }
+        return this._hammersley;
+    },
+
+
     getModel: function() {
 
         var removeLoading = function ( node, child ) {
@@ -134,15 +155,16 @@ PBRExample.prototype = {
                     textureEnv.setTextureSize( images[ 0 ].width, images[ 0 ].height );
                     textureEnv.setImage( images[ 0 ].data, osg.Texture.RGBA );
                 }
-                ground.getOrCreateStateSet().setTextureAttributeAndMode( 0, textureHigh );
-                ground.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 0, 'Texture0' ) );
+                ground.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 0, 'albedo' ) );
+                ground.getOrCreateStateSet().setTextureAttributeAndMode( 2, textureHigh );
+                ground.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 2, 'envSpecular' ) );
                 ground.getOrCreateStateSet().setTextureAttributeAndMode( 1, textureEnv );
-                ground.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 1, 'Texture1' ) );
+                ground.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 1, 'envDiffuse' ) );
             } );
     },
 
 
-    getShader: function() {
+    getShader: function( nbSamples ) {
         var vertexshader = [
             '',
             '#ifdef GL_ES',
@@ -159,42 +181,130 @@ PBRExample.prototype = {
 
             'varying vec3 osg_FragEye;',
             'varying vec3 osg_FragNormal;',
-            'varying vec3 osg_FragNormalWorld;',
             'varying vec3 osg_FragLightDirection;',
             'varying vec2 osg_FragTexCoord0;',
 
             'void main(void) {',
             '  osg_FragEye = vec3(ModelViewMatrix * vec4(Vertex, 1.0));',
             '  osg_FragNormal = vec3(NormalMatrix * vec4(Normal, 0.0));',
-            '  osg_FragNormalWorld = Normal;',
             '  osg_FragLightDirection = vec3(NormalMatrix * vec4(0.0, -1.0, 0.0, 1.0));',
             '  osg_FragTexCoord0 = TexCoord0;',
             '  gl_Position = ProjectionMatrix * ModelViewMatrix * vec4(Vertex,1.0);',
             '}'
         ].join('\n');
 
+
+
         var fragmentshader = [
             '',
             '#ifdef GL_ES',
             'precision highp float;',
             '#endif',
-            '#define PI 3.14159',
+            '#define PI 3.1415926535897932384626433832795',
+            '#define InversePI 3.1415926535897932384626433832795',
 
-            'uniform sampler2D Texture0;',
-            'uniform sampler2D Texture1;',
-            'uniform sampler2D Texture2;',
+            'uniform sampler2D albedo;',
+            'uniform sampler2D envDiffuse;',
+            'uniform sampler2D envSpecular;',
             'uniform float hdrExposure;',
             '//uniform float hdrGamma;',
             'uniform mat4 CubemapTransform;',
 
+            '#define NB_SAMPLE ' + nbSamples,
+
+            'uniform vec2 hammersley[NB_SAMPLE];',
+
             'varying vec3 osg_FragEye;',
             'varying vec3 osg_FragNormal;',
-            'varying vec3 osg_FragNormalWorld;',
             'varying vec3 osg_FragLightDirection;',
             'varying vec2 osg_FragTexCoord0;',
 
             'float gamma = 2.2;',
 
+            'float MaterialRoughness = 1.0;',
+            'vec3 MaterialSpecular = vec3(0.04);',
+            'vec3 MaterialAlbedo;',
+            'vec3 MaterialNormal;',
+
+
+            'vec3 fresnel( float vdh, vec3 F0 ) {',
+            '// Schlick with Spherical Gaussian approximation',
+            '// cf http://blog.selfshadow.com/publications/s2013-shading-course/karis/s2013_pbs_epic_notes_v2.pdf p3',
+            '    float sphg = pow(2.0, (-5.55473*vdh - 6.98316) * vdh);',
+            '    return F0 + (vec3(1.0 ) - F0) * sphg;',
+            '}',
+
+
+
+            '// A,B,C are ',
+            'vec3 importanceSampleGGX(vec2 Xi, vec3 tangentX, vec3 tangentY, vec3 normal, float roughness)',
+            '{',
+            '	float a = roughness*roughness;',
+
+            '	float cosT = sqrt((1.0-Xi.y)/(1.0+(a*a-1.0)*Xi.y));',
+            '	float sinT = sqrt(1.0-cosT*cosT);',
+
+            '	float phi = 2.0*PI*Xi.x;',
+            '	return (sinT*cos(phi)) * tangentX + (sinT*sin(phi)) * tangentY + cosT * normal;',
+            '}',
+
+
+
+            'float geometrySmithSchlickGGX(float alpha, float NdV, float NdL)',
+            '{',
+            '    float k = alpha * 0.5;',
+            '    float one_minus_k = 1.0 -k;',
+            '    float GV = NdV / (NdV * one_minus_k + k);',
+            '    float GL = NdL / (NdL * one_minus_k + k);',
+            '    return GV * GL;',
+            '}',
+
+            '// GGX TR from http://graphicrants.blogspot.ca/2013/08/specular-brdf-reference.html',
+            'float normalDistribution_GGX(float alpha, float NdH)',
+            '{',
+            '    // Isotropic ggx.',
+            '    float rSq = alpha * alpha;',
+            '    float NdH2 = NdH * NdH;',
+            '    float denominator = NdH2 * (rSq - 1.0) + 1.0;',
+            '    denominator *= denominator;',
+            '    denominator *= PI;',
+            '',
+            '    return rSq / denominator;',
+            '}',
+
+            '// w is either Ln or Vn',
+            'float G1( float ndw, float k ) {',
+            '// One generic factor of the geometry function divided by ndw',
+            '// NB : We should have k > 0',
+
+            '    // do the division outside return 1.0 / ( ndw*(1.0-k) + k );',
+            '    return ndw*(1.0-k) + k;',
+            '}',
+
+            'float visibility(float ndl,float ndv,float Roughness) {',
+            '// Schlick with Smith-like choice of k',
+            '// cf http://blog.selfshadow.com/publications/s2013-shading-course/karis/s2013_pbs_epic_notes_v2.pdf p3',
+            '// visibility is a Cook-Torrance geometry function divided by (n.l)*(n.v)',
+            '    float k = Roughness * Roughness * 0.5;',
+            '    //dont do the division inside G1 // return G1(ndl,k)*G1(ndv,k);',
+            '    return 1.0/( G1(ndl,k)*G1(ndv,k) );',
+            '}',
+
+
+            'vec3 cook_torrance_contrib(',
+            '	float vdh,',
+            '	float ndh,',
+            '	float ndl,',
+            '	float ndv,',
+            '	vec3 Ks,',
+            '	float roughness)',
+            '{',
+            '// This is the contribution when using importance sampling with the GGX based',
+            '// sample distribution. This means ct_contrib = ct_brdf / ggx_probability',
+            '	return fresnel(vdh,Ks) * (visibility(ndl,ndv,roughness) * vdh * ndl / ndh );',
+            '}',
+
+            '',
             'vec3 cubemapReflectionVector(const in mat4 transform, const in vec3 view, const in vec3 normal)',
             '{',
             '  vec3 lv = reflect(view, normal);',
@@ -225,25 +335,71 @@ PBRExample.prototype = {
             '  return pow( color , 1.0/ vec3( gamma ) );',
             '}',
 
+            'vec3 lightDiffuseIndirect( mat3 iblTransform, vec3 albedo, vec3 normal ) {',
+            '   vec3 lightDiffuse = hdrExposure * decodeRGBE(textureSphere(envDiffuse, iblTransform*normal));',
+            '   return lightDiffuse * albedo * InversePI;',
+            '}',
 
-            'vec3 diffuseIndirect( vec3 albedo, vec3 normal ) {',
-            '   vec3 lightDiffuse = hdrExposure * decodeRGBE(textureSphere(Texture1, normal));',
-            '   return lightDiffuse * albedo;',
+            'mat3 getIBLTransfrom( mat4 transform ) {',
+            '  vec3 x = vec3(transform[0][0], transform[1][0], transform[2][0]);',
+            '  vec3 y = vec3(transform[0][1], transform[1][1], transform[2][1]);',
+            '  vec3 z = vec3(transform[0][2], transform[1][2], transform[2][2]);',
+            '  mat3 m = mat3(x,y,z);',
+            '  return m;',
+            '}',
+
+            'vec3 lightSpecularIndirect( mat3 iblTransform, vec3 albedo, vec3 normal, vec3 view ) {',
+
+            '',
+            '   //vectors used for importance sampling',
+            '   vec3 upVector = abs(normal.z) < 0.999 ? vec3(0.0,0.0,1.0) : vec3(1.0,0.0,0.0);',
+            '   vec3 tangentX = normalize( cross( upVector, normal ) );',
+            '   vec3 tangentY = cross( normal, tangentX );',
+
+            '   float ndv = max( 0.0, dot(normal, view) );',
+
+            '   vec3 result = vec3(0.0);',
+
+            '   //vec3 h = normal;',
+
+            '   for ( int i = 0; i < NB_SAMPLE; i++ ) {',
+            '     vec2 xi = hammersley[i];',
+            '     vec3 h = importanceSampleGGX( xi, tangentX, tangentY, normal, MaterialRoughness);',
+            '     vec3 l = -reflect( view, h );',
+            '     float ndl = dot(normal , l);',
+            '     if ( ndl > 0.0 ) {',
+
+            '       float vdh = max( 0.0, dot(view, h) );',
+            '       float ndh = max( 0.0, dot(normal, h) );',
+
+            '       vec3 color = hdrExposure * decodeRGBE(textureSphere( envSpecular, iblTransform * l));',
+            '       result += color ; // * cook_torrance_contrib( vdh, ndh, ndl, ndv, MaterialSpecular, MaterialRoughness);',
+            '     }',
+            '',
+            '   }',
+            '   result /= float(NB_SAMPLE);',
+            '   return result;',
             '}',
 
             'void main(void) {',
-            '  vec3 normalWorld = normalize(osg_FragNormalWorld);',
             '  vec3 N = normalize(osg_FragNormal);',
             '  vec3 L = normalize(osg_FragLightDirection);',
             '  vec3 E = normalize(osg_FragEye);',
             '  vec3 R = cubemapReflectionVector(CubemapTransform, E, N);',
 
-            '  float NdotL = dot(-N, L);',
-            '  vec3 diffuse = diffuseIndirect( texture2D( Texture2, osg_FragTexCoord0 ).rgb, normalWorld) ; //hdrExposure*decodeRGBE(textureSphere(Texture1, normalWorld));',
-            '  vec3 specular = hdrExposure*decodeRGBE(textureSphere(Texture0, R));',
-            '  //diffuse = texture2D( Texture2, osg_FragTexCoord0 ).rgb;',
+            '  mat3 iblTransform = getIBLTransfrom( CubemapTransform );',
 
-            '  vec3 gammaCorrected = linear2sRGB( mix(diffuse, specular, 0.0) );',
+
+            '  MaterialAlbedo = texture2D( albedo, osg_FragTexCoord0 ).rgb;',
+            '  MaterialNormal = N;',
+            '  MaterialRoughness = 0.0;',
+            '  MaterialSpecular = vec3(0.9);',
+
+
+            '  vec3 diffuseIndirect = lightDiffuseIndirect( iblTransform, MaterialAlbedo, MaterialNormal );',
+            '  vec3 specularIndirect = lightSpecularIndirect( iblTransform, MaterialAlbedo, MaterialNormal, -E );',
+
+            '  vec3 gammaCorrected = linear2sRGB( specularIndirect);',
             '  gl_FragColor = vec4( gammaCorrected, 1.0);',
             '}',
             ''
@@ -271,7 +427,15 @@ PBRExample.prototype = {
 
         Q.when( this.getModel() ).then( function( model ) {
 
-            model.getOrCreateStateSet().setAttributeAndMode( this.getShader() );
+            var nbSamples = 16;
+            var sequence = this.computeHammersleySequence( nbSamples );
+
+            var uniformHammersley = osg.Uniform.createFloat2Array( sequence, 'hammersley' );
+
+            model.getOrCreateStateSet().setAttributeAndMode( this.getShader( nbSamples) );
+            model.getOrCreateStateSet().addUniform( uniformHammersley );
+
+
             model.getOrCreateStateSet().addUniform( uniformCenter );
             model.getOrCreateStateSet().addUniform( uniformGamma );
 
