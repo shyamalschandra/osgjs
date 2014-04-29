@@ -9,6 +9,7 @@ var osgDB = OSG.osgDB;
 var PBRExample = function() {
     this.textureEnvs = {
         'Alexs_Apartment': [ 'Alexs_Apt_2k.png', 'Alexs_Apt_Env.png' ],
+//        'Alexs_Apartment': [ 'Alexs_Apt_2k_low.png_512x256.png', 'Alexs_Apt_Env.png' ],
         'Arches_E_PineTree': [ 'Arches_E_PineTree_3k.png', 'Arches_E_PineTree_Env.png' ],
         'GrandCanyon_C_YumaPoint': [ 'GCanyon_C_YumaPoint_3k.png', 'GCanyon_C_YumaPoint_Env.png' ],
         'Milkyway': [ 'Milkyway_small.png', 'Milkyway_Light.png' ],
@@ -39,6 +40,7 @@ PBRExample.prototype = {
             this._hammersley.push( u );
             this._hammersley.push( v );
         }
+        console.log( this._hammersley );
         return this._hammersley;
     },
 
@@ -221,7 +223,7 @@ PBRExample.prototype = {
 
             'float gamma = 2.2;',
 
-            'float MaterialRoughness = 1.0;',
+            'float MaterialRoughness = 0.99;',
             'vec3 MaterialSpecular = vec3(0.04);',
             'vec3 MaterialAlbedo;',
             'vec3 MaterialNormal;',
@@ -360,8 +362,6 @@ PBRExample.prototype = {
 
             '   vec3 result = vec3(0.0);',
 
-            '   //vec3 h = normal;',
-
             '   for ( int i = 0; i < NB_SAMPLE; i++ ) {',
             '     vec2 xi = hammersley[i];',
             '     vec3 h = importanceSampleGGX( xi, tangentX, tangentY, normal, MaterialRoughness);',
@@ -373,8 +373,11 @@ PBRExample.prototype = {
             '       float ndh = max( 0.0, dot(normal, h) );',
 
             '       vec3 color = hdrExposure * decodeRGBE(textureSphere( envSpecular, iblTransform * l));',
-            '       result += color ; // * cook_torrance_contrib( vdh, ndh, ndl, ndv, MaterialSpecular, MaterialRoughness);',
+            '       result += color * cook_torrance_contrib( vdh, ndh, ndl, ndv, MaterialSpecular, MaterialRoughness);',
             '     }',
+
+            '     //if ( xi.x == 0.0 ) ',
+            '     //  result += vec3( 1.0, 0.0, 1.0);',
             '',
             '   }',
             '   result /= float(NB_SAMPLE);',
@@ -392,7 +395,7 @@ PBRExample.prototype = {
 
             '  MaterialAlbedo = texture2D( albedo, osg_FragTexCoord0 ).rgb;',
             '  MaterialNormal = N;',
-            '  MaterialRoughness = 0.0;',
+            '  MaterialRoughness = 0.99;',
             '  MaterialSpecular = vec3(0.9);',
 
 
@@ -427,7 +430,7 @@ PBRExample.prototype = {
 
         Q.when( this.getModel() ).then( function( model ) {
 
-            var nbSamples = 16;
+            var nbSamples = 4;
             var sequence = this.computeHammersleySequence( nbSamples );
 
             var uniformHammersley = osg.Uniform.createFloat2Array( sequence, 'hammersley' );
@@ -438,7 +441,6 @@ PBRExample.prototype = {
 
             model.getOrCreateStateSet().addUniform( uniformCenter );
             model.getOrCreateStateSet().addUniform( uniformGamma );
-
 
 
             var ConfigUI = function() {
