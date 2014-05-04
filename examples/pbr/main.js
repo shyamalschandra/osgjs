@@ -41,6 +41,8 @@ var mipconf = [ {
     'level': 10
 } ];
 
+var NbEnvSpecularTextures = 10;
+
 
 var PBRExample = function () {
     this.textureEnvs = {
@@ -184,14 +186,12 @@ PBRExample.prototype = {
         };
 
         var createEnvironmnentTexture = function (name, image, stateSet, unit) {
-
             var texture = new osg.Texture();
             if (image)
                 texture.setImage(image);
             texture.setMinFilter('NEAREST');
             texture.setMagFilter('NEAREST');
 
-            stateSet.setTextureAttributeAndMode(unit, texture);
             stateSet.setTextureAttributeAndMode(unit, texture);
             stateSet.addUniform(osg.Uniform.createInt1(unit, name));
             var width = image ? image.getWidth() : 0;
@@ -202,7 +202,34 @@ PBRExample.prototype = {
             return texture;
         };
 
-        var loadSpecularEnvironmnentTexture = function (config) {
+        var createEnvironmnentMultiTexture = function (name, image, stateSet, unit, index) {
+            var texture = new osg.Texture();
+
+            texture.setImage(image);
+            texture.setMinFilter('NEAREST');
+            texture.setMagFilter('NEAREST');
+
+            stateSet.setTextureAttributeAndMode(unit, texture);
+            var samplerArray = stateSet.getUniform( name );
+            if ( !samplerArray ) {
+                stateSet.addUniform(osg.Uniform.createIntArray( new Array( NbEnvSpecularTextures ), name));
+            }
+            samplerArray = stateSet.getUniform( name );
+            samplerArray.get()[ index ] = unit;
+
+            var sizeSamplerArray = stateSet.getUniform(name +'Size');
+            if ( !sizeSamplerArray ) {
+                stateSet.addUniform(osg.Uniform.createFloat2Array( new Array( NbEnvSpecularTextures*2 ), name + 'Size'));
+            }
+            sizeSamplerArray = stateSet.getUniform( name + 'Size' );
+            sizeSamplerArray.get()[index*2    ] = image.getWidth();
+            sizeSamplerArray.get()[index*2 + 1] = image.getHeight();
+
+            return texture;
+        };
+
+
+        var loadSpecularEnvironmnentMipmapTexture = function (config) {
             var defer = Q.defer();
             var imagesPromises = [];
             var images = [];
@@ -290,15 +317,54 @@ PBRExample.prototype = {
             return defer.promise;
         };
 
+
+        var loadSpecularEnvironmnentMultiTexture = function (config, startUnit) {
+            var nbUnits = NbEnvSpecularTextures;
+            var defer = Q.defer();
+            var imagesPromises = [];
+            var images = [];
+            var stateSet = ground.getOrCreateStateSet();
+
+            // sort then execute for each element
+            config.sort(function (a, b) {
+                return a.level - b.level;
+
+            }).forEach(function (textureLevel) {
+                imagesPromises.push(readImageURL('textures/' + environmentName + '/' + textureLevel.name));
+            });
+
+            Q.all(imagesPromises).then(function (args) {
+                images = args.slice(0);
+
+                images.sort( function( a , b ) {
+                    return b.getWidth() - a.getWidth();
+                } );
+
+
+                var unitTextures = [];
+                for ( var i =0, l = nbUnits; i< l; i++) {
+                    var unit = startUnit + i;
+                    unitTextures.push( unit );
+                    createEnvironmnentMultiTexture('envSpecularMulti', images[i], stateSet, unit, i );
+                }
+
+                defer.resolve(args);
+            });
+
+            return defer.promise;
+        };
+
         Q.all( [
             readImageURL( 'textures/' + name + '/' + urls[ 0 ] ),
             readImageURL( 'textures/' + name + '/' + urls[ 1 ] ),
-            loadSpecularEnvironmnentTexture( mipconf )
+            // loadSpecularEnvironmnentMipmapTexture( mipconf )
+            loadSpecularEnvironmnentMultiTexture( mipconf, 3 )
+
         ] ).then( function ( images ) {
             createEnvironmnentTexture( 'envSpecular', images[ 0 ], background.getOrCreateStateSet(), 2 );
 
             createEnvironmnentTexture( 'envDiffuse', images[ 1 ], ground.getOrCreateStateSet(), 1 );
-            //            createEnvironmnentTexture('envSpecular', images[0], ground.getOrCreateStateSet(), 2);
+            //createEnvironmnentTexture('envSpecular', images[0], ground.getOrCreateStateSet(), 2);
 
             ground.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 0, 'albedo' ) );
 
@@ -307,6 +373,15 @@ PBRExample.prototype = {
 
 
     getTextureEnvFunctions: function () {
+
+        var fetchMultiTexture = [];
+        for ( var i = 0; i < NbEnvSpecularTextures; i++ ) {
+            var entry = '  if ( index == XX ) return textureHDRLinear( textures[XX], envSpecularMultiSize[XX], uv ).rgb;'.replace( /XX/g, i.toString());
+            fetchMultiTexture.push( entry );
+        }
+        fetchMultiTexture.push('  return textureHDRLinear( textures[0], envSpecularMultiSize[0], uv ).rgb;' );
+
+
         return [
             'float TextureLevel = 0.0;',
 
@@ -320,17 +395,15 @@ PBRExample.prototype = {
             '  float new_bias = lod - current_lod;',
             '  return new_bias;',
             '}',
-            // convert 8-bit RGB channels into floats using the common E exponent
-            'vec3 decodeRGBE(vec4 rgbe) {',
-            '  float f = pow(2.0, rgbe.w * 255.0 - (128.0 + 8.0));',
-            '  return rgbe.rgb * 255.0 * f;',
-            '}',
             '',
-            'vec4 textureHDR(const in sampler2D texture, const in vec2 size, const in vec2 uvn) {',
-            '    vec2 uv = floor(uvn*size)/size;',
-            '    float bias = getBias( size, uv, TextureLevel );',
 
-            '    vec4 rgbe = texture2D(texture, uv, bias );',
+            'vec4 textureHDR(const in sampler2D texture, const in vec2 size, const in vec2 uv) {',
+            '    #ifdef BIAS',
+            '       vec4 rgbe = texture2D(texture, uv, getBias( size, uv, TextureLevel );',
+            '    #else',
+            '       vec4 rgbe = texture2D(texture, uv );',
+            '    #endif',
+
             '    float f = pow(2.0, rgbe.w * 255.0 - (128.0 + 8.0));',
             '    return vec4(rgbe.rgb * 255.0 * f, 1.0);',
             '}',
@@ -365,10 +438,13 @@ PBRExample.prototype = {
             '',
             'vec4 textureHDRLinear(const in sampler2D texture, const in vec2 size, const in vec2 uv) {',
             '    vec2 t = 1.0 / size;',
-            '    vec4 a = textureHDR(texture, size, uv + vec2(0.0, 0.0)),',
-            '        b = textureHDR(texture, size, uv + vec2(t.x, 0.0)),',
-            '        c = textureHDR(texture, size, uv + vec2(0.0, t.y)),',
-            '        d = textureHDR(texture, size, uv + vec2(t.x, t.y));',
+            '    ',
+
+            '    vec4 a = textureHDR(texture,  size, uv ),',
+            '         b = textureHDR(texture,  size, uv + vec2(t.x, 0.0) ),',
+            '         c = textureHDR(texture,  size, uv + vec2(0.0, t.y) ),',
+            '         d = textureHDR(texture,  size, uv + vec2(t.x, t.y) );',
+
             '    vec2 f = fract(uv * size);',
             '    vec4 A = mix(a, b, f.x),',
             '        B = mix(c, d, f.x);',
@@ -380,17 +456,29 @@ PBRExample.prototype = {
             '    return textureHDRLinear(texture, size, uv.xy ).rgb;',
             '}',
 
+            '#ifdef MULTI_TEXTURE',
+            'vec3 textureSpecularIndex( sampler2D textures[NB_TEXTURES], const int index, const in vec2 uv ) {',
+            fetchMultiTexture.join( '\n' ),
+            '}',
 
-            // fetch from environment sphere texture
-            'vec4 textureSphere(sampler2D tex, vec3 n) {',
-            '  float yaw = acos(n.y) / PI;',
-            '  float pitch = (atan(n.x, n.z) + PI) / (2.0 * PI);',
-            '  return texture2D(tex, vec2(pitch, yaw));',
-            '}'].join('\n');
+            'vec3 textureSpecularRoughness( const in float roughness, const in vec3 direction ) {',
+            '   float textureIndex = roughness * float (NB_TEXTURES -1 );',
+            '   float frac = fract ( textureIndex );',
+            '   int indexLow = int (floor( textureIndex ) );',
+            '   vec2 uv = normalToSphericalUV( direction );',
+            '   int indexHigh = int( min( float(indexLow) + 1.0, float(NB_TEXTURES)-1.0 ) );',
+            '   vec3 texel0 = textureSpecularIndex( envSpecularMulti,  indexLow, uv );',
+            '   vec3 texel1 = textureSpecularIndex( envSpecularMulti, indexHigh, uv );',
+            '   return mix( texel0, texel1, frac );',
+            '}',
+            '#endif'
+
+        ].join('\n');
     },
 
 
     getShader: function (nbSamples) {
+        var nbTextures = NbEnvSpecularTextures;
         var vertexshader = [
             '',
             '#ifdef GL_ES',
@@ -429,11 +517,20 @@ PBRExample.prototype = {
             '#define PI 3.1415926535897932384626433832795',
             '#define InversePI 3.1415926535897932384626433832795',
 
+            '#define MULTI_TEXTURE 1',
+
             'uniform sampler2D albedo;',
             'uniform sampler2D envDiffuse;',
-            'uniform sampler2D envSpecular;',
-            'uniform vec2 envSpecularSize;',
             'uniform vec2 envDiffuseSize;',
+
+            '#ifdef MULTI_TEXTURE',
+            '#define NB_TEXTURES ' + nbTextures,
+            '  uniform sampler2D envSpecularMulti[ NB_TEXTURES];',
+            '  uniform vec2 envSpecularMultiSize[ NB_TEXTURES];',
+            '#endif',
+
+            '  uniform sampler2D envSpecular;',
+            '  uniform vec2 envSpecularSize;',
 
             'uniform float hdrExposure;',
             '//uniform float hdrGamma;',
@@ -455,6 +552,7 @@ PBRExample.prototype = {
             'float gamma = 2.2;',
 
             'float MaterialRoughness = 0.99;',
+            'uniform float roughness2;',
             'vec3 MaterialSpecular = vec3(0.04);',
             'vec3 MaterialAlbedo;',
             'vec3 MaterialNormal;',
@@ -592,9 +690,12 @@ PBRExample.prototype = {
             '       float ndh = max( 0.0, dot(normal, h) );',
 
             '       //vec3 color = baseColor; //hdrExposure * decodeRGBE(textureSphere( envSpecular,l));',
-
+            '#ifdef MULTI_TEXTURE',
+            '       vec3 color = hdrExposure * textureSpecularRoughness( MaterialRoughness, iblTransform * l);',
+            '#else',
             '       vec3 color = hdrExposure * textureSpheremapHDR( envSpecular, envSpecularSize, iblTransform * l );',
-            '       // vec3 color = hdrExposure * textureSphere( envSpecular, iblTransform * l).rgb;',
+            '#endif',
+
             '       result += color * cook_torrance_contrib( vdh, ndh, ndl, ndv, MaterialSpecular, MaterialRoughness);',
             '     }',
 
@@ -617,7 +718,7 @@ PBRExample.prototype = {
 
             '  MaterialAlbedo = texture2D( albedo, osg_FragTexCoord0 ).rgb;',
             '  MaterialNormal = N;',
-            '  MaterialRoughness = 0.0;',
+            '  MaterialRoughness = roughness2;',
             '  MaterialSpecular = vec3(0.9);',
 
 
@@ -656,15 +757,19 @@ PBRExample.prototype = {
             var sequence = this.computeHammersleySequence(nbSamples);
 
             var uniformHammersley = osg.Uniform.createFloat2Array(sequence, 'hammersley');
+            var uniformRoughness = osg.Uniform.createFloat1( 0.0, 'roughness2');
 
-            model.getOrCreateStateSet().setAttributeAndMode(this.getShader(nbSamples));
+            model.getOrCreateStateSet().setAttributeAndMode( this.getShader(nbSamples ) );
             model.getOrCreateStateSet().addUniform(uniformHammersley);
+
+            model.getOrCreateStateSet().addUniform(uniformRoughness);
 
             model.getOrCreateStateSet().addUniform(uniformCenter);
             model.getOrCreateStateSet().addUniform(uniformGamma);
 
             var ConfigUI = function () {
                 this.rangeExposure = 1.0;
+                this.roughness = 0.01;
                 this.environment = 'Alexs_Apartment';
             };
 
@@ -674,6 +779,12 @@ PBRExample.prototype = {
             var controller = gui.add(obj, 'rangeExposure');
             controller.onChange(function (value) {
                 uniformCenter.set(value);
+            });
+
+            controller = gui.add(obj, 'roughness', 0, 1);
+            controller.onChange(function (value) {
+                uniformRoughness.get()[0] = value;
+                uniformRoughness.dirty();
             });
 
             controller = gui.add(obj, 'environment', Object.keys(this.textureEnvs));
@@ -746,6 +857,7 @@ PBRExample.prototype = {
             'precision highp float;',
             '#endif',
             '#define PI 3.14159',
+
 
             'uniform sampler2D envSpecular;',
             'uniform vec2 envSpecularSize;',

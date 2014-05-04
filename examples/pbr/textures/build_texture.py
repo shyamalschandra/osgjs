@@ -58,8 +58,8 @@ if ext != 'tif':
 
 print "generate %d mipmap level for file %s" % (nb_mipmaps, valid_filename )
 config = []
-#for i in range (0,nb_mipmaps-1):
-#    config.append( computeLevel( i, nb_mipmaps, valid_filename ) )
+for i in range (0,nb_mipmaps-1):
+    config.append( computeLevel( i, nb_mipmaps, valid_filename ) )
 
 # finish with last level
 level = nb_mipmaps-1

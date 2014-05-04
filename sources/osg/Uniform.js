@@ -121,7 +121,13 @@ define( [
             value = [ 0 ];
         }
         var uniform = new Uniform();
-        uniform.data = [ value ];
+
+        // if we aleardy have an array because called from array version then dont generate
+        // an array of array
+        if ( !Array.isArray( value ) )
+            value = [ value ];
+
+        uniform.data = value;
         uniform.glCall = function ( gl, location, glData ) {
             gl.uniform1fv( location, glData );
         };
@@ -231,7 +237,13 @@ define( [
             value = [ 0 ];
         }
         var uniform = new Uniform();
-        uniform.data = [ value ];
+
+        // if we aleardy have an array because called from array version then dont generate
+        // an array of array
+        if ( !Array.isArray( value ) )
+            value = [ value ];
+
+        uniform.data = value;
         uniform.glCall = function ( gl, location, glData ) {
             gl.uniform1iv( location, glData );
         };
