@@ -6,54 +6,162 @@ var osgViewer = OSG.osgViewer;
 var osgDB = OSG.osgDB;
 
 
-var mipconf = [ {
-    'name': 'Alexs_Apt_2k_0_0.png',
-    'level': 0
-}, {
-    'name': 'Alexs_Apt_2k_1_0.png',
-    'level': 1
-}, {
-    'name': 'Alexs_Apt_2k_2_1.png',
-    'level': 2
-}, {
-    'name': 'Alexs_Apt_2k_4_2.png',
-    'level': 3
-}, {
-    'name': 'Alexs_Apt_2k_8_3.png',
-    'level': 4
-}, {
-    'name': 'Alexs_Apt_2k_16_4.png',
-    'level': 5
-}, {
-    'name': 'Alexs_Apt_2k_32_5.png',
-    'level': 6
-}, {
-    'name': 'Alexs_Apt_2k_64_6.png',
-    'level': 7
-}, {
-    'name': 'Alexs_Apt_2k_128_7.png',
-    'level': 8
-}, {
-    'name': 'Alexs_Apt_2k_256_8.png',
-    'level': 9
-}, {
-    'name': 'Alexs_Apt_2k_512_9.png',
-    'level': 10
-} ];
 
-var NbEnvSpecularTextures = 10;
-
+var NbEnvSpecularTextures = 9;
 
 var PBRExample = function () {
     this.textureEnvs = {
-        //        'Alexs_Apartment': [ 'Alexs_Apt_2k.png', 'Alexs_Apt_Env.png' ],
-        //        'Alexs_Apartment': [ 'Alexs_Apt_2k_low.png_512x256.png', 'Alexs_Apt_Env.png' ],
-        // 'Alexs_Apartment': ['Alexs_Apt_2k_512_rgba.png', 'Alexs_Apt_Env.png'],
-        'Alexs_Apartment': ['Alexs_Apt_2k_512_9.png', 'Alexs_Apt_Env.png'],
-        'Arches_E_PineTree': ['Arches_E_PineTree_3k.png', 'Arches_E_PineTree_Env.png'],
-        'GrandCanyon_C_YumaPoint': ['GCanyon_C_YumaPoint_3k.png', 'GCanyon_C_YumaPoint_Env.png'],
-        'Milkyway': ['Milkyway_small.png', 'Milkyway_Light.png'],
-        'Walk_Of_Fame': ['Mans_Outside_2k.png', 'Mans_Outside_Env.png']
+        'Alexs_Apartment': {
+            'specular': [ // {
+                //     'name': 'Alexs_Apt_2k_0_0.png',
+                //     'level': 0
+                // },
+                //                 {
+                //     'name': 'Alexs_Apt_2k_1_0.png',
+                //     'level': 1
+                // },
+                {
+                    'name': 'Alexs_Apt_2k_2_1.png',
+                    'level': 2
+                }, {
+                    'name': 'Alexs_Apt_2k_4_2.png',
+                    'level': 3
+                }, {
+                    'name': 'Alexs_Apt_2k_8_3.png',
+                    'level': 4
+                }, {
+                    'name': 'Alexs_Apt_2k_16_4.png',
+                    'level': 5
+                }, {
+                    'name': 'Alexs_Apt_2k_32_5.png',
+                    'level': 6
+                }, {
+                    'name': 'Alexs_Apt_2k_64_6.png',
+                    'level': 7
+                }, {
+                    'name': 'Alexs_Apt_2k_128_7.png',
+                    'level': 8
+                }, {
+                    'name': 'Alexs_Apt_2k_256_8.png',
+                    'level': 9
+                }, {
+                    'name': 'Alexs_Apt_2k_512_9.png',
+                    'level': 10
+                }
+            ],
+            'background': 'Alexs_Apt_2k.png',
+            'diffuse': 'Alexs_Apt_Env.png'
+        },
+
+        'Walk_Of_Fame': {
+            'specular': [ {
+                'name': 'Mans_Outside_2k_1_0.png',
+                'level': 0
+            }, {
+                'name': 'Mans_Outside_2k_2_1.png',
+                'level': 1
+            }, {
+                'name': 'Mans_Outside_2k_4_2.png',
+                'level': 2
+            }, {
+                'name': 'Mans_Outside_2k_8_3.png',
+                'level': 3
+            }, {
+                'name': 'Mans_Outside_2k_16_4.png',
+                'level': 4
+            }, {
+                'name': 'Mans_Outside_2k_32_5.png',
+                'level': 5
+            }, {
+                'name': 'Mans_Outside_2k_64_6.png',
+                'level': 6
+            }, {
+                'name': 'Mans_Outside_2k_128_7.png',
+                'level': 7
+            }, {
+                'name': 'Mans_Outside_2k_256_8.png',
+                'level': 8
+            }, {
+                'name': 'Mans_Outside_2k_512_9.png',
+                'level': 9
+            } ],
+            'diffuse': 'Mans_Outside_Env.png',
+            'background': 'Mans_Outside_2k.png'
+        },
+
+        'Arches_E_PineTree' : {
+            'specular': [ {
+                'name': 'Arches_E_PineTree_3k_1_0.png',
+                'level': 0
+            }, {
+                'name': 'Arches_E_PineTree_3k_2_1.png',
+                'level': 1
+            }, {
+                'name': 'Arches_E_PineTree_3k_4_2.png',
+                'level': 2
+            }, {
+                'name': 'Arches_E_PineTree_3k_8_3.png',
+                'level': 3
+            }, {
+                'name': 'Arches_E_PineTree_3k_16_4.png',
+                'level': 4
+            }, {
+                'name': 'Arches_E_PineTree_3k_32_5.png',
+                'level': 5
+            }, {
+                'name': 'Arches_E_PineTree_3k_64_6.png',
+                'level': 6
+            }, {
+                'name': 'Arches_E_PineTree_3k_128_7.png',
+                'level': 7
+            }, {
+                'name': 'Arches_E_PineTree_3k_256_8.png',
+                'level': 8
+            }, {
+                'name': 'Arches_E_PineTree_3k_512_9.png',
+                'level': 9
+            } ],
+            'diffuse': 'Arches_E_PineTree_Env.png',
+            'background': 'Arches_E_PineTree_3k.png'
+        },
+
+        'GrandCanyon_C_YumaPoint': {
+            'specular': [ {
+                'name': 'GCanyon_C_YumaPoint_3k_1_0.png',
+                'level': 0
+            }, {
+                'name': 'GCanyon_C_YumaPoint_3k_2_1.png',
+                'level': 1
+            }, {
+                'name': 'GCanyon_C_YumaPoint_3k_4_2.png',
+                'level': 2
+            }, {
+                'name': 'GCanyon_C_YumaPoint_3k_8_3.png',
+                'level': 3
+            }, {
+                'name': 'GCanyon_C_YumaPoint_3k_16_4.png',
+                'level': 4
+            }, {
+                'name': 'GCanyon_C_YumaPoint_3k_32_5.png',
+                'level': 5
+            }, {
+                'name': 'GCanyon_C_YumaPoint_3k_64_6.png',
+                'level': 6
+            }, {
+                'name': 'GCanyon_C_YumaPoint_3k_128_7.png',
+                'level': 7
+            }, {
+                'name': 'GCanyon_C_YumaPoint_3k_256_8.png',
+                'level': 8
+            }, {
+                'name': 'GCanyon_C_YumaPoint_3k_512_9.png',
+                'level': 9
+            } ],
+            'diffuse': 'GCanyon_C_YumaPoint_Env.png',
+            'background': 'GCanyon_C_YumaPoint_3k.png'
+
+        }
+
     };
 
     this._viewer = undefined;
@@ -84,7 +192,8 @@ PBRExample.prototype = {
     },
 
 
-    getModel: function () {
+    getModel: function ( url, callback ) {
+        var self = this;
 
         var removeLoading = function (node, child) {
 
@@ -135,13 +244,20 @@ PBRExample.prototype = {
                 if (req.readyState === 4) {
                     if (req.status === 200) {
                         Q.when(osgDB.parseSceneGraph(JSON.parse(req.responseText), opts)).then(function (child) {
-                            if (cbfunc) {
-                                cbfunc(child);
-                            }
                             node.addChild(child);
                             removeLoading(node, child);
                             osg.log('success ' + url);
-                            defer.resolve(node);
+
+                            var cbPromise = true;
+                            if ( cbfunc ) {
+                                cbPromise = cbfunc.call( this, child );
+                            }
+
+                            Q(cbPromise).then( function() {
+                                defer.resolve(node);
+                            });
+
+
                         }.bind(this)).fail(function (error) {
 
                             defer.reject(error);
@@ -162,23 +278,22 @@ PBRExample.prototype = {
 
         }.bind(this);
 
-        return loadModel('model/Cerberus_by_Andrew_Maximov.osgjs');
+        return loadModel( url, callback );
+    },
+
+    readImageURL: function (url, options) {
+        var ext = url.split('.').pop();
+        if (ext === 'hdr')
+            return osgDB.readImageHDR(url, options);
+
+        return osgDB.readImageURL.call(this, url, options);
     },
 
     setEnvironment: function (name, background, ground) {
 
-        var urls = this.textureEnvs[name];
+        var environmentConfig = this.textureEnvs[name];
         var environmentName = name;
-
-        var readImageURL = function (url, options) {
-            var ext = url.split('.').pop();
-            if (ext === 'hdr')
-                return osgDB.readImageHDR(url, options);
-
-            return osgDB.readImageURL.call(this, url, options);
-        };
-
-
+        var self = this;
         var setNameTextureUnit = function (stateSet, name, unit, w, h) {
             stateSet.addUniform(osg.Uniform.createInt1(unit, name));
             if (w !== undefined)
@@ -300,7 +415,7 @@ PBRExample.prototype = {
                 return a.level - b.level;
 
             }).forEach(function (textureLevel) {
-                imagesPromises.push(readImageURL('textures/' + environmentName + '/' + textureLevel.name));
+                imagesPromises.push( self.readImageURL('textures/' + environmentName + '/' + textureLevel.name));
             });
 
             Q.all(imagesPromises).then(function (args) {
@@ -330,7 +445,7 @@ PBRExample.prototype = {
                 return a.level - b.level;
 
             }).forEach(function (textureLevel) {
-                imagesPromises.push(readImageURL('textures/' + environmentName + '/' + textureLevel.name));
+                imagesPromises.push( self.readImageURL('textures/' + environmentName + '/' + textureLevel.name));
             });
 
             Q.all(imagesPromises).then(function (args) {
@@ -355,18 +470,15 @@ PBRExample.prototype = {
         };
 
         Q.all( [
-            readImageURL( 'textures/' + name + '/' + urls[ 0 ] ),
-            readImageURL( 'textures/' + name + '/' + urls[ 1 ] ),
+            self.readImageURL( 'textures/' + name + '/' + environmentConfig.background ),
+            self.readImageURL( 'textures/' + name + '/' + environmentConfig.diffuse ),
             // loadSpecularEnvironmnentMipmapTexture( mipconf )
-            loadSpecularEnvironmnentMultiTexture( mipconf, 3 )
+            loadSpecularEnvironmnentMultiTexture( environmentConfig.specular, 6 )
 
         ] ).then( function ( images ) {
             createEnvironmnentTexture( 'envSpecular', images[ 0 ], background.getOrCreateStateSet(), 2 );
 
-            createEnvironmnentTexture( 'envDiffuse', images[ 1 ], ground.getOrCreateStateSet(), 1 );
-            //createEnvironmnentTexture('envSpecular', images[0], ground.getOrCreateStateSet(), 2);
-
-            ground.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 0, 'albedo' ) );
+            createEnvironmnentTexture( 'envDiffuse', images[ 1 ], ground.getOrCreateStateSet(), 5 );
 
         } );
     },
@@ -384,7 +496,9 @@ PBRExample.prototype = {
 
         return [
             'float TextureLevel = 0.0;',
+            '#define DefaultGamma 2.4',
 
+            '#ifdef BIAS',
             'float getBias( vec2 size, vec2 uv, float lod ) {',
             '  vec2  dx        = dFdx(uv) * size[0];',
             '  vec2  dy        = dFdy(uv) * size[1];',
@@ -395,7 +509,97 @@ PBRExample.prototype = {
             '  float new_bias = lod - current_lod;',
             '  return new_bias;',
             '}',
+            '#endif',
             '',
+            '',
+            'float srgb_to_linearrgb1(const in float c, const in float gamma)',
+            '{',
+            '    float v = 0.0;',
+            '    if ( c < 0.04045 ) {',
+            '        if ( c >= 0.0 )',
+            '            v = c * ( 1.0 / 12.92 );',
+            '    } else {',
+            '        v = pow( ( c + 0.055 ) * ( 1.0 / 1.055 ), gamma );',
+            '    }',
+            '    return v;',
+            '}',
+            'vec4 srgb2linearrgb_vec4(const in vec4 col_from)',
+            '{',
+            '    vec4 col_to;',
+            '    col_to.r = srgb_to_linearrgb1(col_from.r, DefaultGamma);',
+            '    col_to.g = srgb_to_linearrgb1(col_from.g, DefaultGamma);',
+            '    col_to.b = srgb_to_linearrgb1(col_from.b, DefaultGamma);',
+            '    col_to.a = col_from.a;',
+            '    return col_to;',
+            '}',
+            'vec3 srgb2linearrgb_vec3(const in vec3 col_from)',
+            '{',
+            '    vec3 col_to;',
+            '    col_to.r = srgb_to_linearrgb1(col_from.r, DefaultGamma);',
+            '    col_to.g = srgb_to_linearrgb1(col_from.g, DefaultGamma);',
+            '    col_to.b = srgb_to_linearrgb1(col_from.b, DefaultGamma);',
+            '    return col_to;',
+            '}',
+            'float linearrgb_to_srgb1(const in float c, const in float gamma)',
+            '{',
+            '    float v = 0.0;',
+            '    if(c < 0.0031308) {',
+            '        if ( c > 0.0)',
+            '            v = c * 12.92;',
+            '    } else {',
+            '        v = 1.055 * pow(c, 1.0/ gamma) - 0.055;',
+            '    }',
+            '    return v;',
+            '}',
+            '',
+            '// coding style should be camel case except for acronyme like SRGB or HDR',
+            'vec4 linearTosRGB(const in vec4 col_from, const in float gamma)',
+            '{',
+            '    vec4 col_to;',
+            '    col_to.r = linearrgb_to_srgb1(col_from.r, gamma);',
+            '    col_to.g = linearrgb_to_srgb1(col_from.g, gamma);',
+            '    col_to.b = linearrgb_to_srgb1(col_from.b, gamma);',
+            '    col_to.a = col_from.a;',
+            '    return col_to;',
+            '}',
+
+            'vec3 linearTosRGB(const in vec3 col_from, const in float gamma)',
+            '{',
+            '    vec3 col_to;',
+            '    col_to.r = linearrgb_to_srgb1(col_from.r, gamma);',
+            '    col_to.g = linearrgb_to_srgb1(col_from.g, gamma);',
+            '    col_to.b = linearrgb_to_srgb1(col_from.b, gamma);',
+            '    return col_to;',
+            '}',
+            '',
+            'float sRGBToLinear(const in float c, const in float gamma)',
+            '{',
+            '    float v = 0.0;',
+            '    if ( c < 0.04045 ) {',
+            '        if ( c >= 0.0 )',
+            '            v = c * ( 1.0 / 12.92 );',
+            '    } else {',
+            '        v = pow( ( c + 0.055 ) * ( 1.0 / 1.055 ), gamma );',
+            '    }',
+            '    return v;',
+            '}',
+            'vec4 sRGBToLinear(const in vec4 col_from, const in float gamma)',
+            '{',
+            '    vec4 col_to;',
+            '    col_to.r = sRGBToLinear(col_from.r, gamma);',
+            '    col_to.g = sRGBToLinear(col_from.g, gamma);',
+            '    col_to.b = sRGBToLinear(col_from.b, gamma);',
+            '    col_to.a = col_from.a;',
+            '    return col_to;',
+            '}',
+            'vec3 sRGBToLinear(const in vec3 col_from, const in float gamma)',
+            '{',
+            '    vec3 col_to;',
+            '    col_to.r = sRGBToLinear(col_from.r, gamma);',
+            '    col_to.g = sRGBToLinear(col_from.g, gamma);',
+            '    col_to.b = sRGBToLinear(col_from.b, gamma);',
+            '    return col_to;',
+            '}',
 
             'vec4 textureHDR(const in sampler2D texture, const in vec2 size, const in vec2 uv) {',
             '    #ifdef BIAS',
@@ -434,6 +638,23 @@ PBRExample.prototype = {
             '    return vec2( pitch, yaw );',
             '}',
 
+
+            'void mtex_nspace_tangent(const in vec4 tangent, const in vec3 normal, const in vec3 texnormal, out vec3 outnormal)',
+            '{',
+            '    vec3 tang = vec3(0.0,1.0,0.0);',
+            '    if (length(tangent.xyz) != 0.0) {',
+            '        tang = normalize(tangent.xyz);',
+            '    }',
+            '    vec3 B = tangent.w * cross(normal, tang);',
+            '    outnormal = texnormal.x*tang + texnormal.y*B + texnormal.z*normal;',
+            '    outnormal = normalize(outnormal);',
+            '}',
+
+            '',
+            'vec3 textureNormal(in sampler2D texture, const in vec2 uv) {',
+            '    vec3 rgb = sRGBToLinear(texture2D(texture, uv).rgb, DefaultGamma );',
+            '    return normalize((2.0*rgb-vec3(1.0)));',
+            '}',
 
             '',
             'vec4 textureHDRLinear(const in sampler2D texture, const in vec2 size, const in vec2 uv) {',
@@ -476,8 +697,14 @@ PBRExample.prototype = {
         ].join('\n');
     },
 
+    getCommonShader: function() {
+        return [
+            '#define PI 3.1415926535897932384626433832795',
+            '#define InversePI 3.1415926535897932384626433832795'
+        ].join( '\n' );
+    },
 
-    getShader: function (nbSamples) {
+    getShader: function ( mapSpecular, mapAmbientOcclusion ) {
         var nbTextures = NbEnvSpecularTextures;
         var vertexshader = [
             '',
@@ -495,6 +722,7 @@ PBRExample.prototype = {
 
             'varying vec3 osg_FragEye;',
             'varying vec3 osg_FragNormal;',
+            'varying vec4 osg_FragTangent;',
             'varying vec3 osg_FragLightDirection;',
             'varying vec2 osg_FragTexCoord0;',
 
@@ -502,24 +730,39 @@ PBRExample.prototype = {
             '  osg_FragEye = vec3(ModelViewMatrix * vec4(Vertex, 1.0));',
             '  osg_FragNormal = vec3(NormalMatrix * vec4(Normal, 0.0));',
             '  osg_FragLightDirection = vec3(NormalMatrix * vec4(0.0, -1.0, 0.0, 1.0));',
+            '  osg_FragTangent = NormalMatrix * osg_FragTangent;',
             '  osg_FragTexCoord0 = TexCoord0;',
             '  gl_Position = ProjectionMatrix * ModelViewMatrix * vec4(Vertex,1.0);',
             '}'
         ].join('\n');
 
+        var ambientOcclusion = '';
+        if ( mapAmbientOcclusion )
+            ambientOcclusion = '#define AO';
 
+        var specular = '';
+        if ( mapSpecular )
+            specular = '#define SPECULAR';
 
         var fragmentshader = [
             '',
             '#ifdef GL_ES',
             'precision highp float;',
             '#endif',
-            '#define PI 3.1415926535897932384626433832795',
-            '#define InversePI 3.1415926535897932384626433832795',
+
+            this.getCommonShader(),
+            ambientOcclusion,
+            specular,
 
             '#define MULTI_TEXTURE 1',
 
-            'uniform sampler2D albedo;',
+            'uniform sampler2D albedoMap;',
+            'uniform sampler2D roughnessMap;',
+            'uniform sampler2D metallicMap;',
+            'uniform sampler2D normalMap;',
+            'uniform sampler2D specularMap;',
+            'uniform sampler2D aoMap;',
+
             'uniform sampler2D envDiffuse;',
             'uniform vec2 envDiffuseSize;',
 
@@ -529,33 +772,30 @@ PBRExample.prototype = {
             '  uniform vec2 envSpecularMultiSize[ NB_TEXTURES];',
             '#endif',
 
-            '  uniform sampler2D envSpecular;',
-            '  uniform vec2 envSpecularSize;',
+
+            'uniform sampler2D envSpecular;',
+            'uniform vec2 envSpecularSize;',
 
             'uniform float hdrExposure;',
-            '//uniform float hdrGamma;',
             'uniform mat4 CubemapTransform;',
 
             '#ifdef GL_OES_standard_derivatives',
             '#extension GL_OES_standard_derivatives : enable',
             '#endif',
 
-            '#define NB_SAMPLE ' + nbSamples,
-
-            'uniform vec2 hammersley[NB_SAMPLE];',
-
             'varying vec3 osg_FragEye;',
             'varying vec3 osg_FragNormal;',
             'varying vec3 osg_FragLightDirection;',
             'varying vec2 osg_FragTexCoord0;',
+            'varying vec4 osg_FragTangent;',
 
             'float gamma = 2.2;',
 
             'float MaterialRoughness = 0.99;',
-            'uniform float roughness2;',
             'vec3 MaterialSpecular = vec3(0.04);',
             'vec3 MaterialAlbedo;',
             'vec3 MaterialNormal;',
+            'vec3 MaterialAO;',
 
 
             'vec3 fresnel( float vdh, vec3 F0 ) {',
@@ -672,39 +912,25 @@ PBRExample.prototype = {
             '',
             '   //vectors used for importance sampling',
             '   vec3 upVector = abs(normal.z) < 0.999 ? vec3(0.0,0.0,1.0) : vec3(1.0,0.0,0.0);',
-            '   vec3 tangentX = normalize( cross( upVector, normal ) );',
-            '   vec3 tangentY = cross( normal, tangentX );',
-
             '   float ndv = max( 0.0, dot(normal, view) );',
 
-            '   vec3 result = vec3(0.0);',
+            '   vec3 h = normal;',
+            '   vec3 l = -reflect( view, h );',
+            '   float ndl = dot(normal , l);',
 
-            '   for ( int i = 0; i < NB_SAMPLE; i++ ) {',
-            '     vec2 xi = hammersley[i];',
-            '     vec3 h = importanceSampleGGX( xi, tangentX, tangentY, normal, MaterialRoughness);',
-            '     vec3 l = -reflect( view, h );',
-            '     float ndl = dot(normal , l);',
-            '     if ( ndl > 0.0 ) {',
+            '   if ( ndl <= 0.0 ) return vec3(0.0);',
 
-            '       float vdh = max( 0.0, dot(view, h) );',
-            '       float ndh = max( 0.0, dot(normal, h) );',
+            '   // actually we could optimze because h = n;',
+            '   float vdh = max( 0.0, dot(view, h) );',
+            '   float ndh = max( 0.0, dot(normal, h) );',
 
-            '       //vec3 color = baseColor; //hdrExposure * decodeRGBE(textureSphere( envSpecular,l));',
             '#ifdef MULTI_TEXTURE',
-            '       vec3 color = hdrExposure * textureSpecularRoughness( MaterialRoughness, iblTransform * l);',
+            '   vec3 color = hdrExposure * textureSpecularRoughness( MaterialRoughness, iblTransform * l);',
             '#else',
-            '       vec3 color = hdrExposure * textureSpheremapHDR( envSpecular, envSpecularSize, iblTransform * l );',
+            '   vec3 color = hdrExposure * textureSpheremapHDR( envSpecular, envSpecularSize, iblTransform * l );',
             '#endif',
 
-            '       result += color * cook_torrance_contrib( vdh, ndh, ndl, ndv, MaterialSpecular, MaterialRoughness);',
-            '     }',
-
-            '     //if ( xi.x == 0.0 ) ',
-            '     //  result += vec3( 1.0, 0.0, 1.0);',
-            '',
-            '   }',
-            '   result /= float(NB_SAMPLE);',
-            '   return result;',
+            '   return color * cook_torrance_contrib( vdh, ndh, ndl, ndv, MaterialSpecular, MaterialRoughness);',
             '}',
 
             'void main(void) {',
@@ -715,17 +941,37 @@ PBRExample.prototype = {
 
             '  mat3 iblTransform = getIBLTransfrom( CubemapTransform );',
 
-
-            '  MaterialAlbedo = texture2D( albedo, osg_FragTexCoord0 ).rgb;',
-            '  MaterialNormal = N;',
-            '  MaterialRoughness = roughness2;',
-            '  MaterialSpecular = vec3(0.9);',
+            '  const vec3 dielectricColor = vec3(0.04);',
+            '  float minRoughness = 1.e-4;',
 
 
-            '  vec3 diffuseIndirect = lightDiffuseIndirect( iblTransform, MaterialAlbedo, MaterialNormal );',
+            '  vec3 albedo = sRGBToLinear( texture2D( albedoMap, osg_FragTexCoord0 ).rgb, DefaultGamma );',
+            '  vec3 normal;',
+            '  mtex_nspace_tangent( osg_FragTangent, N, textureNormal( normalMap, osg_FragTexCoord0 ), normal );',
+
+
+            '  MaterialRoughness = max( minRoughness , sRGBToLinear(texture2D( roughnessMap, osg_FragTexCoord0 ), DefaultGamma ).r );',
+
+            '  MaterialNormal = normal;',
+            '  MaterialAlbedo = albedo;',
+            '  MaterialAO = vec3(1.0);',
+            '#ifdef AO',
+            ' MaterialAO = sRGBToLinear( texture2D( aoMap, osg_FragTexCoord0 ), DefaultGamma ).rgb;',
+            '#endif',
+
+            '#ifdef SPECULAR',
+            '  MaterialSpecular = sRGBToLinear( texture2D( specularMap, osg_FragTexCoord0 ), DefaultGamma ).rgb;',
+            '#else',
+            '  float metallic = sRGBToLinear( texture2D( metallicMap, osg_FragTexCoord0 ), DefaultGamma ).r;',
+            '  MaterialAlbedo = albedo * (1.0 - metallic);',
+            '  MaterialSpecular = mix( dielectricColor, albedo, metallic);',
+            '#endif',
+
+
+            '  vec3 diffuseIndirect = MaterialAO * lightDiffuseIndirect( iblTransform, MaterialAlbedo, MaterialNormal );',
             '  vec3 specularIndirect = lightSpecularIndirect( iblTransform, MaterialAlbedo, MaterialNormal, -E );',
 
-            '  vec3 gammaCorrected = linear2sRGB( specularIndirect);',
+            '  vec3 gammaCorrected = linearTosRGB( diffuseIndirect + specularIndirect, DefaultGamma);',
             '  gl_FragColor = vec4( gammaCorrected, 1.0);',
             '}',
             ''
@@ -738,66 +984,167 @@ PBRExample.prototype = {
         return program;
     },
 
+
+    loadDefaultModel: function() {
+
+        var self = this;
+
+        var callbackModel = function( model ) {
+
+            var defer = Q.defer();
+
+            model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 0, 'albedoMap' ) );
+            model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 1, 'roughnessMap' ) );
+            model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 2, 'normalMap' ) );
+            model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 3, 'specularMap' ) );
+
+            var promises = [];
+            promises.push( self.readImageURL( 'model/Cerberus_by_Andrew_Maximov/Textures/Cerberus_A.tga.png' ) );
+            promises.push( self.readImageURL( 'model/Cerberus_by_Andrew_Maximov/Textures/Cerberus_R.tga.png' ) );
+
+            promises.push( self.readImageURL( 'model/Cerberus_by_Andrew_Maximov/Textures/Cerberus_N.tga.png' ) );
+            promises.push( self.readImageURL( 'model/Cerberus_by_Andrew_Maximov/Textures/Cerberus_M.tga.png' ) );
+
+            var createTexture = function( image ) {
+                var texture = new osg.Texture();
+                texture.setImage( image );
+                return texture;
+            };
+
+            Q.all( promises ).then( function(args ) {
+                args.forEach( function( image, index ) {
+                    model.getOrCreateStateSet().setTextureAttributeAndMode( index, createTexture( args[index] ) );
+                });
+
+                model.getOrCreateStateSet().setAttributeAndMode( self.getShader() );
+
+                defer.resolve( model );
+            });
+
+            return defer.promise;
+        };
+
+        return this.getModel('model/Cerberus_by_Andrew_Maximov.osgjs' , callbackModel );
+    },
+
+
+
+    loadRobotModel: function() {
+
+        var self = this;
+
+        var callbackModel = function( model ) {
+
+            var defer = Q.defer();
+
+            model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 0, 'albedoMap' ) );
+            model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 1, 'roughnessMap' ) );
+            model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 2, 'normalMap' ) );
+            model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 3, 'specularMap' ) );
+            model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 4, 'aoMap' ) );
+
+            var promises = [];
+            promises.push( self.readImageURL( 'robot/Textures/map_A.jpg' ) );
+            promises.push( self.readImageURL( 'robot/Textures/map_R.jpg' ) );
+
+            promises.push( self.readImageURL( 'robot/Textures/map_N.jpg' ) );
+            promises.push( self.readImageURL( 'robot/Textures/map_S.jpg' ) );
+            promises.push( self.readImageURL( 'robot/Textures/map_AO.jpg' ) );
+
+            var createTexture = function( image ) {
+                var texture = new osg.Texture();
+                texture.setImage( image );
+                return texture;
+            };
+
+            Q.all( promises ).then( function(args ) {
+                args.forEach( function( image, index ) {
+                    model.getOrCreateStateSet().setTextureAttributeAndMode( index, createTexture( args[index] ) );
+                });
+
+                model.getOrCreateStateSet().setAttributeAndModes( self.getShader(true, true ) );
+                model.getOrCreateStateSet().setAttributeAndModes( new osg.CullFace( 'DISABLE' ));
+                defer.resolve( model );
+            });
+
+            return defer.promise;
+        };
+
+        var model = this.getModel('robot/Junkbot.osgjs' , callbackModel );
+        Q(model).then( function( node ) {
+            osg.Matrix.makeIdentity( node.getMatrix() );
+        });
+        return model;
+
+    },
+
     createScene: function () {
         var group = new osg.Node();
 
         // HDR parameters uniform
-        var uniformCenter = osg.Uniform.createFloat1(1, 'hdrExposure');
-        var uniformGamma = osg.Uniform.createFloat1(2.2, 'hdrGamma');
+        var uniformExposure = osg.Uniform.createFloat1(1, 'hdrExposure');
 
         var size = 500;
         var background = this.getEnvSphere(size, group);
-        background.getOrCreateStateSet().addUniform(uniformCenter);
-        background.getOrCreateStateSet().addUniform(uniformGamma);
+        group.getOrCreateStateSet().addUniform(uniformExposure);
 
+        var groupModel = new osg.Node();
+        group.addChild ( groupModel );
 
-        Q.when(this.getModel()).then(function (model) {
+        Q.all( [ this.loadDefaultModel(), this.loadRobotModel() ] ).then( function ( models ) {
 
-            var nbSamples = 1;
-            var sequence = this.computeHammersleySequence(nbSamples);
+            var modelConfig = {
+                'Cerberus_by_Andrew_Maximov': models[ 0 ],
+                'Robot_by_Nicolas_Wirrmann': models[ 1 ]
+            };
 
-            var uniformHammersley = osg.Uniform.createFloat2Array(sequence, 'hammersley');
-            var uniformRoughness = osg.Uniform.createFloat1( 0.0, 'roughness2');
+            var setModel = function( str ) {
+                Object.keys( modelConfig ).forEach( function ( key ) {
+                    modelConfig[ key ].setNodeMask( 0x0 );
+                } );
+                modelConfig[ str ].setNodeMask( ~0x0 );
+            };
 
-            model.getOrCreateStateSet().setAttributeAndMode( this.getShader(nbSamples ) );
-            model.getOrCreateStateSet().addUniform(uniformHammersley);
-
-            model.getOrCreateStateSet().addUniform(uniformRoughness);
-
-            model.getOrCreateStateSet().addUniform(uniformCenter);
-            model.getOrCreateStateSet().addUniform(uniformGamma);
+            groupModel.addChild( models[ 0 ] );
+            groupModel.addChild( models[ 1 ] );
 
             var ConfigUI = function () {
                 this.rangeExposure = 1.0;
-                this.roughness = 0.01;
                 this.environment = 'Alexs_Apartment';
+                this.model = 'Cerberus_by_Andrew_Maximov';
             };
 
             var obj = new ConfigUI();
             var gui = new dat.GUI();
 
-            var controller = gui.add(obj, 'rangeExposure');
-            controller.onChange(function (value) {
-                uniformCenter.set(value);
-            });
 
-            controller = gui.add(obj, 'roughness', 0, 1);
-            controller.onChange(function (value) {
-                uniformRoughness.get()[0] = value;
-                uniformRoughness.dirty();
-            });
-
-            controller = gui.add(obj, 'environment', Object.keys(this.textureEnvs));
-            controller.onChange(function (value) {
-                this.setEnvironment(value, background, model);
-            }.bind(this));
-            this.setEnvironment('Alexs_Apartment', background, model);
+            var controller = gui.add( obj, 'rangeExposure', 0, 4 );
+            controller.onChange( function ( value ) {
+                uniformExposure.set( value );
+            } );
 
 
-            group.addChild(model);
+            controller = gui.add( obj, 'environment', Object.keys( this.textureEnvs ) );
+            controller.onChange( function ( value ) {
+
+                this.setEnvironment( value, background, groupModel );
+
+            }.bind( this ) );
 
 
-        }.bind(this)).done();
+            controller = gui.add( obj, 'model', Object.keys( modelConfig ) );
+            controller.onChange( function ( value ) {
+
+                setModel( value );
+
+            }.bind( this ) );
+
+
+            setModel( 'Cerberus_by_Andrew_Maximov' );
+            this.setEnvironment( 'Alexs_Apartment', background, groupModel );
+
+
+        }.bind( this ) ).done();
 
 
         return group;
@@ -856,14 +1203,13 @@ PBRExample.prototype = {
             '#ifdef GL_ES',
             'precision highp float;',
             '#endif',
-            '#define PI 3.14159',
 
+            this.getCommonShader(),
 
             'uniform sampler2D envSpecular;',
             'uniform vec2 envSpecularSize;',
 
             'uniform float hdrExposure;',
-            'uniform float hdrGamma;',
 
             'varying vec3 osg_FragNormal;',
             'varying vec3 osg_FragEye;',
@@ -874,7 +1220,7 @@ PBRExample.prototype = {
 
             // apply some gamma correction (http://www.geeks3d.com/20101001/tutorial-gamma-correction-a-story-of-linearity/)
             'vec3 toneMapHDR(vec3 rgb) {',
-            '  return pow(rgb , 1.0 / vec3(hdrGamma));',
+            '  return pow(rgb , 1.0 / vec3(DefaultGamma));',
             '}',
 
             'void main(void) {',

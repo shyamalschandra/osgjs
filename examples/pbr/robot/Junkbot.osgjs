@@ -1,0 +1,341 @@
+{
+  "Generator": "OpenSceneGraph 3.1.4", 
+  "Version": 7, 
+  "osg.Node": {
+    "Children": [ {
+      "osg.Node": {
+        "UniqueID": 0, 
+        "Name": "Junkbot.obj", 
+        "Children": [ {
+          "osg.Node": {
+            "UniqueID": 1, 
+            "Name": "junk_bot", 
+            "Children": [ {
+              "osg.Geometry": {
+                "UniqueID": 2, 
+                "StateSet": {
+                  "osg.StateSet": {
+                    "UniqueID": 3, 
+                    "AttributeList": [ {
+                      "osg.Material": {
+                        "UniqueID": 5, 
+                        "Name": "junkbot", 
+                        "Ambient": [ 0.5882, 0.5882, 0.5882, 1], 
+                        "Diffuse": [ 0.5882, 0.5882, 0.5882, 1], 
+                        "Emission": [ 0, 0, 0, 1], 
+                        "Shininess": 1.28, 
+                        "Specular": [ 0, 0, 0, 1]
+                      }
+                    } ], 
+                    "UserDataContainer": {
+                      "UniqueID": 4, 
+                      "Values": [ {
+                        "Name": "source", 
+                        "Value": "wavefront"
+                      },
+                      {
+                        "Name": "ka", 
+                        "Value": "[ 0.5882, 0.5882, 0.5882]"
+                      },
+                      {
+                        "Name": "kd", 
+                        "Value": "[ 0.5882, 0.5882, 0.5882]"
+                      },
+                      {
+                        "Name": "ks", 
+                        "Value": "[ 0, 0, 0]"
+                      },
+                      {
+                        "Name": "ns", 
+                        "Value": "10"
+                      },
+                      {
+                        "Name": "sharpness", 
+                        "Value": "0"
+                      },
+                      {
+                        "Name": "emissive", 
+                        "Value": "[ 0, 0, 0]"
+                      },
+                      {
+                        "Name": "tr", 
+                        "Value": "1"
+                      } ]
+                    }
+                  }
+                }, 
+                "PrimitiveSetList": [ {
+                  "DrawElementsUShort": {
+                    "UniqueID": 10, 
+                    "Indices": {
+                      "Array": { 
+                        "Uint16Array": { 
+                          "File": "Junkbot.bin",
+                          "Size": 3885,
+                          "Offset": 0
+                        }
+                      }, 
+                      "ItemSize": 1, 
+                      "Type": "ELEMENT_ARRAY_BUFFER"
+                    }, 
+                    "Mode": "TRIANGLES"
+                  }
+                },
+                {
+                  "DrawElementsUShort": {
+                    "UniqueID": 11, 
+                    "Indices": {
+                      "Array": { 
+                        "Uint16Array": { 
+                          "File": "Junkbot.bin",
+                          "Size": 134531,
+                          "Offset": 7772
+                        }
+                      }, 
+                      "ItemSize": 1, 
+                      "Type": "ELEMENT_ARRAY_BUFFER"
+                    }, 
+                    "Mode": "TRIANGLE_STRIP"
+                  }
+                } ], 
+                "VertexAttributeList": {
+                  "Normal": {
+                    "UniqueID": 7, 
+                    "Array": { 
+                      "Float32Array": { 
+                        "File": "Junkbot.bin",
+                        "Size": 51344,
+                        "Offset": 276836
+                      }
+                    }, 
+                    "ItemSize": 3, 
+                    "Type": "ARRAY_BUFFER"
+                  }, 
+                  "Tangent": {
+                    "UniqueID": 9, 
+                    "Array": { 
+                      "Float32Array": { 
+                        "File": "Junkbot.bin",
+                        "Size": 51344,
+                        "Offset": 892964
+                      }
+                    }, 
+                    "ItemSize": 4, 
+                    "Type": "ARRAY_BUFFER"
+                  }, 
+                  "TexCoord0": {
+                    "UniqueID": 8, 
+                    "Array": { 
+                      "Float32Array": { 
+                        "File": "Junkbot.bin",
+                        "Size": 51344,
+                        "Offset": 1714468
+                      }
+                    }, 
+                    "ItemSize": 2, 
+                    "Type": "ARRAY_BUFFER"
+                  }, 
+                  "Vertex": {
+                    "UniqueID": 6, 
+                    "Array": { 
+                      "Float32Array": { 
+                        "File": "Junkbot.bin",
+                        "Size": 51344,
+                        "Offset": 2125220
+                      }
+                    }, 
+                    "ItemSize": 3, 
+                    "Type": "ARRAY_BUFFER"
+                  }
+                }
+              }
+            } ]
+          }
+        },
+        {
+          "osg.Node": {
+            "UniqueID": 12, 
+            "Name": "junk_bot", 
+            "Children": [ {
+              "osg.Geometry": {
+                "UniqueID": 13, 
+                "StateSet": {
+                  "osg.StateSet": {
+                    "UniqueID": 3
+                  }
+                }, 
+                "PrimitiveSetList": [ {
+                  "DrawElementsUShort": {
+                    "UniqueID": 18, 
+                    "Indices": {
+                      "Array": { 
+                        "Uint16Array": { 
+                          "File": "Junkbot.bin",
+                          "Size": 27,
+                          "Offset": 2741348
+                        }
+                      }, 
+                      "ItemSize": 1, 
+                      "Type": "ELEMENT_ARRAY_BUFFER"
+                    }, 
+                    "Mode": "TRIANGLES"
+                  }
+                },
+                {
+                  "DrawElementsUShort": {
+                    "UniqueID": 19, 
+                    "Indices": {
+                      "Array": { 
+                        "Uint16Array": { 
+                          "File": "Junkbot.bin",
+                          "Size": 66,
+                          "Offset": 2741404
+                        }
+                      }, 
+                      "ItemSize": 1, 
+                      "Type": "ELEMENT_ARRAY_BUFFER"
+                    }, 
+                    "Mode": "TRIANGLE_STRIP"
+                  }
+                } ], 
+                "VertexAttributeList": {
+                  "Normal": {
+                    "UniqueID": 15, 
+                    "Array": { 
+                      "Float32Array": { 
+                        "File": "Junkbot.bin",
+                        "Size": 48,
+                        "Offset": 2741536
+                      }
+                    }, 
+                    "ItemSize": 3, 
+                    "Type": "ARRAY_BUFFER"
+                  }, 
+                  "Tangent": {
+                    "UniqueID": 17, 
+                    "Array": { 
+                      "Float32Array": { 
+                        "File": "Junkbot.bin",
+                        "Size": 48,
+                        "Offset": 2742112
+                      }
+                    }, 
+                    "ItemSize": 4, 
+                    "Type": "ARRAY_BUFFER"
+                  }, 
+                  "TexCoord0": {
+                    "UniqueID": 16, 
+                    "Array": { 
+                      "Float32Array": { 
+                        "File": "Junkbot.bin",
+                        "Size": 48,
+                        "Offset": 2742880
+                      }
+                    }, 
+                    "ItemSize": 2, 
+                    "Type": "ARRAY_BUFFER"
+                  }, 
+                  "Vertex": {
+                    "UniqueID": 14, 
+                    "Array": { 
+                      "Float32Array": { 
+                        "File": "Junkbot.bin",
+                        "Size": 48,
+                        "Offset": 2743264
+                      }
+                    }, 
+                    "ItemSize": 3, 
+                    "Type": "ARRAY_BUFFER"
+                  }
+                }
+              }
+            } ]
+          }
+        },
+        {
+          "osg.Node": {
+            "UniqueID": 20, 
+            "Name": "junk_bot", 
+            "Children": [ {
+              "osg.Geometry": {
+                "UniqueID": 21, 
+                "StateSet": {
+                  "osg.StateSet": {
+                    "UniqueID": 3
+                  }
+                }, 
+                "PrimitiveSetList": [ {
+                  "DrawElementsUShort": {
+                    "UniqueID": 26, 
+                    "Indices": {
+                      "Array": { 
+                        "Uint16Array": { 
+                          "File": "Junkbot.bin",
+                          "Size": 16,
+                          "Offset": 2743840
+                        }
+                      }, 
+                      "ItemSize": 1, 
+                      "Type": "ELEMENT_ARRAY_BUFFER"
+                    }, 
+                    "Mode": "TRIANGLE_STRIP"
+                  }
+                } ], 
+                "VertexAttributeList": {
+                  "Normal": {
+                    "UniqueID": 23, 
+                    "Array": { 
+                      "Float32Array": { 
+                        "File": "Junkbot.bin",
+                        "Size": 12,
+                        "Offset": 2743872
+                      }
+                    }, 
+                    "ItemSize": 3, 
+                    "Type": "ARRAY_BUFFER"
+                  }, 
+                  "Tangent": {
+                    "UniqueID": 25, 
+                    "Array": { 
+                      "Float32Array": { 
+                        "File": "Junkbot.bin",
+                        "Size": 12,
+                        "Offset": 2744016
+                      }
+                    }, 
+                    "ItemSize": 4, 
+                    "Type": "ARRAY_BUFFER"
+                  }, 
+                  "TexCoord0": {
+                    "UniqueID": 24, 
+                    "Array": { 
+                      "Float32Array": { 
+                        "File": "Junkbot.bin",
+                        "Size": 12,
+                        "Offset": 2744208
+                      }
+                    }, 
+                    "ItemSize": 2, 
+                    "Type": "ARRAY_BUFFER"
+                  }, 
+                  "Vertex": {
+                    "UniqueID": 22, 
+                    "Array": { 
+                      "Float32Array": { 
+                        "File": "Junkbot.bin",
+                        "Size": 12,
+                        "Offset": 2744304
+                      }
+                    }, 
+                    "ItemSize": 3, 
+                    "Type": "ARRAY_BUFFER"
+                  }
+                }
+              }
+            } ]
+          }
+        } ]
+      }
+    } ]
+  }
+}
