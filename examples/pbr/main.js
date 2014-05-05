@@ -1079,6 +1079,7 @@ PBRExample.prototype = {
     },
 
     createScene: function () {
+        var self = this;
         var group = new osg.Node();
 
         // HDR parameters uniform
@@ -1103,6 +1104,9 @@ PBRExample.prototype = {
                     modelConfig[ key ].setNodeMask( 0x0 );
                 } );
                 modelConfig[ str ].setNodeMask( ~0x0 );
+
+                self._viewer.getManipulator().setNode( modelConfig[ str ] );
+                self._viewer.getManipulator().computeHomePosition();
             };
 
             groupModel.addChild( models[ 0 ] );
