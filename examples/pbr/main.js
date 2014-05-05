@@ -704,7 +704,7 @@ PBRExample.prototype = {
         ].join( '\n' );
     },
 
-    getShader: function ( mapSpecular, mapAmbientOcclusion ) {
+    getShader: function ( mapSpecular, mapAmbientOcclusion, mapGlossiness ) {
         var nbTextures = NbEnvSpecularTextures;
         var vertexshader = [
             '',
@@ -744,6 +744,10 @@ PBRExample.prototype = {
         if ( mapSpecular )
             specular = '#define SPECULAR';
 
+        var glossiness = '';
+        if ( mapGlossiness )
+            glossiness = '#define GLOSSINESS';
+
         var fragmentshader = [
             '',
             '#ifdef GL_ES',
@@ -753,6 +757,7 @@ PBRExample.prototype = {
             this.getCommonShader(),
             ambientOcclusion,
             specular,
+            glossiness,
 
             '#define MULTI_TEXTURE 1',
 
@@ -950,7 +955,11 @@ PBRExample.prototype = {
             '  mtex_nspace_tangent( osg_FragTangent, N, textureNormal( normalMap, osg_FragTexCoord0 ), normal );',
 
 
-            '  MaterialRoughness = max( minRoughness , sRGBToLinear(texture2D( roughnessMap, osg_FragTexCoord0 ), DefaultGamma ).r );',
+            '  float roughnessValue = sRGBToLinear(texture2D( roughnessMap, osg_FragTexCoord0 ), DefaultGamma ).r;',
+            '  #ifdef GLOSSINESS',
+            '  roughnessValue = 1.0 - roughnessValue;',
+            '  #endif',
+            '  MaterialRoughness = max( minRoughness , roughnessValue );',
 
             '  MaterialNormal = normal;',
             '  MaterialAlbedo = albedo;',
@@ -1062,7 +1071,7 @@ PBRExample.prototype = {
                     model.getOrCreateStateSet().setTextureAttributeAndMode( index, createTexture( args[index] ) );
                 });
 
-                model.getOrCreateStateSet().setAttributeAndModes( self.getShader(true, true ) );
+                model.getOrCreateStateSet().setAttributeAndModes( self.getShader(true, true, true ) );
                 model.getOrCreateStateSet().setAttributeAndModes( new osg.CullFace( 'DISABLE' ));
                 defer.resolve( model );
             });
@@ -1073,6 +1082,56 @@ PBRExample.prototype = {
         var model = this.getModel('robot/Junkbot.osgjs' , callbackModel );
         Q(model).then( function( node ) {
             osg.Matrix.makeIdentity( node.getMatrix() );
+        });
+        return model;
+
+    },
+
+
+    loadCarModel: function() {
+
+        var self = this;
+
+        var callbackModel = function( model ) {
+
+            var defer = Q.defer();
+
+            model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 0, 'albedoMap' ) );
+            model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 1, 'roughnessMap' ) );
+            model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 2, 'normalMap' ) );
+            model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 3, 'specularMap' ) );
+            model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 4, 'aoMap' ) );
+
+            var promises = [];
+            promises.push( self.readImageURL( 'hotrod/hotrod_diffuse.png' ) );
+            promises.push( self.readImageURL( 'hotrod/hotrod_glossiness.png' ) );
+
+            promises.push( self.readImageURL( 'hotrod/hotrod_normal.png' ) );
+            promises.push( self.readImageURL( 'hotrod/hotrod_specular.png' ) );
+            promises.push( self.readImageURL( 'hotrod/hotrod_ao.png' ) );
+
+            var createTexture = function( image ) {
+                var texture = new osg.Texture();
+                texture.setImage( image );
+                return texture;
+            };
+
+            Q.all( promises ).then( function(args ) {
+                args.forEach( function( image, index ) {
+                    model.getOrCreateStateSet().setTextureAttributeAndMode( index, createTexture( args[index] ) );
+                });
+
+                model.getOrCreateStateSet().setAttributeAndModes( self.getShader(true, true, false ) );
+                model.getOrCreateStateSet().setAttributeAndModes( new osg.CullFace( 'DISABLE' ));
+                defer.resolve( model );
+            });
+
+            return defer.promise;
+        };
+
+        var model = this.getModel('hotrod/hotrod.osgjs' , callbackModel );
+        Q(model).then( function( node ) {
+            //osg.Matrix.makeIdentity( node.getMatrix() );
         });
         return model;
 
@@ -1092,11 +1151,12 @@ PBRExample.prototype = {
         var groupModel = new osg.Node();
         group.addChild ( groupModel );
 
-        Q.all( [ this.loadDefaultModel(), this.loadRobotModel() ] ).then( function ( models ) {
+        Q.all( [ this.loadDefaultModel(), this.loadRobotModel(), this.loadCarModel() ] ).then( function ( models ) {
 
             var modelConfig = {
                 'Cerberus_by_Andrew_Maximov': models[ 0 ],
-                'Robot_by_Nicolas_Wirrmann': models[ 1 ]
+                'Robot_by_Nicolas_Wirrmann': models[ 1 ],
+                'Hotrod_by_Nicolas_Wirrmann': models[ 2 ]
             };
 
             var setModel = function( str ) {
@@ -1109,8 +1169,10 @@ PBRExample.prototype = {
                 self._viewer.getManipulator().computeHomePosition();
             };
 
-            groupModel.addChild( models[ 0 ] );
-            groupModel.addChild( models[ 1 ] );
+            models.forEach( function( model ) {
+                groupModel.addChild( model );
+            });
+
 
             var ConfigUI = function () {
                 this.rangeExposure = 1.0;

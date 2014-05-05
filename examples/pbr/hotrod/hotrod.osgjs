@@ -1,0 +1,237 @@
+{
+  "Generator": "OpenSceneGraph 3.3.2", 
+  "Version": 7, 
+  "osg.Node": {
+    "Children": [ {
+      "osg.Node": {
+        "UniqueID": 0, 
+        "Name": "hotrod_low.FBX", 
+        "StateSet": {
+          "osg.StateSet": {
+            "UniqueID": 1
+          }
+        }, 
+        "Children": [ {
+          "osg.MatrixTransform": {
+            "UniqueID": 2, 
+            "Name": "hotrod_low", 
+            "Matrix": [ 1, 0, 0, 0, 0, 2.22045e-16, -1, 0, 0, 1, 2.22045e-16, 0, 0, 0, 0, 1 ], 
+            "Children": [ {
+              "osg.MatrixTransform": {
+                "UniqueID": 3, 
+                "Matrix": [ 1, 0, -0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 8.95279, 2.83464, 42.9608, 1 ], 
+                "Children": [ {
+                  "osg.Node": {
+                    "UniqueID": 4, 
+                    "Name": "hotrod_low", 
+                    "Children": [ {
+                      "osg.Geometry": {
+                        "UniqueID": 5, 
+                        "Name": "hotrod_low", 
+                        "StateSet": {
+                          "osg.StateSet": {
+                            "UniqueID": 6, 
+                            "AttributeList": [ {
+                              "osg.Material": {
+                                "UniqueID": 7, 
+                                "Name": "hotrod_low", 
+                                "Ambient": [ 0.588235, 0.588235, 0.588235, 1], 
+                                "Diffuse": [ 0.588235, 0.588235, 0.588235, 1], 
+                                "Emission": [ 0, 0, 0, 1], 
+                                "Shininess": 2, 
+                                "Specular": [ 0, 0, 0, 1]
+                              }
+                            } ]
+                          }
+                        }, 
+                        "PrimitiveSetList": [ {
+                          "DrawElementsUShort": {
+                            "UniqueID": 12, 
+                            "Indices": {
+                              "Array": { 
+                                "Uint16Array": { 
+                                  "File": "hotrod.bin",
+                                  "Size": 4824,
+                                  "Offset": 0
+                                }
+                              }, 
+                              "ItemSize": 1, 
+                              "Type": "ELEMENT_ARRAY_BUFFER"
+                            }, 
+                            "Mode": "TRIANGLES"
+                          }
+                        },
+                        {
+                          "DrawElementsUShort": {
+                            "UniqueID": 13, 
+                            "Indices": {
+                              "Array": { 
+                                "Uint16Array": { 
+                                  "File": "hotrod.bin",
+                                  "Size": 143181,
+                                  "Offset": 9648
+                                }
+                              }, 
+                              "ItemSize": 1, 
+                              "Type": "ELEMENT_ARRAY_BUFFER"
+                            }, 
+                            "Mode": "TRIANGLE_STRIP"
+                          }
+                        } ], 
+                        "VertexAttributeList": {
+                          "Normal": {
+                            "UniqueID": 9, 
+                            "Array": { 
+                              "Float32Array": { 
+                                "File": "hotrod.bin",
+                                "Size": 65536,
+                                "Offset": 296012
+                              }
+                            }, 
+                            "ItemSize": 3, 
+                            "Type": "ARRAY_BUFFER"
+                          }, 
+                          "Tangent": {
+                            "UniqueID": 11, 
+                            "Array": { 
+                              "Float32Array": { 
+                                "File": "hotrod.bin",
+                                "Size": 65536,
+                                "Offset": 1082444
+                              }
+                            }, 
+                            "ItemSize": 4, 
+                            "Type": "ARRAY_BUFFER"
+                          }, 
+                          "TexCoord0": {
+                            "UniqueID": 10, 
+                            "Array": { 
+                              "Float32Array": { 
+                                "File": "hotrod.bin",
+                                "Size": 65536,
+                                "Offset": 2131020
+                              }
+                            }, 
+                            "ItemSize": 2, 
+                            "Type": "ARRAY_BUFFER"
+                          }, 
+                          "Vertex": {
+                            "UniqueID": 8, 
+                            "Array": { 
+                              "Float32Array": { 
+                                "File": "hotrod.bin",
+                                "Size": 65536,
+                                "Offset": 2655308
+                              }
+                            }, 
+                            "ItemSize": 3, 
+                            "Type": "ARRAY_BUFFER"
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "osg.Geometry": {
+                        "UniqueID": 14, 
+                        "Name": "hotrod_low", 
+                        "StateSet": {
+                          "osg.StateSet": {
+                            "UniqueID": 6
+                          }
+                        }, 
+                        "PrimitiveSetList": [ {
+                          "DrawElementsUShort": {
+                            "UniqueID": 19, 
+                            "Indices": {
+                              "Array": { 
+                                "Uint16Array": { 
+                                  "File": "hotrod.bin",
+                                  "Size": 633,
+                                  "Offset": 3441740
+                                }
+                              }, 
+                              "ItemSize": 1, 
+                              "Type": "ELEMENT_ARRAY_BUFFER"
+                            }, 
+                            "Mode": "TRIANGLES"
+                          }
+                        },
+                        {
+                          "DrawElementsUShort": {
+                            "UniqueID": 20, 
+                            "Indices": {
+                              "Array": { 
+                                "Uint16Array": { 
+                                  "File": "hotrod.bin",
+                                  "Size": 18362,
+                                  "Offset": 3443008
+                                }
+                              }, 
+                              "ItemSize": 1, 
+                              "Type": "ELEMENT_ARRAY_BUFFER"
+                            }, 
+                            "Mode": "TRIANGLE_STRIP"
+                          }
+                        } ], 
+                        "VertexAttributeList": {
+                          "Normal": {
+                            "UniqueID": 16, 
+                            "Array": { 
+                              "Float32Array": { 
+                                "File": "hotrod.bin",
+                                "Size": 8149,
+                                "Offset": 3479732
+                              }
+                            }, 
+                            "ItemSize": 3, 
+                            "Type": "ARRAY_BUFFER"
+                          }, 
+                          "Tangent": {
+                            "UniqueID": 18, 
+                            "Array": { 
+                              "Float32Array": { 
+                                "File": "hotrod.bin",
+                                "Size": 8149,
+                                "Offset": 3577520
+                              }
+                            }, 
+                            "ItemSize": 4, 
+                            "Type": "ARRAY_BUFFER"
+                          }, 
+                          "TexCoord0": {
+                            "UniqueID": 17, 
+                            "Array": { 
+                              "Float32Array": { 
+                                "File": "hotrod.bin",
+                                "Size": 8149,
+                                "Offset": 3707904
+                              }
+                            }, 
+                            "ItemSize": 2, 
+                            "Type": "ARRAY_BUFFER"
+                          }, 
+                          "Vertex": {
+                            "UniqueID": 15, 
+                            "Array": { 
+                              "Float32Array": { 
+                                "File": "hotrod.bin",
+                                "Size": 8149,
+                                "Offset": 3773096
+                              }
+                            }, 
+                            "ItemSize": 3, 
+                            "Type": "ARRAY_BUFFER"
+                          }
+                        }
+                      }
+                    } ]
+                  }
+                } ]
+              }
+            } ]
+          }
+        } ]
+      }
+    } ]
+  }
+}
