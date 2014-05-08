@@ -323,6 +323,8 @@ PBRExample.prototype = {
             texture.setImage(image);
             texture.setMinFilter('NEAREST');
             texture.setMagFilter('NEAREST');
+            texture.setWrapT('REPEAT');
+            texture.setWrapS('REPEAT');
 
             stateSet.setTextureAttributeAndMode(unit, texture);
             var samplerArray = stateSet.getUniform( name );
@@ -652,7 +654,7 @@ PBRExample.prototype = {
 
             '',
             'vec3 textureNormal(in sampler2D texture, const in vec2 uv) {',
-            '    vec3 rgb = sRGBToLinear(texture2D(texture, uv).rgb, DefaultGamma );',
+            '    vec3 rgb = texture2D(texture, uv).rgb;',
             '    return normalize((2.0*rgb-vec3(1.0)));',
             '}',
 
@@ -704,7 +706,8 @@ PBRExample.prototype = {
         ].join( '\n' );
     },
 
-    getShader: function ( mapSpecular, mapAmbientOcclusion, mapGlossiness ) {
+    getShader: function ( config ) {
+        if (!config) config = {};
         var nbTextures = NbEnvSpecularTextures;
         var vertexshader = [
             '',
@@ -737,16 +740,20 @@ PBRExample.prototype = {
         ].join('\n');
 
         var ambientOcclusion = '';
-        if ( mapAmbientOcclusion )
+        if ( config.mapAmbientOcclusion )
             ambientOcclusion = '#define AO';
 
         var specular = '';
-        if ( mapSpecular )
+        if ( config.mapSpecular )
             specular = '#define SPECULAR';
 
         var glossiness = '';
-        if ( mapGlossiness )
+        if ( config.mapGlossiness )
             glossiness = '#define GLOSSINESS';
+
+        var normalmap = '';
+        if ( config.mapNormal )
+            normalmap = '#define NORMAL';
 
         var fragmentshader = [
             '',
@@ -758,6 +765,7 @@ PBRExample.prototype = {
             ambientOcclusion,
             specular,
             glossiness,
+            normalmap,
 
             '#define MULTI_TEXTURE 1',
 
@@ -951,11 +959,14 @@ PBRExample.prototype = {
 
 
             '  vec3 albedo = sRGBToLinear( texture2D( albedoMap, osg_FragTexCoord0 ).rgb, DefaultGamma );',
-            '  vec3 normal;',
-            '  mtex_nspace_tangent( osg_FragTangent, N, textureNormal( normalMap, osg_FragTexCoord0 ), normal );',
+
+            '  vec3 normal = N;',
+            '  #ifdef NORMAL',
+            '    mtex_nspace_tangent( osg_FragTangent, N, textureNormal( normalMap, osg_FragTexCoord0 ), normal );',
+            '  #endif',
 
 
-            '  float roughnessValue = sRGBToLinear(texture2D( roughnessMap, osg_FragTexCoord0 ), DefaultGamma ).r;',
+            '  float roughnessValue = texture2D( roughnessMap, osg_FragTexCoord0 ).r;',
             '  #ifdef GLOSSINESS',
             '  roughnessValue = 1.0 - roughnessValue;',
             '  #endif',
@@ -971,7 +982,7 @@ PBRExample.prototype = {
             '#ifdef SPECULAR',
             '  MaterialSpecular = sRGBToLinear( texture2D( specularMap, osg_FragTexCoord0 ), DefaultGamma ).rgb;',
             '#else',
-            '  float metallic = sRGBToLinear( texture2D( metallicMap, osg_FragTexCoord0 ), DefaultGamma ).r;',
+            '  float metallic = texture2D( metallicMap, osg_FragTexCoord0 ).r;',
             '  MaterialAlbedo = albedo * (1.0 - metallic);',
             '  MaterialSpecular = mix( dielectricColor, albedo, metallic);',
             '#endif',
@@ -1025,7 +1036,9 @@ PBRExample.prototype = {
                     model.getOrCreateStateSet().setTextureAttributeAndMode( index, createTexture( args[index] ) );
                 });
 
-                model.getOrCreateStateSet().setAttributeAndMode( self.getShader() );
+                model.getOrCreateStateSet().setAttributeAndMode( self.getShader( {
+                    mapNormal: true
+                }) );
 
                 defer.resolve( model );
             });
@@ -1071,7 +1084,12 @@ PBRExample.prototype = {
                     model.getOrCreateStateSet().setTextureAttributeAndMode( index, createTexture( args[index] ) );
                 });
 
-                model.getOrCreateStateSet().setAttributeAndModes( self.getShader(true, true, true ) );
+                model.getOrCreateStateSet().setAttributeAndModes( self.getShader( {
+                    mapSpecular: true,
+                    mapAmbientOcclusion: true,
+                    mapGlossiness: true,
+                    mapNormal: true
+                } ) );
                 model.getOrCreateStateSet().setAttributeAndModes( new osg.CullFace( 'DISABLE' ));
                 defer.resolve( model );
             });
@@ -1118,10 +1136,18 @@ PBRExample.prototype = {
 
             Q.all( promises ).then( function(args ) {
                 args.forEach( function( image, index ) {
-                    model.getOrCreateStateSet().setTextureAttributeAndMode( index, createTexture( args[index] ) );
+                    var texture = createTexture( args[index] );
+                    texture.setWrapS( 'REPEAT');
+                    texture.setWrapT( 'REPEAT');
+                    model.getOrCreateStateSet().setTextureAttributeAndMode( index, texture);
                 });
 
-                model.getOrCreateStateSet().setAttributeAndModes( self.getShader(true, true, false ) );
+                model.getOrCreateStateSet().setAttributeAndModes( self.getShader( {
+                    mapSpecular: true,
+                    mapAmbientOcclusion: true,
+                    mapGlossiness: false,
+                    mapNormal: true
+                } ) );
                 model.getOrCreateStateSet().setAttributeAndModes( new osg.CullFace( 'DISABLE' ));
                 defer.resolve( model );
             });
@@ -1135,6 +1161,138 @@ PBRExample.prototype = {
         });
         return model;
 
+    },
+
+    loadTemplateScene: function() {
+
+        var self = this;
+
+        var nbMaterials = 10;
+
+        var createConfig = function( albedo, specular ) {
+
+            var config = [];
+            for ( var i = 0; i < nbMaterials; i++) {
+                config[i] = config[i] || {};
+                var material = config[i];
+
+                material.roughness = i / nbMaterials;
+                material.albedo = albedo.slice(0);
+                material.specular = specular.slice(0);
+            }
+            return config;
+        };
+
+        var linear2Srgb = function( value, gamma ) {
+            if (!gamma) gamma = 2.2;
+            var result = 0.0;
+            if ( value < 0.0031308 ) {
+                if ( value > 0.0 )
+                    result = value * 12.92;
+            } else {
+                result = 1.055 * Math.pow( value, 1.0 / gamma ) - 0.055;
+            }
+            return result;
+        };
+
+
+        var createTexture = function( color, srgb ){
+            var albedo = new osg.Uint8Array( 4 );
+
+            color.forEach( function ( value, index ) {
+                if ( srgb )
+                    albedo[ index ] = Math.floor(255*linear2Srgb( value ));
+                else
+                    albedo[ index ] = Math.floor(255*value);
+            } );
+
+            var texture = new osg.Texture();
+            texture.setTextureSize( 1, 1);
+            texture.setImage( albedo );
+            return texture;
+        };
+
+        var materialsConfig = [ {
+            specular: [ 0.971519, 0.959915, 0.915324 ], // Silver
+            albedo: [ 0, 0, 0 ]
+        }, {
+             specular: [ 0.913183, 0.921494, 0.924524 ], // Aluminium
+             albedo: [ 0, 0, 0 ]
+         },
+                                {
+            specular: [ 1.0, 0.765557, 0.336057 ], // Gold
+            albedo: [ 0, 0, 0 ]
+        }, {
+            specular: [ 0.955008, 0.637427, 0.538163 ], // Copper
+            albedo: [ 0, 0, 0 ]
+        }, // {
+        //     specular: [ 0.549585, 0.556114, 0.554256 ], // Chromium
+        //     albedo: [ 0, 0, 0 ]
+        // },
+                                {
+            specular: [ 0.659777, 0.608679, 0.525649 ], // Nickel
+            albedo: [ 0, 0, 0 ]
+        },//  {
+        //     specular: [ 0.541931, 0.496791, 0.449419 ], // Titanium
+        //     albedo: [ 0, 0, 0 ]
+        // },
+                                {
+            specular: [ 0.662124, 0.654864, 0.633732 ], // Cobalt
+            albedo: [ 0, 0, 0 ]
+        }, {
+            specular: [ 0.672411, 0.637331, 0.585456 ], // Platinum
+            albedo: [ 0, 0, 0 ]
+        } ];
+
+
+
+        var group = new osg.Node();
+
+
+        materialsConfig.forEach( function( material, index ) {
+            var radius = 10.0;
+            var offset = 5;
+
+            var config = createConfig( material.albedo, material.specular );
+            var subgroup = new osg.MatrixTransform();
+            subgroup.setMatrix( osg.Matrix.makeTranslate( 0, index* ( 2* radius + offset ), 0, osg.Matrix.create() ));
+            config.forEach( function ( config, index ) {
+
+                var segment = 80;
+                var sphere = osg.createTexturedSphere( radius, segment, segment / 2 );
+
+                var color = config.albedo.slice(0);
+                color[3] = 1.0;
+                var albedo = createTexture( color, true );
+                sphere.getOrCreateStateSet().setTextureAttributeAndModes(0, albedo);
+
+                var roughness = createTexture( [ config.roughness, config.roughness, config.roughness, 1.0 ], false );
+                sphere.getOrCreateStateSet().setTextureAttributeAndModes(1, roughness);
+
+                color = config.specular.slice(0);
+                color[3] = 1.0;
+                var specular = createTexture( color, true );
+                sphere.getOrCreateStateSet().setTextureAttributeAndModes(3, specular);
+
+                var transform = new osg.MatrixTransform();
+                transform.setMatrix( osg.Matrix.makeTranslate( index*(2*radius + offset), 0, 0, osg.Matrix.create() ) );
+                transform.addChild( sphere );
+                subgroup.addChild( transform );
+            } );
+            group.addChild( subgroup );
+
+        });
+
+        group.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 0, 'albedoMap' ) );
+        group.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 1, 'roughnessMap' ) );
+        group.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 2, 'normalMap' ) );
+        group.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 3, 'specularMap' ) );
+        group.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 4, 'aoMap' ) );
+
+        group.getOrCreateStateSet().setAttributeAndModes( this.getShader({
+            mapSpecular: true
+        }) );
+        return group;
     },
 
     createScene: function () {
@@ -1151,24 +1309,44 @@ PBRExample.prototype = {
         var groupModel = new osg.Node();
         group.addChild ( groupModel );
 
-        Q.all( [ this.loadDefaultModel(), this.loadRobotModel(), this.loadCarModel() ] ).then( function ( models ) {
+        var config = [ {
+            name: 'Cerberus_by_Andrew_Maximov',
+            func: this.loadDefaultModel.bind( this )
+        }, {
+            name: 'Robot_by_Nicolas_Wirrmann',
+            func: this.loadRobotModel.bind( this )
+        }, {
+            name: 'Car_by_Nicolas_Wirrmann',
+            func: this.loadCarModel.bind( this )
+        }, {
+            name: 'Metallic sphere',
+            func: this.loadTemplateScene.bind( this )
+        } ];
 
-            var modelConfig = {
-                'Cerberus_by_Andrew_Maximov': models[ 0 ],
-                'Robot_by_Nicolas_Wirrmann': models[ 1 ],
-                'Hotrod_by_Nicolas_Wirrmann': models[ 2 ]
-            };
+        Q.all( config.map( function( element ) {
+            return element.func();
+        }) ).then( function( models ) {
 
+
+            // get array of names
+            var names = config.map( function( element ) {
+                return element.name;
+            });
+
+            // function called when selecting a model
             var setModel = function( str ) {
-                Object.keys( modelConfig ).forEach( function ( key ) {
-                    modelConfig[ key ].setNodeMask( 0x0 );
+                models.forEach( function ( model ) {
+                    model.setNodeMask( 0x0 );
                 } );
-                modelConfig[ str ].setNodeMask( ~0x0 );
 
-                self._viewer.getManipulator().setNode( modelConfig[ str ] );
+                var index = names.indexOf( str );
+                models[ index ].setNodeMask( ~0x0 );
+
+                self._viewer.getManipulator().setNode( models[ index ] );
                 self._viewer.getManipulator().computeHomePosition();
             };
 
+            // add all models to group
             models.forEach( function( model ) {
                 groupModel.addChild( model );
             });
@@ -1177,7 +1355,7 @@ PBRExample.prototype = {
             var ConfigUI = function () {
                 this.rangeExposure = 1.0;
                 this.environment = 'Alexs_Apartment';
-                this.model = 'Cerberus_by_Andrew_Maximov';
+                this.model = names[0];
             };
 
             var obj = new ConfigUI();
@@ -1198,7 +1376,7 @@ PBRExample.prototype = {
             }.bind( this ) );
 
 
-            controller = gui.add( obj, 'model', Object.keys( modelConfig ) );
+            controller = gui.add( obj, 'model', names );
             controller.onChange( function ( value ) {
 
                 setModel( value );
@@ -1206,7 +1384,7 @@ PBRExample.prototype = {
             }.bind( this ) );
 
 
-            setModel( 'Cerberus_by_Andrew_Maximov' );
+            setModel( names[0] );
             this.setEnvironment( 'Alexs_Apartment', background, groupModel );
 
 

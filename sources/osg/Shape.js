@@ -716,4 +716,5 @@ define( [
         createTexturedSphere: createTexturedSphere,
         createGridGeometry: createGridGeometry
     };
+
 } );
