@@ -32,16 +32,22 @@
   height: 10px;
   }
 
+  #copyright {
+  position: absolute;
+  text-align: center;
+  width: 100%;
+  top: 0px;
+  }
+
 </style>
 <title>PBR</title>
-<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
+<meta http-equiv="content-type" content="text/html">
 
 <script type="text/javascript" src="../vendors/Q.js"></script>
 <script type="text/javascript" src="../vendors/Hammer.js"></script>
 <script type="text/javascript" src="../vendors/Leap.js"></script>
 <script type="text/javascript" src="../vendors/dat.gui.js"></script>
 <script type="text/javascript" src="../../builds/active/OSG.js"></script>
-<script type="text/javascript" src="tga.js"></script>
 <script type="text/javascript" src="env.js"></script>
 <script type="text/javascript" src="main.js"></script>
 
@@ -49,10 +55,31 @@
 
 <body>
 
+
   <div id="ViewContainer">
     <canvas id="3DView" style="border: none; width:100vw ; height:100vh"  ></canvas>
   </div>
   <div id="loading">Loading</div>
+
+  <div id='copyright'>
+
+  <div>
+    Cerberus :  Andrew Maximov
+  </div>
+
+  <div>
+  Junkbot : Paweł Łyczkowski (design + model) + Nicolas Wirrmann (texturing)
+  </div>
+
+  <div>
+  Hotrod : Christophe Desse (design + model) + Jeremie Noguer (texturing)
+  </div>
+
+  <div>
+  environment : <a src='http://www.hdrlabs.com/sibl/archive.html'>hdrlabs</a>
+  </div>
+
+  </div>
 
 </body>
 </html>

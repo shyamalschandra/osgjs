@@ -8,6 +8,7 @@ var osgDB = OSG.osgDB;
 
 
 var NbEnvSpecularTextures = 9;
+var NbSamples = 8;
 
 var PBRExample = function () {
     this.textureEnvs = {
@@ -323,7 +324,7 @@ PBRExample.prototype = {
             texture.setImage(image);
             texture.setMinFilter('NEAREST');
             texture.setMagFilter('NEAREST');
-            texture.setWrapT('REPEAT');
+            texture.setWrapT('CLAMP_TO_EDGE');
             texture.setWrapS('REPEAT');
 
             stateSet.setTextureAttributeAndMode(unit, texture);
@@ -767,6 +768,7 @@ PBRExample.prototype = {
             glossiness,
             normalmap,
 
+            '#define NB_SAMPLES ' + NbSamples,
             '#define MULTI_TEXTURE 1',
 
             'uniform sampler2D albedoMap;',
@@ -785,6 +787,7 @@ PBRExample.prototype = {
             '  uniform vec2 envSpecularMultiSize[ NB_TEXTURES];',
             '#endif',
 
+            'uniform vec2 hammersley[NB_SAMPLES];',
 
             'uniform sampler2D envSpecular;',
             'uniform vec2 envSpecularSize;',
@@ -825,67 +828,25 @@ PBRExample.prototype = {
             '{',
             '	float a = roughness*roughness;',
 
-            '	float cosT = sqrt((1.0-Xi.y)/(1.0+(a*a-1.0)*Xi.y));',
-            '	float sinT = sqrt(1.0-cosT*cosT);',
+            '	float cosT = sqrt( ( 1.0 - Xi.y ) / ( 1.0 + ( a * a - 1.0 ) * Xi.y ) );',
+            '	float sinT = sqrt( 1.0 - cosT * cosT );',
+            '	float phi = 2.0 * PI * Xi.x;',
 
-            '	float phi = 2.0*PI*Xi.x;',
-            '	return (sinT*cos(phi)) * tangentX + (sinT*sin(phi)) * tangentY + cosT * normal;',
+            '   vec3 h;',
+            '   h.x = sinT * cos( phi );',
+            '   h.y = sinT * sin( phi );',
+            '   h.z = cosT;',
+            '	return tangentX * h.x + tangentY * h.y + normal * h.z;',
             '}',
-
 
 
             'float geometrySmithSchlickGGX(float alpha, float NdV, float NdL)',
             '{',
-            '    float k = alpha * 0.5;',
+            '    float k = alpha*alpha * 0.5;',
             '    float one_minus_k = 1.0 -k;',
             '    float GV = NdV / (NdV * one_minus_k + k);',
             '    float GL = NdL / (NdL * one_minus_k + k);',
             '    return GV * GL;',
-            '}',
-
-            '// GGX TR from http://graphicrants.blogspot.ca/2013/08/specular-brdf-reference.html',
-            'float normalDistribution_GGX(float alpha, float NdH)',
-            '{',
-            '    // Isotropic ggx.',
-            '    float rSq = alpha * alpha;',
-            '    float NdH2 = NdH * NdH;',
-            '    float denominator = NdH2 * (rSq - 1.0) + 1.0;',
-            '    denominator *= denominator;',
-            '    denominator *= PI;',
-            '',
-            '    return rSq / denominator;',
-            '}',
-
-            '// w is either Ln or Vn',
-            'float G1( float ndw, float k ) {',
-            '// One generic factor of the geometry function divided by ndw',
-            '// NB : We should have k > 0',
-
-            '    // do the division outside return 1.0 / ( ndw*(1.0-k) + k );',
-            '    return ndw*(1.0-k) + k;',
-            '}',
-
-            'float visibility(float ndl,float ndv,float Roughness) {',
-            '// Schlick with Smith-like choice of k',
-            '// cf http://blog.selfshadow.com/publications/s2013-shading-course/karis/s2013_pbs_epic_notes_v2.pdf p3',
-            '// visibility is a Cook-Torrance geometry function divided by (n.l)*(n.v)',
-            '    float k = Roughness * Roughness * 0.5;',
-            '    //dont do the division inside G1 // return G1(ndl,k)*G1(ndv,k);',
-            '    return 1.0/( G1(ndl,k)*G1(ndv,k) );',
-            '}',
-
-
-            'vec3 cook_torrance_contrib(',
-            '	float vdh,',
-            '	float ndh,',
-            '	float ndl,',
-            '	float ndv,',
-            '	vec3 Ks,',
-            '	float roughness)',
-            '{',
-            '// This is the contribution when using importance sampling with the GGX based',
-            '// sample distribution. This means ct_contrib = ct_brdf / ggx_probability',
-            '	return fresnel(vdh,Ks) * (visibility(ndl,ndv,roughness) * vdh * ndl / ndh );',
             '}',
 
             '',
@@ -925,25 +886,41 @@ PBRExample.prototype = {
             '',
             '   //vectors used for importance sampling',
             '   vec3 upVector = abs(normal.z) < 0.999 ? vec3(0.0,0.0,1.0) : vec3(1.0,0.0,0.0);',
+            '   vec3 tangentX = normalize( cross( upVector, normal ) );',
+            '   vec3 tangentY = cross( normal, tangentX );',
+
             '   float ndv = max( 0.0, dot(normal, view) );',
 
-            '   vec3 h = normal;',
-            '   vec3 l = -reflect( view, h );',
-            '   float ndl = dot(normal , l);',
+            '   vec3 specularLighting = vec3(0.0);',
 
-            '   if ( ndl <= 0.0 ) return vec3(0.0);',
+            '   for ( int i = 0; i < NB_SAMPLES; i++ ) {',
 
-            '   // actually we could optimze because h = n;',
-            '   float vdh = max( 0.0, dot(view, h) );',
-            '   float ndh = max( 0.0, dot(normal, h) );',
+            '      vec2 xi = hammersley[i];',
+            '      vec3 h = importanceSampleGGX( xi, tangentX, tangentY, normal, MaterialRoughness );',
+            '      vec3 l = 2.0 * dot( view, h ) * h - view;',
+            '      float ndl =  max( 0.0, dot( normal, l ) );',
+            '      float ndh =  max( 0.0, dot( normal, h ) );',
+            '      float vdh = max( 0.0, dot( view  , h ) );',
 
+
+            '      if ( ndl > 0.0 ) {',
             '#ifdef MULTI_TEXTURE',
-            '   vec3 color = hdrExposure * textureSpecularRoughness( MaterialRoughness, iblTransform * l);',
+            '         vec3 color = hdrExposure * textureSpecularRoughness( MaterialRoughness, iblTransform * l );',
             '#else',
-            '   vec3 color = hdrExposure * textureSpheremapHDR( envSpecular, envSpecularSize, iblTransform * l );',
+            '         vec3 color = hdrExposure * textureSpheremapHDR( envSpecular, envSpecularSize, iblTransform * l );',
             '#endif',
+            '         //color = vec3(0.5);',
+            '         float G = geometrySmithSchlickGGX( MaterialRoughness, ndv, ndl );',
+            '         float Fc = pow( 1.0 - vdh, 5.0 );',
+            '         vec3 F = (1.0 - Fc) * MaterialSpecular + Fc;',
+            // Incident light = color * ndl
+            // Microfacet specular = D*G*F / (4*ndl*ndv)
+            // pdf = D * ndh / (4 * vdh)
+            '         specularLighting += color * F * G * vdh / (ndh * ndv);',
+            '      }',
 
-            '   return color * cook_torrance_contrib( vdh, ndh, ndl, ndv, MaterialSpecular, MaterialRoughness);',
+            '   }',
+            '   return specularLighting / float(NB_SAMPLES);',
             '}',
 
             'void main(void) {',
@@ -1167,7 +1144,7 @@ PBRExample.prototype = {
 
         var self = this;
 
-        var nbMaterials = 10;
+        var nbMaterials = 8;
 
         var createConfig = function( albedo, specular ) {
 
@@ -1301,10 +1278,13 @@ PBRExample.prototype = {
 
         // HDR parameters uniform
         var uniformExposure = osg.Uniform.createFloat1(1, 'hdrExposure');
+        var sequence = this.computeHammersleySequence( NbSamples );
+        var uniformHammersley = osg.Uniform.createFloat2Array( sequence, 'hammersley' );
 
         var size = 500;
         var background = this.getEnvSphere(size, group);
         group.getOrCreateStateSet().addUniform(uniformExposure);
+        group.getOrCreateStateSet().addUniform( uniformHammersley );
 
         var groupModel = new osg.Node();
         group.addChild ( groupModel );
@@ -1535,7 +1515,322 @@ PBRExample.prototype = {
         scene.addChild(cam);
 
         return geom;
-    }
+    },
+
+
+    getShaderOld: function ( config ) {
+        if (!config) config = {};
+        var nbTextures = NbEnvSpecularTextures;
+        var vertexshader = [
+            '',
+            '#ifdef GL_ES',
+            'precision highp float;',
+            '#endif',
+
+            'attribute vec3 Vertex;',
+            'attribute vec3 Normal;',
+            'attribute vec2 TexCoord0;',
+
+            'uniform mat4 ModelViewMatrix;',
+            'uniform mat4 ProjectionMatrix;',
+            'uniform mat4 NormalMatrix;',
+
+            'varying vec3 osg_FragEye;',
+            'varying vec3 osg_FragNormal;',
+            'varying vec4 osg_FragTangent;',
+            'varying vec3 osg_FragLightDirection;',
+            'varying vec2 osg_FragTexCoord0;',
+
+            'void main(void) {',
+            '  osg_FragEye = vec3(ModelViewMatrix * vec4(Vertex, 1.0));',
+            '  osg_FragNormal = vec3(NormalMatrix * vec4(Normal, 0.0));',
+            '  osg_FragLightDirection = vec3(NormalMatrix * vec4(0.0, -1.0, 0.0, 1.0));',
+            '  osg_FragTangent = NormalMatrix * osg_FragTangent;',
+            '  osg_FragTexCoord0 = TexCoord0;',
+            '  gl_Position = ProjectionMatrix * ModelViewMatrix * vec4(Vertex,1.0);',
+            '}'
+        ].join('\n');
+
+        var ambientOcclusion = '';
+        if ( config.mapAmbientOcclusion )
+            ambientOcclusion = '#define AO';
+
+        var specular = '';
+        if ( config.mapSpecular )
+            specular = '#define SPECULAR';
+
+        var glossiness = '';
+        if ( config.mapGlossiness )
+            glossiness = '#define GLOSSINESS';
+
+        var normalmap = '';
+        if ( config.mapNormal )
+            normalmap = '#define NORMAL';
+
+        var fragmentshader = [
+            '',
+            '#ifdef GL_ES',
+            'precision highp float;',
+            '#endif',
+
+            this.getCommonShader(),
+            ambientOcclusion,
+            specular,
+            glossiness,
+            normalmap,
+
+            '#define MULTI_TEXTURE 1',
+
+            'uniform sampler2D albedoMap;',
+            'uniform sampler2D roughnessMap;',
+            'uniform sampler2D metallicMap;',
+            'uniform sampler2D normalMap;',
+            'uniform sampler2D specularMap;',
+            'uniform sampler2D aoMap;',
+
+            'uniform sampler2D envDiffuse;',
+            'uniform vec2 envDiffuseSize;',
+
+            '#ifdef MULTI_TEXTURE',
+            '#define NB_TEXTURES ' + nbTextures,
+            '  uniform sampler2D envSpecularMulti[ NB_TEXTURES];',
+            '  uniform vec2 envSpecularMultiSize[ NB_TEXTURES];',
+            '#endif',
+
+
+            'uniform sampler2D envSpecular;',
+            'uniform vec2 envSpecularSize;',
+
+            'uniform float hdrExposure;',
+            'uniform mat4 CubemapTransform;',
+
+            '#ifdef GL_OES_standard_derivatives',
+            '#extension GL_OES_standard_derivatives : enable',
+            '#endif',
+
+            'varying vec3 osg_FragEye;',
+            'varying vec3 osg_FragNormal;',
+            'varying vec3 osg_FragLightDirection;',
+            'varying vec2 osg_FragTexCoord0;',
+            'varying vec4 osg_FragTangent;',
+
+            'float gamma = 2.2;',
+
+            'float MaterialRoughness = 0.99;',
+            'vec3 MaterialSpecular = vec3(0.04);',
+            'vec3 MaterialAlbedo;',
+            'vec3 MaterialNormal;',
+            'vec3 MaterialAO;',
+
+
+            'vec3 fresnel( float vdh, vec3 F0 ) {',
+            '// Schlick with Spherical Gaussian approximation',
+            '// cf http://blog.selfshadow.com/publications/s2013-shading-course/karis/s2013_pbs_epic_notes_v2.pdf p3',
+            '    float sphg = pow(2.0, (-5.55473*vdh - 6.98316) * vdh);',
+            '    //float sphg = pow(1.0-vdh, 5.0);',
+            '    return F0 + (vec3(1.0 ) - F0) * sphg;',
+            '    //return sphg + (vec3(1.0 ) - sphg) * F0;',
+            '}',
+
+
+
+            '// A,B,C are ',
+            'vec3 importanceSampleGGX(vec2 Xi, vec3 tangentX, vec3 tangentY, vec3 normal, float roughness)',
+            '{',
+            '	float a = roughness*roughness;',
+
+            '	float cosT = sqrt((1.0-Xi.y)/(1.0+(a*a-1.0)*Xi.y));',
+            '	float sinT = sqrt(1.0-cosT*cosT);',
+
+            '	float phi = 2.0*PI*Xi.x;',
+            '	return (sinT*cos(phi)) * tangentX + (sinT*sin(phi)) * tangentY + cosT * normal;',
+            '}',
+
+
+
+            'float geometrySmithSchlickGGX(float alpha, float NdV, float NdL)',
+            '{',
+            '    float k = alpha * 0.5;',
+            '    float one_minus_k = 1.0 -k;',
+            '    float GV = NdV / (NdV * one_minus_k + k);',
+            '    float GL = NdL / (NdL * one_minus_k + k);',
+            '    return GV * GL;',
+            '}',
+
+            '// GGX TR from http://graphicrants.blogspot.ca/2013/08/specular-brdf-reference.html',
+            'float normalDistribution_GGX(float alpha, float NdH)',
+            '{',
+            '    // Isotropic ggx.',
+            '    float rSq = alpha * alpha;',
+            '    float NdH2 = NdH * NdH;',
+            '    float denominator = NdH2 * (rSq - 1.0) + 1.0;',
+            '    denominator *= denominator;',
+            '    denominator *= PI;',
+            '',
+            '    return rSq / denominator;',
+            '}',
+
+            '// w is either Ln or Vn',
+            'float G1( float ndw, float k ) {',
+            '// One generic factor of the geometry function divided by ndw',
+            '// NB : We should have k > 0',
+
+            '    // do the division outside return 1.0 / ( ndw*(1.0-k) + k );',
+            '    return ndw*(1.0-k) + k;',
+            '}',
+
+
+            'float visibility(float ndl,float ndv,float Roughness) {',
+            '// Schlick with Smith-like choice of k',
+            '// cf http://blog.selfshadow.com/publications/s2013-shading-course/karis/s2013_pbs_epic_notes_v2.pdf p3',
+            '// visibility is a Cook-Torrance geometry function divided by (n.l)*(n.v)',
+            '    float k = Roughness * Roughness * 0.5;',
+            '    //float k = (Roughness + 1.0);',
+            '    //k = k*k/8.0;',
+            '    //dont do the division inside G1 // return G1(ndl,k)*G1(ndv,k);',
+            '    return 1.0/ ( G1(ndl,k)*G1(ndv,k) );',
+            '}',
+
+            'float D(float ndh, float roughness) {',
+            '  float a = roughness; //*roughness;',
+            '  float a2 = a * a;',
+            '  float quot = (ndh*ndh*(a2 - 1.0) + 1.0);', //// quot = π ((n · h)2 (α2 − 1) + 1)2
+            '  float d = a2 / (PI * quot*quot);',
+            '  return d;',
+            '}',
+
+            'vec3 cook_torrance_contrib(',
+            '	float vdh,',
+            '	float ndh,',
+            '	float ndl,',
+            '	float ndv,',
+            '	vec3 Ks,',
+            '	float roughness)',
+            '{',
+            '// This is the contribution when using importance sampling with the GGX based',
+            '// sample distribution. This means ct_contrib = ct_brdf / ggx_probability',
+            '	//return fresnel(vdh,Ks) * (visibility(ndl,ndv,roughness) * vdh / ( ndv * ndh ));',
+            '	return fresnel(vdh,Ks) * (visibility(ndl,ndv,roughness) * vdh * ndl /  ( ndh ) );',
+            '	//return fresnel(vdh,Ks) * normalDistribution_GGX( roughness, ndh) * (visibility(ndl,ndv,roughness) * ndv * ndl / ( 4.0* ndl * ndv ));',
+            //normalDistribution_GGX
+            '}',
+
+            '',
+            'vec3 cubemapReflectionVector(const in mat4 transform, const in vec3 view, const in vec3 normal)',
+            '{',
+            '  vec3 lv = reflect(view, normal);',
+            '  lv = normalize(lv);',
+            '  vec3 x = vec3(transform[0][0], transform[1][0], transform[2][0]);',
+            '  vec3 y = vec3(transform[0][1], transform[1][1], transform[2][1]);',
+            '  vec3 z = vec3(transform[0][2], transform[1][2], transform[2][2]);',
+            '  mat3 m = mat3(x,y,z);',
+            '  return m*lv;',
+            '}',
+
+            this.getTextureEnvFunctions(),
+
+            // apply some gamma correction (http://www.geeks3d.com/20101001/tutorial-gamma-correction-a-story-of-linearity/)
+            'vec3 linear2sRGB ( vec3 color ) {',
+            '  return pow( color , 1.0/ vec3( gamma ) );',
+            '}',
+
+            'vec3 lightDiffuseIndirect( mat3 iblTransform, vec3 albedo, vec3 normal ) {',
+            '   vec3 lightDiffuse = hdrExposure * textureSpheremapHDR(envDiffuse, envDiffuseSize, iblTransform*normal);',
+            '   return lightDiffuse * albedo * InversePI;',
+            '}',
+
+            'mat3 getIBLTransfrom( mat4 transform ) {',
+            '  vec3 x = vec3(transform[0][0], transform[1][0], transform[2][0]);',
+            '  vec3 y = vec3(transform[0][1], transform[1][1], transform[2][1]);',
+            '  vec3 z = vec3(transform[0][2], transform[1][2], transform[2][2]);',
+            '  mat3 m = mat3(x,y,z);',
+            '  return m;',
+            '}',
+
+            'vec3 lightSpecularIndirect( mat3 iblTransform, vec3 albedo, vec3 normal, vec3 view ) {',
+
+            '',
+            '   //vectors used for importance sampling',
+            '   vec3 upVector = abs(normal.z) < 0.999 ? vec3(0.0,0.0,1.0) : vec3(1.0,0.0,0.0);',
+            '   float ndv = max( 0.0, dot(normal, view) );',
+
+            '   vec3 h = normal;//normalize(view + normal);',
+            '   vec3 l = -reflect( view, h );',
+            '   float ndl = dot(normal , l);',
+
+            '   if ( ndl <= 0.0 ) return vec3(0.0);',
+
+            '   // actually we could optimze because h = n;',
+            '   float vdh = max( 0.0, dot(view, h) );',
+            '   float ndh = max( 0.0, dot(normal, h) );',
+
+            '#ifdef MULTI_TEXTURE',
+            '   vec3 color = hdrExposure * textureSpecularRoughness( MaterialRoughness, iblTransform * l );',
+            '#else',
+            '   vec3 color = hdrExposure * textureSpheremapHDR( envSpecular, envSpecularSize, iblTransform * l );',
+            '#endif',
+            '   //color = vec3(0.5);',
+            '   return color * cook_torrance_contrib( vdh, ndh, ndl, ndv, MaterialSpecular, MaterialRoughness);',
+            '}',
+
+            'void main(void) {',
+            '  vec3 N = normalize(osg_FragNormal);',
+            '  vec3 L = normalize(osg_FragLightDirection);',
+            '  vec3 E = normalize(osg_FragEye);',
+            '  vec3 R = cubemapReflectionVector(CubemapTransform, E, N);',
+
+            '  mat3 iblTransform = getIBLTransfrom( CubemapTransform );',
+
+            '  const vec3 dielectricColor = vec3(0.04);',
+            '  float minRoughness = 1.e-4;',
+
+
+            '  vec3 albedo = sRGBToLinear( texture2D( albedoMap, osg_FragTexCoord0 ).rgb, DefaultGamma );',
+
+            '  vec3 normal = N;',
+            '  #ifdef NORMAL',
+            '    mtex_nspace_tangent( osg_FragTangent, N, textureNormal( normalMap, osg_FragTexCoord0 ), normal );',
+            '  #endif',
+
+
+            '  float roughnessValue = texture2D( roughnessMap, osg_FragTexCoord0 ).r;',
+            '  #ifdef GLOSSINESS',
+            '  roughnessValue = 1.0 - roughnessValue;',
+            '  #endif',
+            '  MaterialRoughness = max( minRoughness , roughnessValue );',
+
+            '  MaterialNormal = normal;',
+            '  MaterialAlbedo = albedo;',
+            '  MaterialAO = vec3(1.0);',
+            '#ifdef AO',
+            ' MaterialAO = sRGBToLinear( texture2D( aoMap, osg_FragTexCoord0 ), DefaultGamma ).rgb;',
+            '#endif',
+
+            '#ifdef SPECULAR',
+            '  MaterialSpecular = sRGBToLinear( texture2D( specularMap, osg_FragTexCoord0 ), DefaultGamma ).rgb;',
+            '#else',
+            '  float metallic = texture2D( metallicMap, osg_FragTexCoord0 ).r;',
+            '  MaterialAlbedo = albedo * (1.0 - metallic);',
+            '  MaterialSpecular = mix( dielectricColor, albedo, metallic);',
+            '#endif',
+
+
+            '  vec3 diffuseIndirect = MaterialAO * lightDiffuseIndirect( iblTransform, MaterialAlbedo, MaterialNormal );',
+            '  vec3 specularIndirect = lightSpecularIndirect( iblTransform, MaterialAlbedo, MaterialNormal, -E );',
+
+            '  vec3 gammaCorrected = linearTosRGB( diffuseIndirect + specularIndirect, DefaultGamma);',
+            '  gl_FragColor = vec4( gammaCorrected, 1.0);',
+            '}',
+            ''
+        ].join('\n');
+
+        var program = new osg.Program(
+            new osg.Shader('VERTEX_SHADER', vertexshader),
+            new osg.Shader('FRAGMENT_SHADER', fragmentshader));
+
+        return program;
+    },
+
 };
 
 
