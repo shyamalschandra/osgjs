@@ -604,7 +604,7 @@ PBRExample.prototype = {
             '    return col_to;',
             '}',
 
-            'vec4 textureHDR(const in sampler2D texture, const in vec2 size, const in vec2 uv) {',
+            'vec4 textureRGBE(const in sampler2D texture, const in vec2 size, const in vec2 uv) {',
             '    #ifdef BIAS',
             '       vec4 rgbe = texture2D(texture, uv, getBias( size, uv, TextureLevel );',
             '    #else',
@@ -613,6 +613,11 @@ PBRExample.prototype = {
 
             '    float f = pow(2.0, rgbe.w * 255.0 - (128.0 + 8.0));',
             '    return vec4(rgbe.rgb * 255.0 * f, 1.0);',
+            '}',
+
+            'vec4 textureRGBM(const in sampler2D texture, const in vec2 uv ) {',
+            '    vec4 rgbm = texture2D(texture, uv );',
+            '    return vec4(rgbm.rgb * rgbm.a, 1.0);',
             '}',
 
             'vec2 normalToSphericalUV( const in vec3 n )',
@@ -660,14 +665,28 @@ PBRExample.prototype = {
             '}',
 
             '',
-            'vec4 textureHDRLinear(const in sampler2D texture, const in vec2 size, const in vec2 uv) {',
+            'vec4 textureRGBMLinear(const in sampler2D texture, const in vec2 size, const in vec2 uv ) {',
             '    vec2 t = 1.0 / size;',
             '    ',
 
-            '    vec4 a = textureHDR(texture,  size, uv ),',
-            '         b = textureHDR(texture,  size, uv + vec2(t.x, 0.0) ),',
-            '         c = textureHDR(texture,  size, uv + vec2(0.0, t.y) ),',
-            '         d = textureHDR(texture,  size, uv + vec2(t.x, t.y) );',
+            '    vec4 a = textureRGBM(texture, uv ),',
+            '         b = textureRGBM(texture, uv + vec2(t.x, 0.0) ),',
+            '         c = textureRGBM(texture, uv + vec2(0.0, t.y) ),',
+            '         d = textureRGBM(texture, uv + vec2(t.x, t.y) );',
+            '    vec2 f = fract(uv * size);',
+            '    vec4 A = mix(a, b, f.x),',
+            '         B = mix(c, d, f.x);',
+            '    return mix(A, B, f.y);',
+            '}',
+
+            'vec4 textureRGBELinear(const in sampler2D texture, const in vec2 size, const in vec2 uv) {',
+            '    vec2 t = 1.0 / size;',
+            '    ',
+
+            '    vec4 a = textureRGBE(texture,  size, uv ),',
+            '         b = textureRGBE(texture,  size, uv + vec2(t.x, 0.0) ),',
+            '         c = textureRGBE(texture,  size, uv + vec2(0.0, t.y) ),',
+            '         d = textureRGBE(texture,  size, uv + vec2(t.x, t.y) );',
 
             '    vec2 f = fract(uv * size);',
             '    vec4 A = mix(a, b, f.x),',
@@ -675,9 +694,50 @@ PBRExample.prototype = {
             '    return mix(A, B, f.y);',
             '}',
             '',
-            'vec3 textureSpheremapHDR(const in sampler2D texture, const in vec2 size, const in vec3 normal) {',
+            'vec3 textureSpheremapRGBE(const in sampler2D texture, const in vec2 size, const in vec3 normal) {',
             '    vec2 uv = normalToSphericalUV( normal );',
-            '    return textureHDRLinear(texture, size, uv.xy ).rgb;',
+            '    return textureRGBELinear(texture, size, uv.xy ).rgb;',
+            '}',
+
+            'vec3 textureSpheremapRGBM(const in sampler2D texture, const in vec2 size, const in vec3 normal, const in float textureRange) {',
+            '    vec2 uv = normalToSphericalUV( normal );',
+            '    return textureRGBMLinear(texture, size, uv.xy ).rgb * textureRange;',
+            '}',
+
+
+            'vec2 texturePrecomputedBRDF( const in float roughness, const in vec2 nov ) {',
+            '    vec4 rgba = texture2D(IntegratTexture, vec2( nov, roughness ) );',
+            '    float div = 1.0/65535;',
+            '    float b = (rgba[3] * 65280.0 + rgba[2] * 255.0)',
+            '    float a = (rgba[1] * 65280.0 + rgba[0] * 255.0)',
+            '    return vec2( a, b ) * div;',
+            '}',
+
+            'vec2 computeUVForMipmap( const in float level, const in vec2 uv, const in vec2 size ) {',
+            '    float height = pow( 2.0, level );',
+            '    float resizeRatio = height/size.y;', // rescale to the size of the mipmap level
+            '    float uv = uv * resizeRatio; ',
+            '    float uv.y += height;',
+            '}',
+
+            'vec3 texturePrefilteredSpecular( const in float roughness, const in vec3 direction ) {',
+
+            '   vec2 virtualUV = normalToSphericalUV( direction );',
+            '   // uv are virtual to a real panoramic texture 2x1',
+            '   // we have mipmap encoding in the same texture',
+            '',
+            '   int nbMipMap = log2( envSpecularRGBMSize.y/2 );',
+            '   float targetLod = (1.0-roughness) * nbMipMap',
+            '   int highLod = ceil(targetLod);',
+            '   int lowLod = floor(targetLod);',
+            '   ',
+
+
+            '   vec2 uv0 = computeUVForMipmap( highLod, virtualUV, envSpecularRGBMSize );',
+            '   vec3 texel0 = textureRGBMLinear( envSpecularRGBM, envSpecularRGBMSize, uv0 ).rgb;',
+            '   vec2 uv1 = computeUVForMipmap( lowLod, virtualUV, envSpecularRGBMSize );',
+            '   vec3 texel1 = textureRGBMLinear( envSpecularRGBM, envSpecularRGBMSize, uv1 ).rgb;',
+            '   return mix( texel0, texel1, fract( targetLod ) ) * envSpecularRGBMRange;',
             '}',
 
             '#ifdef MULTI_TEXTURE',
@@ -869,7 +929,7 @@ PBRExample.prototype = {
             '}',
 
             'vec3 lightDiffuseIndirect( mat3 iblTransform, vec3 albedo, vec3 normal ) {',
-            '   vec3 lightDiffuse = hdrExposure * textureSpheremapHDR(envDiffuse, envDiffuseSize, iblTransform*normal);',
+            '   vec3 lightDiffuse = hdrExposure * textureSpheremapRGBE(envDiffuse, envDiffuseSize, iblTransform*normal);',
             '   return lightDiffuse * albedo * InversePI;',
             '}',
 
@@ -907,7 +967,7 @@ PBRExample.prototype = {
             '#ifdef MULTI_TEXTURE',
             '         vec3 color = hdrExposure * textureSpecularRoughness( MaterialRoughness, iblTransform * l );',
             '#else',
-            '         vec3 color = hdrExposure * textureSpheremapHDR( envSpecular, envSpecularSize, iblTransform * l );',
+            '         vec3 color = hdrExposure * textureSpheremapRGBE( envSpecular, envSpecularSize, iblTransform * l );',
             '#endif',
             '         //color = vec3(0.5);',
             '         float G = geometrySmithSchlickGGX( MaterialRoughness, ndv, ndl );',
@@ -921,6 +981,16 @@ PBRExample.prototype = {
 
             '   }',
             '   return specularLighting / float(NB_SAMPLES);',
+            '}',
+
+
+            'vec3 lightSpecularIndirect2( mat3 iblTransform, vec3 albedo, vec3 normal, vec3 view ) {',
+            '  vec3 NoV = min( 0.0, dot( normal, view ) );',
+            '  vec3 R = 2.0 * dot( view, normal ) * normal - view;',
+            '  vec3 prefilteredColor = texturePrefilteredSpecular( MaterialRoughness, iblTransform * R );',
+            '  vec2 envBRDF = texturePrecomputedBRDF( MaterialRoughness, NoV );',
+            '  return prefilteredColor * ( MaterialSpecular * envBRDF.x + envBRDF.y );',
+            '',
             '}',
 
             'void main(void) {',
@@ -1449,7 +1519,7 @@ PBRExample.prototype = {
 
             'void main(void) {',
             '  vec3 normal = normalize(osg_FragVertex.xyz);',
-            '  vec3 c = toneMapHDR( hdrExposure * textureSpheremapHDR( envSpecular, envSpecularSize, normal));',
+            '  vec3 c = toneMapHDR( hdrExposure * textureSpheremapRGBE( envSpecular, envSpecularSize, normal));',
             '  gl_FragColor = vec4(c, 1.0);',
             '}',
             ''
@@ -1735,7 +1805,7 @@ PBRExample.prototype = {
             '}',
 
             'vec3 lightDiffuseIndirect( mat3 iblTransform, vec3 albedo, vec3 normal ) {',
-            '   vec3 lightDiffuse = hdrExposure * textureSpheremapHDR(envDiffuse, envDiffuseSize, iblTransform*normal);',
+            '   vec3 lightDiffuse = hdrExposure * textureSpheremapRGBE(envDiffuse, envDiffuseSize, iblTransform*normal);',
             '   return lightDiffuse * albedo * InversePI;',
             '}',
 
@@ -1767,7 +1837,7 @@ PBRExample.prototype = {
             '#ifdef MULTI_TEXTURE',
             '   vec3 color = hdrExposure * textureSpecularRoughness( MaterialRoughness, iblTransform * l );',
             '#else',
-            '   vec3 color = hdrExposure * textureSpheremapHDR( envSpecular, envSpecularSize, iblTransform * l );',
+            '   vec3 color = hdrExposure * textureSpheremapRGBE( envSpecular, envSpecularSize, iblTransform * l );',
             '#endif',
             '   //color = vec3(0.5);',
             '   return color * cook_torrance_contrib( vdh, ndh, ndl, ndv, MaterialSpecular, MaterialRoughness);',
