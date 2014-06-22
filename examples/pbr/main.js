@@ -461,7 +461,7 @@ PBRExample.prototype = {
         };
 
         mipmap();
-
+        //multiTexture();
     },
 
 
@@ -730,10 +730,12 @@ PBRExample.prototype = {
             '   // uv are virtual to a real panoramic texture 2x1',
             '   // we have mipmap encoding in the same texture',
             '',
+            '   float minimumLod = 2.0;', // because lower level are too low res
             '   float nbMipMap = log2( envSpecularSize.y/2.0 );',
-            '   float targetLod = (1.0-roughness) * ( nbMipMap - 1.0 );',
+            '   float targetLod = (1.0-roughness) * nbMipMap;',
+            '   targetLod = max( targetLod, minimumLod );',
             '   float highLod = ceil(targetLod);',
-            '   float lowLod = max( floor(targetLod) , 4.0 );',
+            '   float lowLod = floor(targetLod);',
             '   ',
 
             '   vec2 size = envSpecularRGBMSize;',
