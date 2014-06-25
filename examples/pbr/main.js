@@ -7,50 +7,13 @@ var osgDB = OSG.osgDB;
 
 
 
-var NbEnvSpecularTextures = 9;
-var NbSamples = 8;
+var NbSamples = 256;
 
 var PBRExample = function () {
     this.textureEnvs = {
         'Alexs_Apartment': {
-            'specular': [ // {
-                //     'name': 'Alexs_Apt_2k_0_0.png',
-                //     'level': 0
-                // },
-                //                 {
-                //     'name': 'Alexs_Apt_2k_1_0.png',
-                //     'level': 1
-                // },
-                {
-                    'name': 'Alexs_Apt_2k_2_1.png',
-                    'level': 2
-                }, {
-                    'name': 'Alexs_Apt_2k_4_2.png',
-                    'level': 3
-                }, {
-                    'name': 'Alexs_Apt_2k_8_3.png',
-                    'level': 4
-                }, {
-                    'name': 'Alexs_Apt_2k_16_4.png',
-                    'level': 5
-                }, {
-                    'name': 'Alexs_Apt_2k_32_5.png',
-                    'level': 6
-                }, {
-                    'name': 'Alexs_Apt_2k_64_6.png',
-                    'level': 7
-                }, {
-                    'name': 'Alexs_Apt_2k_128_7.png',
-                    'level': 8
-                }, {
-                    'name': 'Alexs_Apt_2k_256_8.png',
-                    'level': 9
-                }, {
-                    'name': 'Alexs_Apt_2k_512_9.png',
-                    'level': 10
-                }
-            ],
             'background': 'Alexs_Apt_2k.png',
+            'specular': 'Alexs_Apt_2k.png',
             'diffuse': 'Alexs_Apt_Env.png'
         },
 
@@ -314,104 +277,49 @@ PBRExample.prototype = {
         var environmentConfig = this.textureEnvs[name];
         var environmentName = name;
         var self = this;
-        var setNameTextureUnit = function (stateSet, name, unit, w, h) {
-            stateSet.addUniform(osg.Uniform.createInt1(unit, name));
-            if (w !== undefined)
-                stateSet.addUniform(osg.Uniform.createFloat2([w, h], name + 'Size'));
-        };
-
-        var createEnvironmnentTexture = function (name, image, stateSet, unit) {
-            var texture = new osg.Texture();
-            if (image)
-                texture.setImage(image);
-            texture.setMinFilter('NEAREST');
-            texture.setMagFilter('NEAREST');
-
-            stateSet.setTextureAttributeAndMode(unit, texture);
-            stateSet.addUniform(osg.Uniform.createInt1(unit, name));
-            var width = image ? image.getWidth() : 0;
-            var height = image ? image.getHeight() : 0;
-
-            if ( image )
-                setNameTextureUnit(stateSet, name, unit, width, height);
-            return texture;
-        };
-
-        var createEnvironmnentMultiTexture = function (name, image, stateSet, unit, index) {
-            var texture = new osg.Texture();
-
-            texture.setImage(image);
-            texture.setMinFilter('NEAREST');
-            texture.setMagFilter('NEAREST');
-            texture.setWrapT('CLAMP_TO_EDGE');
-            texture.setWrapS('REPEAT');
-
-            stateSet.setTextureAttributeAndMode(unit, texture);
-            var samplerArray = stateSet.getUniform( name );
-            if ( !samplerArray ) {
-                stateSet.addUniform(osg.Uniform.createIntArray( new Array( NbEnvSpecularTextures ), name));
-            }
-            samplerArray = stateSet.getUniform( name );
-            samplerArray.get()[ index ] = unit;
-
-            var sizeSamplerArray = stateSet.getUniform(name +'Size');
-            if ( !sizeSamplerArray ) {
-                stateSet.addUniform(osg.Uniform.createFloat2Array( new Array( NbEnvSpecularTextures*2 ), name + 'Size'));
-            }
-            sizeSamplerArray = stateSet.getUniform( name + 'Size' );
-            sizeSamplerArray.get()[index*2    ] = image.getWidth();
-            sizeSamplerArray.get()[index*2 + 1] = image.getHeight();
-
-            return texture;
-        };
 
 
-        var loadSpecularEnvironmnentMultiTexture = function (config, startUnit) {
-            var nbUnits = NbEnvSpecularTextures;
-            var defer = Q.defer();
-            var imagesPromises = [];
-            var images = [];
-            var stateSet = ground.getOrCreateStateSet();
 
-            // sort then execute for each element
-            config.sort(function (a, b) {
-                return a.level - b.level;
+        var startUnit = 5;
 
-            }).forEach(function (textureLevel) {
-                imagesPromises.push( self.readImageURL('textures/' + environmentName + '/' + textureLevel.name));
-            });
+        var reference = function() {
 
-            Q.all(imagesPromises).then(function (args) {
-                images = args.slice(0);
+            var setNameTextureUnit = function (stateSet, name, unit, w, h) {
+                stateSet.addUniform(osg.Uniform.createInt1(unit, name));
+                if (w !== undefined)
+                    stateSet.addUniform(osg.Uniform.createFloat2([w, h], name + 'Size'));
+            };
 
-                images.sort( function( a , b ) {
-                    return b.getWidth() - a.getWidth();
-                } );
+            var createEnvironmnentTexture = function (name, image, stateSet, unit) {
+                var texture = new osg.Texture();
+                if (image)
+                    texture.setImage(image);
+                texture.setMinFilter('NEAREST');
+                texture.setMagFilter('NEAREST');
+                texture.setWrapT('CLAMP_TO_EDGE');
+                texture.setWrapS('REPEAT');
 
+                stateSet.setTextureAttributeAndMode(startUnit, texture);
+                var width = image ? image.getWidth() : 0;
+                var height = image ? image.getHeight() : 0;
 
-                var unitTextures = [];
-                for ( var i =0, l = nbUnits; i< l; i++) {
-                    var unit = startUnit + i;
-                    unitTextures.push( unit );
-                    createEnvironmnentMultiTexture('envSpecularMulti', images[i], stateSet, unit, i );
-                }
+                if ( image )
+                    setNameTextureUnit(stateSet, name, startUnit, width, height);
 
-                defer.resolve(args);
-            });
-
-            return defer.promise;
-        };
+                startUnit += 1;
+                return texture;
+            };
 
 
-        var multiTexture = function() {
             var images = [
                 self.readImageURL( 'textures/' + name + '/' + environmentConfig.background ),
                 self.readImageURL( 'textures/' + name + '/' + environmentConfig.diffuse ),
-                loadSpecularEnvironmnentMultiTexture( environmentConfig.specular, 6 )
+                self.readImageURL( 'textures/' + name + '/' + environmentConfig.specular )
             ];
 
             Q.all( images ).then( function ( images ) {
-                createEnvironmnentTexture( 'envSpecular', images[ 0 ], background.getOrCreateStateSet(), 2 );
+                createEnvironmnentTexture( 'envSpecular', images[ 2 ], ground.getOrCreateStateSet(), 6 );
+                createEnvironmnentTexture( 'envBackground', images[ 0 ], background.getOrCreateStateSet(), 2 );
                 createEnvironmnentTexture( 'envDiffuse', images[ 1 ], ground.getOrCreateStateSet(), 5 );
 
             } );
@@ -440,19 +348,19 @@ PBRExample.prototype = {
                 texture.setMinFilter('NEAREST');
                 texture.setMagFilter('NEAREST');
 
-                stateSet.setTextureAttributeAndMode(unit, texture);
-                stateSet.addUniform(osg.Uniform.createInt1(unit, name));
+                stateSet.setTextureAttributeAndMode(startUnit, texture);
                 var width = image ? image.getWidth() : 0;
                 var height = image ? image.getHeight() : 0;
 
                 if ( image )
-                    setNameTextureUnit(stateSet, name, unit, width, height, range );
+                    setNameTextureUnit(stateSet, name, startUnit, width, height, range );
+                startUnit += 1;
                 return texture;
             };
 
 
             Q.all( mipmapTexture ).then( function ( images ) {
-                createEnvironmnentTexture( 'envSpecular', images[ 0 ], background.getOrCreateStateSet(), 2, config.background.range );
+                createEnvironmnentTexture( 'envBackgroundRGBM', images[ 0 ], background.getOrCreateStateSet(), 2, config.background.range );
                 createEnvironmnentTexture( 'envDiffuseRGBM', images[ 1 ], ground.getOrCreateStateSet(), 5, config.diffuse.range );
                 createEnvironmnentTexture( 'envSpecularRGBM', images[ 2 ], ground.getOrCreateStateSet(), 6, config.specular.range );
                 createEnvironmnentTexture( 'integrateBRDF', images[ 3 ], ground.getOrCreateStateSet(), 7 );
@@ -461,19 +369,11 @@ PBRExample.prototype = {
         };
 
         mipmap();
-        //multiTexture();
+        reference();
     },
 
 
     getTextureEnvFunctions: function () {
-
-        var fetchMultiTexture = [];
-        for ( var i = 0; i < NbEnvSpecularTextures; i++ ) {
-            var entry = '  if ( index == XX ) return textureRGBELinear( textures[XX], envSpecularMultiSize[XX], uv ).rgb;'.replace( /XX/g, i.toString());
-            fetchMultiTexture.push( entry );
-        }
-        fetchMultiTexture.push('  return textureRGBELinear( textures[0], envSpecularMultiSize[0], uv ).rgb;' );
-
 
         return [
             'float TextureLevel = 0.0;',
@@ -676,7 +576,6 @@ PBRExample.prototype = {
             'vec4 textureRGBELinear(const in sampler2D texture, const in vec2 size, const in vec2 uv) {',
             '    vec2 t = 1.0 / size;',
             '    ',
-
             '    vec4 a = textureRGBE(texture,  size, uv ),',
             '         b = textureRGBE(texture,  size, uv + vec2(t.x, 0.0) ),',
             '         c = textureRGBE(texture,  size, uv + vec2(0.0, t.y) ),',
@@ -700,7 +599,7 @@ PBRExample.prototype = {
 
 
             'vec2 texturePrecomputedBRDF( const in float roughness, const in float nov ) {',
-            '    vec4 rgba = texture2D(integrateBRDF, vec2( nov, roughness ) );',
+            '    vec4 rgba = texture2D(integrateBRDF, vec2( roughness, nov ) );',
             '    const float div = 1.0/65535.0;',
             '    float b = (rgba[3] * 65280.0 + rgba[2] * 255.0);',
             '    float a = (rgba[1] * 65280.0 + rgba[0] * 255.0);',
@@ -731,7 +630,7 @@ PBRExample.prototype = {
             '   // we have mipmap encoding in the same texture',
             '',
             '   float minimumLod = 2.0;', // because lower level are too low res
-            '   float nbMipMap = log2( envSpecularSize.y/2.0 );',
+            '   float nbMipMap = log2( envSpecularRGBMSize.y/2.0 );',
             '   float targetLod = (1.0-roughness) * nbMipMap;',
             '   targetLod = max( targetLod, minimumLod );',
             '   float highLod = ceil(targetLod);',
@@ -741,12 +640,11 @@ PBRExample.prototype = {
             '   vec2 size = envSpecularRGBMSize;',
             '   float range = envSpecularRGBMRange;',
 
-            '   //highLod = 3.0;',
             '   vec4 uv0Max = computeUVForMipmap( lowLod, virtualUV, size );',
 
             '   vec3 texel0 = textureRGBMLinearSpecular( envSpecularRGBM, size, uv0Max.xy, uv0Max.zw).rgb;',
             '   //texel0 = textureRGBM(envSpecularRGBM, uv0 ).rgb * range;',
-            '   //return texel0 * range;',
+            '   //return texel0;',
 
             '   vec4 uv1Max = computeUVForMipmap( highLod, virtualUV, size );',
             '   vec3 texel1 = textureRGBMLinearSpecular( envSpecularRGBM, size, uv1Max.xy, uv1Max.zw ).rgb;',
@@ -754,22 +652,6 @@ PBRExample.prototype = {
             '   return mix( texel0, texel1, fract( targetLod ) );',
             '}',
 
-            '#ifdef MULTI_TEXTURE',
-            'vec3 textureSpecularIndex( sampler2D textures[NB_TEXTURES], const int index, const in vec2 uv ) {',
-            fetchMultiTexture.join( '\n' ),
-            '}',
-
-            'vec3 textureSpecularRoughness( const in float roughness, const in vec3 direction ) {',
-            '   float textureIndex = roughness * float (NB_TEXTURES -1 );',
-            '   float frac = fract ( textureIndex );',
-            '   int indexLow = int (floor( textureIndex ) );',
-            '   vec2 uv = normalToSphericalUV( direction );',
-            '   int indexHigh = int( min( float(indexLow) + 1.0, float(NB_TEXTURES)-1.0 ) );',
-            '   vec3 texel0 = textureSpecularIndex( envSpecularMulti,  indexLow, uv );',
-            '   vec3 texel1 = textureSpecularIndex( envSpecularMulti, indexHigh, uv );',
-            '   return mix( texel0, texel1, frac );',
-            '}',
-            '#endif'
 
         ].join('\n');
     },
@@ -777,7 +659,9 @@ PBRExample.prototype = {
     getCommonShader: function() {
         return [
             '#define PI 3.1415926535897932384626433832795',
-            '#define InversePI 3.1415926535897932384626433832795',
+            '#define InversePI 1.0/PI',
+
+            // unreal pregenerated texture
 
             'uniform sampler2D integrateBRDF;',
             'uniform sampler2D integrateBRDFSize;',
@@ -786,12 +670,18 @@ PBRExample.prototype = {
             'uniform vec2 envSpecularRGBMSize;',
             'uniform float envSpecularRGBMRange;',
 
-            'uniform vec2 envSpecularSize;',
-
             'uniform sampler2D envDiffuseRGBM;',
             'uniform float envDiffuseRGBMRange;',
             'uniform vec2 envDiffuseRGBMSize;',
 
+            // reference
+
+            'uniform sampler2D envBackground;',
+            'uniform vec2 envBackgroundSize;',
+
+            'uniform sampler2D envSpecular;',
+            'uniform sampler2D envDiffuse;',
+            'uniform vec2 envSpecularSize;',
             'uniform vec2 envDiffuseSize;',
 
 
@@ -800,7 +690,7 @@ PBRExample.prototype = {
 
     getShader: function ( config ) {
         if (!config) config = {};
-        var nbTextures = NbEnvSpecularTextures;
+
         var vertexshader = [
             '',
             '#ifdef GL_ES',
@@ -860,7 +750,6 @@ PBRExample.prototype = {
             normalmap,
 
             '#define NB_SAMPLES ' + NbSamples,
-            '#define MULTI_TEXTURE 1',
 
             'uniform sampler2D albedoMap;',
             'uniform sampler2D roughnessMap;',
@@ -869,18 +758,9 @@ PBRExample.prototype = {
             'uniform sampler2D specularMap;',
             'uniform sampler2D aoMap;',
 
-            'uniform sampler2D envDiffuse;',
-
-
-            '#ifdef MULTI_TEXTURE',
-            '#define NB_TEXTURES ' + nbTextures,
-            '  uniform sampler2D envSpecularMulti[ NB_TEXTURES];',
-            '  uniform vec2 envSpecularMultiSize[ NB_TEXTURES];',
-            '#endif',
+            'uniform int prefilterCubemap;',
 
             'uniform vec2 hammersley[NB_SAMPLES];',
-
-            'uniform sampler2D envSpecular;',
 
             'uniform float hdrExposure;',
             'uniform mat4 CubemapTransform;',
@@ -910,8 +790,6 @@ PBRExample.prototype = {
             '    float sphg = pow(2.0, (-5.55473*vdh - 6.98316) * vdh);',
             '    return F0 + (vec3(1.0 ) - F0) * sphg;',
             '}',
-
-
 
             '// A,B,C are ',
             'vec3 importanceSampleGGX(vec2 Xi, vec3 tangentX, vec3 tangentY, vec3 normal, float roughness)',
@@ -963,7 +841,7 @@ PBRExample.prototype = {
             '   return lightDiffuse * albedo * InversePI;',
             '}',
 
-            'vec3 lightDiffuseIndirect2( mat3 iblTransform, vec3 albedo, vec3 normal ) {',
+            'vec3 lightDiffuseIndirect2( const in mat3 iblTransform, const in vec3 albedo, const in vec3 normal ) {',
             '   vec3 lightDiffuse = hdrExposure * textureSpheremapRGBM(envDiffuseRGBM, envDiffuseRGBMSize, iblTransform*normal, envDiffuseRGBMRange );',
             '   return lightDiffuse * albedo * InversePI;',
             '}',
@@ -976,7 +854,7 @@ PBRExample.prototype = {
             '  return m;',
             '}',
 
-            'vec3 lightSpecularIndirect( mat3 iblTransform, vec3 albedo, vec3 normal, vec3 view ) {',
+            'vec3 lightSpecularIndirect( const in mat3 iblTransform, const in vec3 albedo, const in vec3 normal, const in vec3 view ) {',
 
             '',
             '   //vectors used for importance sampling',
@@ -999,12 +877,7 @@ PBRExample.prototype = {
 
 
             '      if ( ndl > 0.0 ) {',
-            '#ifdef MULTI_TEXTURE',
-            '         vec3 color = hdrExposure * textureSpecularRoughness( MaterialRoughness, iblTransform * l );',
-            '#else',
             '         vec3 color = hdrExposure * textureSpheremapRGBE( envSpecular, envSpecularSize, iblTransform * l );',
-            '#endif',
-            '         //color = vec3(0.5);',
             '         float G = geometrySmithSchlickGGX( MaterialRoughness, ndv, ndl );',
             '         float Fc = pow( 1.0 - vdh, 5.0 );',
             '         vec3 F = (1.0 - Fc) * MaterialSpecular + Fc;',
@@ -1019,13 +892,30 @@ PBRExample.prototype = {
             '}',
 
 
-            'vec3 lightSpecularIndirect2( mat3 iblTransform, vec3 albedo, vec3 normal, vec3 view ) {',
+            'vec3 lightSpecularIndirect2( const in mat3 iblTransform, const in vec3 albedo, const in vec3 normal, const in vec3 view ) {',
             '  float NoV = min( 0.0, dot( normal, view ) );',
             '  vec3 R = 2.0 * dot( view, normal ) * normal - view;',
-            '  vec3 prefilteredColor = texturePrefilteredSpecular( MaterialRoughness, iblTransform * R )* envSpecularRGBMRange;',
+            '  float mult = envSpecularRGBMRange * hdrExposure;',
+            '  vec3 prefilteredColor = texturePrefilteredSpecular( MaterialRoughness, iblTransform * R )* mult;',
             '  vec2 envBRDF = texturePrecomputedBRDF( MaterialRoughness, NoV );',
             '  return prefilteredColor * ( MaterialSpecular * envBRDF.x + envBRDF.y );',
             '',
+            '}',
+
+
+            'vec3 reference( const in mat3 iblTransform, const in vec3 E ) {',
+            '  vec3 diffuseIndirect = MaterialAO * lightDiffuseIndirect( iblTransform, MaterialAlbedo, MaterialNormal );',
+            '  vec3 specularIndirect = lightSpecularIndirect( iblTransform, MaterialAlbedo, MaterialNormal, -E );',
+            '  vec3 gammaCorrected = linearTosRGB( diffuseIndirect + specularIndirect, DefaultGamma);',
+            '  return gammaCorrected;',
+            '}',
+
+
+            'vec3 prefilteredAndLUT( const in mat3 iblTransform, const in vec3 E ) {',
+            '  vec3 diffuseIndirect = MaterialAO * lightDiffuseIndirect( iblTransform, MaterialAlbedo, MaterialNormal );',
+            '  vec3 specularIndirect = lightSpecularIndirect2( iblTransform, MaterialAlbedo, MaterialNormal, -E );',
+            '  vec3 gammaCorrected = linearTosRGB( diffuseIndirect + specularIndirect, DefaultGamma);',
+            '  return gammaCorrected;',
             '}',
 
             'void main(void) {',
@@ -1075,11 +965,11 @@ PBRExample.prototype = {
             '#endif',
 
 
-            '  vec3 diffuseIndirect = MaterialAO * lightDiffuseIndirect2( iblTransform, MaterialAlbedo, MaterialNormal );',
-            '  vec3 specularIndirect = lightSpecularIndirect2( iblTransform, MaterialAlbedo, MaterialNormal, -E );',
-
-            '  vec3 gammaCorrected = linearTosRGB( diffuseIndirect + specularIndirect, DefaultGamma);',
-            '  gl_FragColor = vec4( gammaCorrected, 1.0);',
+            '  vec4 result;',
+            '  if ( prefilterCubemap != 0 )',
+            '     result = vec4( prefilteredAndLUT( iblTransform, E ), 1.0);',
+            '  else result = vec4( reference( iblTransform, E ), 1.0);',
+            '  gl_FragColor = result;',
             '}',
             ''
         ].join('\n');
@@ -1390,11 +1280,13 @@ PBRExample.prototype = {
         var uniformExposure = osg.Uniform.createFloat1(1, 'hdrExposure');
         var sequence = this.computeHammersleySequence( NbSamples );
         var uniformHammersley = osg.Uniform.createFloat2Array( sequence, 'hammersley' );
+        var uniformPrefilterCubemap = osg.Uniform.createInt1(1, 'prefilterCubemap');
 
         var size = 500;
         var background = this.getEnvSphere(size, group);
         group.getOrCreateStateSet().addUniform(uniformExposure);
         group.getOrCreateStateSet().addUniform( uniformHammersley );
+        group.getOrCreateStateSet().addUniform( uniformPrefilterCubemap );
 
         var groupModel = new osg.Node();
         group.addChild ( groupModel );
@@ -1443,6 +1335,7 @@ PBRExample.prototype = {
 
 
             var ConfigUI = function () {
+                this.rendering = 'prefilter';
                 this.rangeExposure = 1.0;
                 this.environment = 'Alexs_Apartment';
                 this.model = names[0];
@@ -1470,6 +1363,16 @@ PBRExample.prototype = {
             controller.onChange( function ( value ) {
 
                 setModel( value );
+
+            }.bind( this ) );
+
+
+            controller = gui.add( obj, 'rendering', [ 'prefilter', 'reference'] );
+            controller.onChange( function ( value ) {
+                if ( value === 'prefilter' )
+                    uniformPrefilterCubemap.set( 1 );
+                else
+                    uniformPrefilterCubemap.set( 0 );
 
             }.bind( this ) );
 
@@ -1540,8 +1443,6 @@ PBRExample.prototype = {
 
             this.getCommonShader(),
 
-            'uniform sampler2D envSpecular;',
-
             'uniform float hdrExposure;',
 
             'varying vec3 osg_FragNormal;',
@@ -1558,7 +1459,7 @@ PBRExample.prototype = {
 
             'void main(void) {',
             '  vec3 normal = normalize(osg_FragVertex.xyz);',
-            '  vec3 c = toneMapHDR( hdrExposure * textureSpheremapRGBE( envSpecular, envSpecularSize, normal));',
+            '  vec3 c = toneMapHDR( hdrExposure * textureSpheremapRGBE( envBackground, envBackgroundSize, normal));',
             '  gl_FragColor = vec4(c, 1.0);',
             '}',
             ''
@@ -1624,320 +1525,7 @@ PBRExample.prototype = {
         scene.addChild(cam);
 
         return geom;
-    },
-
-
-    getShaderOld: function ( config ) {
-        if (!config) config = {};
-        var nbTextures = NbEnvSpecularTextures;
-        var vertexshader = [
-            '',
-            '#ifdef GL_ES',
-            'precision highp float;',
-            '#endif',
-
-            'attribute vec3 Vertex;',
-            'attribute vec3 Normal;',
-            'attribute vec2 TexCoord0;',
-
-            'uniform mat4 ModelViewMatrix;',
-            'uniform mat4 ProjectionMatrix;',
-            'uniform mat4 NormalMatrix;',
-
-            'varying vec3 osg_FragEye;',
-            'varying vec3 osg_FragNormal;',
-            'varying vec4 osg_FragTangent;',
-            'varying vec3 osg_FragLightDirection;',
-            'varying vec2 osg_FragTexCoord0;',
-
-            'void main(void) {',
-            '  osg_FragEye = vec3(ModelViewMatrix * vec4(Vertex, 1.0));',
-            '  osg_FragNormal = vec3(NormalMatrix * vec4(Normal, 0.0));',
-            '  osg_FragLightDirection = vec3(NormalMatrix * vec4(0.0, -1.0, 0.0, 1.0));',
-            '  osg_FragTangent = NormalMatrix * osg_FragTangent;',
-            '  osg_FragTexCoord0 = TexCoord0;',
-            '  gl_Position = ProjectionMatrix * ModelViewMatrix * vec4(Vertex,1.0);',
-            '}'
-        ].join('\n');
-
-        var ambientOcclusion = '';
-        if ( config.mapAmbientOcclusion )
-            ambientOcclusion = '#define AO';
-
-        var specular = '';
-        if ( config.mapSpecular )
-            specular = '#define SPECULAR';
-
-        var glossiness = '';
-        if ( config.mapGlossiness )
-            glossiness = '#define GLOSSINESS';
-
-        var normalmap = '';
-        if ( config.mapNormal )
-            normalmap = '#define NORMAL';
-
-        var fragmentshader = [
-            '',
-            '#ifdef GL_ES',
-            'precision highp float;',
-            '#endif',
-
-            this.getCommonShader(),
-            ambientOcclusion,
-            specular,
-            glossiness,
-            normalmap,
-
-            '#define MULTI_TEXTURE 1',
-
-            'uniform sampler2D albedoMap;',
-            'uniform sampler2D roughnessMap;',
-            'uniform sampler2D metallicMap;',
-            'uniform sampler2D normalMap;',
-            'uniform sampler2D specularMap;',
-            'uniform sampler2D aoMap;',
-
-            'uniform sampler2D envDiffuse;',
-
-            '#ifdef MULTI_TEXTURE',
-            '#define NB_TEXTURES ' + nbTextures,
-            '  uniform sampler2D envSpecularMulti[ NB_TEXTURES];',
-            '  uniform vec2 envSpecularMultiSize[ NB_TEXTURES];',
-            '#endif',
-
-
-            'uniform sampler2D envSpecular;',
-            'uniform vec2 envSpecularSize;',
-
-            'uniform float hdrExposure;',
-            'uniform mat4 CubemapTransform;',
-
-            '#ifdef GL_OES_standard_derivatives',
-            '#extension GL_OES_standard_derivatives : enable',
-            '#endif',
-
-            'varying vec3 osg_FragEye;',
-            'varying vec3 osg_FragNormal;',
-            'varying vec3 osg_FragLightDirection;',
-            'varying vec2 osg_FragTexCoord0;',
-            'varying vec4 osg_FragTangent;',
-
-            'float gamma = 2.2;',
-
-            'float MaterialRoughness = 0.99;',
-            'vec3 MaterialSpecular = vec3(0.04);',
-            'vec3 MaterialAlbedo;',
-            'vec3 MaterialNormal;',
-            'vec3 MaterialAO;',
-
-
-            'vec3 fresnel( float vdh, vec3 F0 ) {',
-            '// Schlick with Spherical Gaussian approximation',
-            '// cf http://blog.selfshadow.com/publications/s2013-shading-course/karis/s2013_pbs_epic_notes_v2.pdf p3',
-            '    float sphg = pow(2.0, (-5.55473*vdh - 6.98316) * vdh);',
-            '    //float sphg = pow(1.0-vdh, 5.0);',
-            '    return F0 + (vec3(1.0 ) - F0) * sphg;',
-            '    //return sphg + (vec3(1.0 ) - sphg) * F0;',
-            '}',
-
-
-
-            '// A,B,C are ',
-            'vec3 importanceSampleGGX(vec2 Xi, vec3 tangentX, vec3 tangentY, vec3 normal, float roughness)',
-            '{',
-            '	float a = roughness*roughness;',
-
-            '	float cosT = sqrt((1.0-Xi.y)/(1.0+(a*a-1.0)*Xi.y));',
-            '	float sinT = sqrt(1.0-cosT*cosT);',
-
-            '	float phi = 2.0*PI*Xi.x;',
-            '	return (sinT*cos(phi)) * tangentX + (sinT*sin(phi)) * tangentY + cosT * normal;',
-            '}',
-
-
-
-            'float geometrySmithSchlickGGX(float alpha, float NdV, float NdL)',
-            '{',
-            '    float k = alpha * 0.5;',
-            '    float one_minus_k = 1.0 -k;',
-            '    float GV = NdV / (NdV * one_minus_k + k);',
-            '    float GL = NdL / (NdL * one_minus_k + k);',
-            '    return GV * GL;',
-            '}',
-
-            '// GGX TR from http://graphicrants.blogspot.ca/2013/08/specular-brdf-reference.html',
-            'float normalDistribution_GGX(float alpha, float NdH)',
-            '{',
-            '    // Isotropic ggx.',
-            '    float rSq = alpha * alpha;',
-            '    float NdH2 = NdH * NdH;',
-            '    float denominator = NdH2 * (rSq - 1.0) + 1.0;',
-            '    denominator *= denominator;',
-            '    denominator *= PI;',
-            '',
-            '    return rSq / denominator;',
-            '}',
-
-            '// w is either Ln or Vn',
-            'float G1( float ndw, float k ) {',
-            '// One generic factor of the geometry function divided by ndw',
-            '// NB : We should have k > 0',
-
-            '    // do the division outside return 1.0 / ( ndw*(1.0-k) + k );',
-            '    return ndw*(1.0-k) + k;',
-            '}',
-
-
-            'float visibility(float ndl,float ndv,float Roughness) {',
-            '// Schlick with Smith-like choice of k',
-            '// cf http://blog.selfshadow.com/publications/s2013-shading-course/karis/s2013_pbs_epic_notes_v2.pdf p3',
-            '// visibility is a Cook-Torrance geometry function divided by (n.l)*(n.v)',
-            '    float k = Roughness * Roughness * 0.5;',
-            '    //float k = (Roughness + 1.0);',
-            '    //k = k*k/8.0;',
-            '    //dont do the division inside G1 // return G1(ndl,k)*G1(ndv,k);',
-            '    return 1.0/ ( G1(ndl,k)*G1(ndv,k) );',
-            '}',
-
-            'float D(float ndh, float roughness) {',
-            '  float a = roughness; //*roughness;',
-            '  float a2 = a * a;',
-            '  float quot = (ndh*ndh*(a2 - 1.0) + 1.0);', //// quot = π ((n · h)2 (α2 − 1) + 1)2
-            '  float d = a2 / (PI * quot*quot);',
-            '  return d;',
-            '}',
-
-            'vec3 cook_torrance_contrib(',
-            '	float vdh,',
-            '	float ndh,',
-            '	float ndl,',
-            '	float ndv,',
-            '	vec3 Ks,',
-            '	float roughness)',
-            '{',
-            '// This is the contribution when using importance sampling with the GGX based',
-            '// sample distribution. This means ct_contrib = ct_brdf / ggx_probability',
-            '	//return fresnel(vdh,Ks) * (visibility(ndl,ndv,roughness) * vdh / ( ndv * ndh ));',
-            '	return fresnel(vdh,Ks) * (visibility(ndl,ndv,roughness) * vdh * ndl /  ( ndh ) );',
-            '	//return fresnel(vdh,Ks) * normalDistribution_GGX( roughness, ndh) * (visibility(ndl,ndv,roughness) * ndv * ndl / ( 4.0* ndl * ndv ));',
-            //normalDistribution_GGX
-            '}',
-
-            '',
-            'vec3 cubemapReflectionVector(const in mat4 transform, const in vec3 view, const in vec3 normal)',
-            '{',
-            '  vec3 lv = reflect(view, normal);',
-            '  lv = normalize(lv);',
-            '  vec3 x = vec3(transform[0][0], transform[1][0], transform[2][0]);',
-            '  vec3 y = vec3(transform[0][1], transform[1][1], transform[2][1]);',
-            '  vec3 z = vec3(transform[0][2], transform[1][2], transform[2][2]);',
-            '  mat3 m = mat3(x,y,z);',
-            '  return m*lv;',
-            '}',
-
-            this.getTextureEnvFunctions(),
-
-            // apply some gamma correction (http://www.geeks3d.com/20101001/tutorial-gamma-correction-a-story-of-linearity/)
-            'vec3 linear2sRGB ( vec3 color ) {',
-            '  return pow( color , 1.0/ vec3( gamma ) );',
-            '}',
-
-            'vec3 lightDiffuseIndirect( mat3 iblTransform, vec3 albedo, vec3 normal ) {',
-            '   vec3 lightDiffuse = hdrExposure * textureSpheremapRGBE(envDiffuse, envDiffuseSize, iblTransform*normal);',
-            '   return lightDiffuse * albedo * InversePI;',
-            '}',
-
-            'mat3 getIBLTransfrom( mat4 transform ) {',
-            '  vec3 x = vec3(transform[0][0], transform[1][0], transform[2][0]);',
-            '  vec3 y = vec3(transform[0][1], transform[1][1], transform[2][1]);',
-            '  vec3 z = vec3(transform[0][2], transform[1][2], transform[2][2]);',
-            '  mat3 m = mat3(x,y,z);',
-            '  return m;',
-            '}',
-
-            'vec3 lightSpecularIndirect( mat3 iblTransform, vec3 albedo, vec3 normal, vec3 view ) {',
-
-            '',
-            '   //vectors used for importance sampling',
-            '   vec3 upVector = abs(normal.z) < 0.999 ? vec3(0.0,0.0,1.0) : vec3(1.0,0.0,0.0);',
-            '   float ndv = max( 0.0, dot(normal, view) );',
-
-            '   vec3 h = normal;//normalize(view + normal);',
-            '   vec3 l = -reflect( view, h );',
-            '   float ndl = dot(normal , l);',
-
-            '   if ( ndl <= 0.0 ) return vec3(0.0);',
-
-            '   // actually we could optimze because h = n;',
-            '   float vdh = max( 0.0, dot(view, h) );',
-            '   float ndh = max( 0.0, dot(normal, h) );',
-
-            '#ifdef MULTI_TEXTURE',
-            '   vec3 color = hdrExposure * textureSpecularRoughness( MaterialRoughness, iblTransform * l );',
-            '#else',
-            '   vec3 color = hdrExposure * textureSpheremapRGBE( envSpecular, envSpecularSize, iblTransform * l );',
-            '#endif',
-            '   //color = vec3(0.5);',
-            '   return color * cook_torrance_contrib( vdh, ndh, ndl, ndv, MaterialSpecular, MaterialRoughness);',
-            '}',
-
-            'void main(void) {',
-            '  vec3 N = normalize(osg_FragNormal);',
-            '  vec3 L = normalize(osg_FragLightDirection);',
-            '  vec3 E = normalize(osg_FragEye);',
-            '  vec3 R = cubemapReflectionVector(CubemapTransform, E, N);',
-
-            '  mat3 iblTransform = getIBLTransfrom( CubemapTransform );',
-
-            '  const vec3 dielectricColor = vec3(0.04);',
-            '  float minRoughness = 1.e-4;',
-
-
-            '  vec3 albedo = sRGBToLinear( texture2D( albedoMap, osg_FragTexCoord0 ).rgb, DefaultGamma );',
-
-            '  vec3 normal = N;',
-            '  #ifdef NORMAL',
-            '    mtex_nspace_tangent( osg_FragTangent, N, textureNormal( normalMap, osg_FragTexCoord0 ), normal );',
-            '  #endif',
-
-
-            '  float roughnessValue = texture2D( roughnessMap, osg_FragTexCoord0 ).r;',
-            '  #ifdef GLOSSINESS',
-            '  roughnessValue = 1.0 - roughnessValue;',
-            '  #endif',
-            '  MaterialRoughness = max( minRoughness , roughnessValue );',
-
-            '  MaterialNormal = normal;',
-            '  MaterialAlbedo = albedo;',
-            '  MaterialAO = vec3(1.0);',
-            '#ifdef AO',
-            ' MaterialAO = sRGBToLinear( texture2D( aoMap, osg_FragTexCoord0 ), DefaultGamma ).rgb;',
-            '#endif',
-
-            '#ifdef SPECULAR',
-            '  MaterialSpecular = sRGBToLinear( texture2D( specularMap, osg_FragTexCoord0 ), DefaultGamma ).rgb;',
-            '#else',
-            '  float metallic = texture2D( metallicMap, osg_FragTexCoord0 ).r;',
-            '  MaterialAlbedo = albedo * (1.0 - metallic);',
-            '  MaterialSpecular = mix( dielectricColor, albedo, metallic);',
-            '#endif',
-
-
-            '  vec3 diffuseIndirect = MaterialAO * lightDiffuseIndirect( iblTransform, MaterialAlbedo, MaterialNormal );',
-            '  vec3 specularIndirect = lightSpecularIndirect( iblTransform, MaterialAlbedo, MaterialNormal, -E );',
-
-            '  vec3 gammaCorrected = linearTosRGB( diffuseIndirect + specularIndirect, DefaultGamma);',
-            '  gl_FragColor = vec4( gammaCorrected, 1.0);',
-            '}',
-            ''
-        ].join('\n');
-
-        var program = new osg.Program(
-            new osg.Shader('VERTEX_SHADER', vertexshader),
-            new osg.Shader('FRAGMENT_SHADER', fragmentshader));
-
-        return program;
-    },
+    }
 
 };
 
