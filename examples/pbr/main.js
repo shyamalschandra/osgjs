@@ -7,9 +7,12 @@ var osgDB = OSG.osgDB;
 
 
 
-var NbSamples = 256;
 
 var PBRExample = function () {
+
+    this.referenceNbSamples = 256;
+
+
     this.textureEnvs = {
         'Alexs_Apartment': {
             'background': 'Alexs_Apt_2k.png',
@@ -498,8 +501,20 @@ PBRExample.prototype = {
             '    return vec4(rgbm.rgb * rgbm.a, 1.0);',
             '}',
 
+
+            'vec2 normalToPanoramaUV( const in vec3 dir )',
+            '{',
+            'float n = length(dir.xz);',
+            'vec2 pos = vec2( (n>0.0000001) ? dir.x / n : 0.0, dir.y);',
+            'pos = acos(pos)*InversePI;',
+            'pos.x = (dir.z > 0.0) ? pos.x*0.5 : 0.9999999-(pos.x*0.5);',
+            '//pos.y = 1.0-pos.y;',
+            'return pos;',
+            '}',
+
             'vec2 normalToSphericalUV( const in vec3 n )',
             '{',
+            '    return normalToPanoramaUV( n );',
             '    float EPS = 1e-5;',
             '',
             '    // acos is defined [ -1: 1 ]',
@@ -749,7 +764,7 @@ PBRExample.prototype = {
             glossiness,
             normalmap,
 
-            '#define NB_SAMPLES ' + NbSamples,
+            '#define NB_SAMPLES ' + this.referenceNbSamples,
 
             'uniform sampler2D albedoMap;',
             'uniform sampler2D roughnessMap;',
@@ -838,12 +853,12 @@ PBRExample.prototype = {
 
             'vec3 lightDiffuseIndirect( mat3 iblTransform, vec3 albedo, vec3 normal ) {',
             '   vec3 lightDiffuse = hdrExposure * textureSpheremapRGBE(envDiffuse, envDiffuseSize, iblTransform*normal);',
-            '   return lightDiffuse * albedo * InversePI;',
+            '   return lightDiffuse * albedo;',
             '}',
 
             'vec3 lightDiffuseIndirect2( const in mat3 iblTransform, const in vec3 albedo, const in vec3 normal ) {',
             '   vec3 lightDiffuse = hdrExposure * textureSpheremapRGBM(envDiffuseRGBM, envDiffuseRGBMSize, iblTransform*normal, envDiffuseRGBMRange );',
-            '   return lightDiffuse * albedo * InversePI;',
+            '   return lightDiffuse * albedo;',
             '}',
 
             'mat3 getIBLTransfrom( mat4 transform ) {',
@@ -970,6 +985,46 @@ PBRExample.prototype = {
             '     result = vec4( prefilteredAndLUT( iblTransform, E ), 1.0);',
             '  else result = vec4( reference( iblTransform, E ), 1.0);',
             '  gl_FragColor = result;',
+            '}',
+            ''
+        ].join('\n');
+
+        var program = new osg.Program(
+            new osg.Shader('VERTEX_SHADER', vertexshader),
+            new osg.Shader('FRAGMENT_SHADER', fragmentshader));
+
+        return program;
+    },
+
+
+
+
+    getShaderEarlyZ: function () {
+
+        var vertexshader = [
+            '',
+            '#ifdef GL_ES',
+            'precision highp float;',
+            '#endif',
+
+            'attribute vec3 Vertex;',
+
+            'uniform mat4 ModelViewMatrix;',
+            'uniform mat4 ProjectionMatrix;',
+
+            'void main(void) {',
+            '  gl_Position = ProjectionMatrix * ModelViewMatrix * vec4(Vertex,1.0);',
+            '}'
+        ].join('\n');
+
+        var fragmentshader = [
+            '',
+            '#ifdef GL_ES',
+            'precision highp float;',
+            '#endif',
+
+            'void main(void) {',
+            '  gl_FragColor = vec4(1.0,0.0,1.0,1.0);',
             '}',
             ''
         ].join('\n');
@@ -1278,7 +1333,7 @@ PBRExample.prototype = {
 
         // HDR parameters uniform
         var uniformExposure = osg.Uniform.createFloat1(1, 'hdrExposure');
-        var sequence = this.computeHammersleySequence( NbSamples );
+        var sequence = this.computeHammersleySequence( this.referenceNbSamples );
         var uniformHammersley = osg.Uniform.createFloat2Array( sequence, 'hammersley' );
         var uniformPrefilterCubemap = osg.Uniform.createInt1(1, 'prefilterCubemap');
 
@@ -1288,8 +1343,30 @@ PBRExample.prototype = {
         group.getOrCreateStateSet().addUniform( uniformHammersley );
         group.getOrCreateStateSet().addUniform( uniformPrefilterCubemap );
 
+        var rootGraph = new osg.Node();
+
         var groupModel = new osg.Node();
-        group.addChild ( groupModel );
+        var earlyZ = new osg.Node();
+        earlyZ.addChild( groupModel );
+        earlyZ.getOrCreateStateSet().setAttributeAndModes( this.getShaderEarlyZ(), osg.StateAttribute.OVERRIDE | osg.StateAttribute.ON );
+        earlyZ.getOrCreateStateSet().setAttributeAndModes( new osg.ColorMask( false, false, false, false ) );
+        earlyZ.getOrCreateStateSet().setAttributeAndModes( new osg.Depth('LESS', 0.0, 1.0, true ), osg.StateAttribute.OVERRIDE | osg.StateAttribute.ON );
+        earlyZ.getOrCreateStateSet().setBinNumber( -1 );
+        groupModel.getOrCreateStateSet().setAttributeAndModes( new osg.Depth('LEQUAL', 0.0, 1.0, false ));
+
+
+        var nodeEarlyPath = new osg.Node();
+        nodeEarlyPath.addChild(earlyZ);
+        nodeEarlyPath.addChild(groupModel);
+
+        var regular = new osg.Node();
+        regular.addChild(groupModel);
+        regular.getOrCreateStateSet().setAttributeAndModes( new osg.Depth('LEQUAL', 0.0, 1.0, true ), osg.StateAttribute.OVERRIDE|osg.StateAttribute.ON );
+        regular.setNodeMask(0x0);
+
+        rootGraph.addChild(regular);
+        rootGraph.addChild(nodeEarlyPath);
+        group.addChild ( rootGraph );
 
         var config = [ {
             name: 'Cerberus_by_Andrew_Maximov',
@@ -1335,6 +1412,7 @@ PBRExample.prototype = {
 
 
             var ConfigUI = function () {
+                this.earlyZ = true;
                 this.rendering = 'prefilter';
                 this.rangeExposure = 1.0;
                 this.environment = 'Alexs_Apartment';
@@ -1345,7 +1423,18 @@ PBRExample.prototype = {
             var gui = new window.dat.GUI();
 
 
-            var controller = gui.add( obj, 'rangeExposure', 0, 4 );
+            var controller = gui.add( obj, 'earlyZ' );
+            controller.onChange( function ( value ) {
+                if ( value ) {
+                    nodeEarlyPath.setNodeMask( ~0x0);
+                    regular.setNodeMask( 0x0);
+                } else {
+                    nodeEarlyPath.setNodeMask( 0x0);
+                    regular.setNodeMask( ~0x0);
+                }
+            } );
+
+            controller = gui.add( obj, 'rangeExposure', 0, 4 );
             controller.onChange( function ( value ) {
                 uniformExposure.set( value );
             } );
@@ -1367,7 +1456,7 @@ PBRExample.prototype = {
             }.bind( this ) );
 
 
-            controller = gui.add( obj, 'rendering', [ 'prefilter', 'reference'] );
+            controller = gui.add( obj, 'rendering', [ 'prefilter', 'reference ' + this.referenceNbSamples.toString() ] );
             controller.onChange( function ( value ) {
                 if ( value === 'prefilter' )
                     uniformPrefilterCubemap.set( 1 );
@@ -1397,6 +1486,10 @@ PBRExample.prototype = {
         Viewer = viewer;
         viewer.init();
         var rotate = new osg.MatrixTransform();
+
+        var nbVectors = viewer.getWebGLCaps().getWebGLParameter( 'MAX_FRAGMENT_UNIFORM_VECTORS' );
+        this.referenceNbSamples = Math.min( nbVectors-20, this.referenceNbSamples);
+
         rotate.addChild(this.createScene());
         viewer.getCamera().setClearColor([0.0, 0.0, 0.0, 0.0]);
         viewer.setSceneData(rotate);
