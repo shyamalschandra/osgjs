@@ -56,7 +56,7 @@ var PBRExample = function () {
             'background': 'Mans_Outside_2k.png'
         },
 
-        'Arches_E_PineTree' : {
+        'Arches_E_PineTree': {
             'specular': [ {
                 'name': 'Arches_E_PineTree_3k_1_0.png',
                 'level': 0
@@ -157,23 +157,23 @@ var PBRExample = function () {
 PBRExample.prototype = {
 
     // http://holger.dammertz.org/stuff/notes_HammersleyOnHemisphere.html
-    computeHammersleyReverse: function (a) {
-        a = (a << 16 | a >>> 16) >>> 0;
-        a = ((a & 1431655765) << 1 | (a & 2863311530) >>> 1) >>> 0;
-        a = ((a & 858993459) << 2 | (a & 3435973836) >>> 2) >>> 0;
-        a = ((a & 252645135) << 4 | (a & 4042322160) >>> 4) >>> 0;
-        return (((a & 16711935) << 8 | (a & 4278255360) >>> 8) >>> 0) / 4294967296;
+    computeHammersleyReverse: function ( a ) {
+        a = ( a << 16 | a >>> 16 ) >>> 0;
+        a = ( ( a & 1431655765 ) << 1 | ( a & 2863311530 ) >>> 1 ) >>> 0;
+        a = ( ( a & 858993459 ) << 2 | ( a & 3435973836 ) >>> 2 ) >>> 0;
+        a = ( ( a & 252645135 ) << 4 | ( a & 4042322160 ) >>> 4 ) >>> 0;
+        return ( ( ( a & 16711935 ) << 8 | ( a & 4278255360 ) >>> 8 ) >>> 0 ) / 4294967296;
     },
 
-    computeHammersleySequence: function (size) {
+    computeHammersleySequence: function ( size ) {
         this._hammersley = [];
-        for (var i = 0; i < size; i++) {
+        for ( var i = 0; i < size; i++ ) {
             var u = i / size;
-            var v = this.computeHammersleyReverse(i);
-            this._hammersley.push(u);
-            this._hammersley.push(v);
+            var v = this.computeHammersleyReverse( i );
+            this._hammersley.push( u );
+            this._hammersley.push( v );
         }
-        console.log(this._hammersley);
+        console.log( this._hammersley );
         return this._hammersley;
     },
 
@@ -181,103 +181,103 @@ PBRExample.prototype = {
     getModel: function ( url, callback ) {
         var self = this;
 
-        var removeLoading = function (node, child) {
+        var removeLoading = function ( node, child ) {
 
             this._nbLoading -= 1;
-            this._loaded.push(child);
+            this._loaded.push( child );
 
-            if (this._nbLoading === 0) {
-                document.getElementById('loading').style.display = 'None';
+            if ( this._nbLoading === 0 ) {
+                document.getElementById( 'loading' ).style.display = 'None';
                 this._viewer.getManipulator().computeHomePosition();
             }
 
-        }.bind(this);
+        }.bind( this );
 
         var addLoading = function () {
 
-            if (!this._nbLoading) this._nbLoading = 0;
-            if (!this._loaded) this._loaded = [];
+            if ( !this._nbLoading ) this._nbLoading = 0;
+            if ( !this._loaded ) this._loaded = [];
 
             this._nbLoading += 1;
-            document.getElementById('loading').style.display = 'Block';
+            document.getElementById( 'loading' ).style.display = 'Block';
 
-        }.bind(this);
+        }.bind( this );
 
 
         var node = new osg.MatrixTransform();
-        node.setMatrix(osg.Matrix.makeRotate(-Math.PI / 2, 1, 0, 0, []));
+        node.setMatrix( osg.Matrix.makeRotate( -Math.PI / 2, 1, 0, 0, [] ) );
 
-        var loadModel = function (url, cbfunc) {
+        var loadModel = function ( url, cbfunc ) {
 
-            osg.log('loading ' + url);
+            osg.log( 'loading ' + url );
             var req = new XMLHttpRequest();
-            req.open('GET', url, true);
+            req.open( 'GET', url, true );
 
-            var array = url.split('/');
+            var array = url.split( '/' );
             array.length = array.length - 1;
-            if (array.length <= 0) {
-                osg.error('can\'t find prefix to load subdata');
+            if ( array.length <= 0 ) {
+                osg.error( 'can\'t find prefix to load subdata' );
             }
-            var prefixURL = array.join('/') + '/';
+            var prefixURL = array.join( '/' ) + '/';
             var opts = {
                 prefixURL: prefixURL
             };
 
             var defer = Q.defer();
 
-            req.onreadystatechange = function (aEvt) {
+            req.onreadystatechange = function ( aEvt ) {
 
-                if (req.readyState === 4) {
-                    if (req.status === 200) {
-                        Q.when(osgDB.parseSceneGraph(JSON.parse(req.responseText), opts)).then(function (child) {
-                            node.addChild(child);
-                            removeLoading(node, child);
-                            osg.log('success ' + url);
+                if ( req.readyState === 4 ) {
+                    if ( req.status === 200 ) {
+                        Q.when( osgDB.parseSceneGraph( JSON.parse( req.responseText ), opts ) ).then( function ( child ) {
+                            node.addChild( child );
+                            removeLoading( node, child );
+                            osg.log( 'success ' + url );
 
                             var cbPromise = true;
                             if ( cbfunc ) {
                                 cbPromise = cbfunc.call( this, child );
                             }
 
-                            Q(cbPromise).then( function() {
-                                defer.resolve(node);
-                            });
+                            Q( cbPromise ).then( function () {
+                                defer.resolve( node );
+                            } );
 
 
-                        }.bind(this)).fail(function (error) {
+                        }.bind( this ) ).fail( function ( error ) {
 
-                            defer.reject(error);
+                            defer.reject( error );
 
-                        });
+                        } );
 
                     } else {
-                        removeLoading(node);
-                        osg.log('error ' + url);
-                        defer.reject(node);
+                        removeLoading( node );
+                        osg.log( 'error ' + url );
+                        defer.reject( node );
                     }
                 }
-            }.bind(this);
-            req.send(null);
+            }.bind( this );
+            req.send( null );
             addLoading();
 
             return defer.promise;
 
-        }.bind(this);
+        }.bind( this );
 
         return loadModel( url, callback );
     },
 
-    readImageURL: function (url, options) {
-        var ext = url.split('.').pop();
-        if (ext === 'hdr')
-            return osgDB.readImageHDR(url, options);
+    readImageURL: function ( url, options ) {
+        var ext = url.split( '.' ).pop();
+        if ( ext === 'hdr' )
+            return osgDB.readImageHDR( url, options );
 
-        return osgDB.readImageURL.call(this, url, options);
+        return osgDB.readImageURL.call( this, url, options );
     },
 
-    setEnvironment: function (name, background, ground) {
+    setEnvironment: function ( name, background, ground ) {
 
-        var environmentConfig = this.textureEnvs[name];
+        var environmentConfig = this.textureEnvs[ name ];
         var environmentName = name;
         var self = this;
 
@@ -285,29 +285,29 @@ PBRExample.prototype = {
 
         var startUnit = 5;
 
-        var reference = function() {
+        var reference = function () {
 
-            var setNameTextureUnit = function (stateSet, name, unit, w, h) {
-                stateSet.addUniform(osg.Uniform.createInt1(unit, name));
-                if (w !== undefined)
-                    stateSet.addUniform(osg.Uniform.createFloat2([w, h], name + 'Size'));
+            var setNameTextureUnit = function ( stateSet, name, unit, w, h ) {
+                stateSet.addUniform( osg.Uniform.createInt1( unit, name ) );
+                if ( w !== undefined )
+                    stateSet.addUniform( osg.Uniform.createFloat2( [ w, h ], name + 'Size' ) );
             };
 
-            var createEnvironmnentTexture = function (name, image, stateSet, unit) {
+            var createEnvironmnentTexture = function ( name, image, stateSet, unit ) {
                 var texture = new osg.Texture();
-                if (image)
-                    texture.setImage(image);
-                texture.setMinFilter('NEAREST');
-                texture.setMagFilter('NEAREST');
-                texture.setWrapT('CLAMP_TO_EDGE');
-                texture.setWrapS('REPEAT');
+                if ( image )
+                    texture.setImage( image );
+                texture.setMinFilter( 'NEAREST' );
+                texture.setMagFilter( 'NEAREST' );
+                texture.setWrapT( 'CLAMP_TO_EDGE' );
+                texture.setWrapS( 'REPEAT' );
 
-                stateSet.setTextureAttributeAndMode(startUnit, texture);
+                stateSet.setTextureAttributeAndMode( startUnit, texture );
                 var width = image ? image.getWidth() : 0;
                 var height = image ? image.getHeight() : 0;
 
                 if ( image )
-                    setNameTextureUnit(stateSet, name, startUnit, width, height);
+                    setNameTextureUnit( stateSet, name, startUnit, width, height );
 
                 startUnit += 1;
                 return texture;
@@ -328,8 +328,8 @@ PBRExample.prototype = {
             } );
         };
 
-        var mipmap = function() {
-            var config = self.textureMipmapEnvs[name];
+        var mipmap = function () {
+            var config = self.textureMipmapEnvs[ name ];
             var mipmapTexture = [
                 self.readImageURL( 'textures/' + name + '/' + config.background.name ),
                 self.readImageURL( 'textures/' + name + '/' + config.diffuse.name ),
@@ -338,25 +338,25 @@ PBRExample.prototype = {
             ];
 
 
-            var setNameTextureUnit = function (stateSet, name, unit, w, h, range ) {
-                stateSet.addUniform(osg.Uniform.createInt1(unit, name));
-                stateSet.addUniform(osg.Uniform.createFloat2([w, h], name + 'Size'));
-                stateSet.addUniform(osg.Uniform.createFloat1( range, name + 'Range'));
+            var setNameTextureUnit = function ( stateSet, name, unit, w, h, range ) {
+                stateSet.addUniform( osg.Uniform.createInt1( unit, name ) );
+                stateSet.addUniform( osg.Uniform.createFloat2( [ w, h ], name + 'Size' ) );
+                stateSet.addUniform( osg.Uniform.createFloat1( range, name + 'Range' ) );
             };
 
-            var createEnvironmnentTexture = function (name, image, stateSet, unit, range) {
+            var createEnvironmnentTexture = function ( name, image, stateSet, unit, range ) {
                 var texture = new osg.Texture();
-                if (image)
-                    texture.setImage(image);
-                texture.setMinFilter('NEAREST');
-                texture.setMagFilter('NEAREST');
+                if ( image )
+                    texture.setImage( image );
+                texture.setMinFilter( 'NEAREST' );
+                texture.setMagFilter( 'NEAREST' );
 
-                stateSet.setTextureAttributeAndMode(startUnit, texture);
+                stateSet.setTextureAttributeAndMode( startUnit, texture );
                 var width = image ? image.getWidth() : 0;
                 var height = image ? image.getHeight() : 0;
 
                 if ( image )
-                    setNameTextureUnit(stateSet, name, startUnit, width, height, range );
+                    setNameTextureUnit( stateSet, name, startUnit, width, height, range );
                 startUnit += 1;
                 return texture;
             };
@@ -668,10 +668,10 @@ PBRExample.prototype = {
             '}',
 
 
-        ].join('\n');
+        ].join( '\n' );
     },
 
-    getCommonShader: function() {
+    getCommonShader: function () {
         return [
             '#define PI 3.1415926535897932384626433832795',
             '#define InversePI 1.0/PI',
@@ -703,8 +703,8 @@ PBRExample.prototype = {
         ].join( '\n' );
     },
 
-    getShader: function ( config ) {
-        if (!config) config = {};
+    getShader: function ( config, reference ) {
+        if ( !config ) config = {};
 
         var vertexshader = [
             '',
@@ -734,7 +734,7 @@ PBRExample.prototype = {
             '  osg_FragTexCoord0 = TexCoord0;',
             '  gl_Position = ProjectionMatrix * ModelViewMatrix * vec4(Vertex,1.0);',
             '}'
-        ].join('\n');
+        ].join( '\n' );
 
         var ambientOcclusion = '';
         if ( config.mapAmbientOcclusion )
@@ -1260,92 +1260,92 @@ PBRExample.prototype = {
         };
 
 
-        var createTexture = function( color, srgb ){
+        var createTexture = function ( color, srgb ) {
             var albedo = new osg.Uint8Array( 4 );
 
             color.forEach( function ( value, index ) {
                 if ( srgb )
-                    albedo[ index ] = Math.floor(255*linear2Srgb( value ));
+                    albedo[ index ] = Math.floor( 255 * linear2Srgb( value ) );
                 else
-                    albedo[ index ] = Math.floor(255*value);
+                    albedo[ index ] = Math.floor( 255 * value );
             } );
 
             var texture = new osg.Texture();
-            texture.setTextureSize( 1, 1);
+            texture.setTextureSize( 1, 1 );
             texture.setImage( albedo );
             return texture;
         };
 
         var materialsConfig = [ {
-            specular: [ 0.971519, 0.959915, 0.915324 ], // Silver
-            albedo: [ 0, 0, 0 ]
-        }, {
-             specular: [ 0.913183, 0.921494, 0.924524 ], // Aluminium
-             albedo: [ 0, 0, 0 ]
-         },
-                                {
-            specular: [ 1.0, 0.765557, 0.336057 ], // Gold
-            albedo: [ 0, 0, 0 ]
-        }, {
-            specular: [ 0.955008, 0.637427, 0.538163 ], // Copper
-            albedo: [ 0, 0, 0 ]
-        }, // {
-        //     specular: [ 0.549585, 0.556114, 0.554256 ], // Chromium
-        //     albedo: [ 0, 0, 0 ]
-        // },
-                                {
-            specular: [ 0.659777, 0.608679, 0.525649 ], // Nickel
-            albedo: [ 0, 0, 0 ]
-        },//  {
-        //     specular: [ 0.541931, 0.496791, 0.449419 ], // Titanium
-        //     albedo: [ 0, 0, 0 ]
-        // },
-                                {
-            specular: [ 0.662124, 0.654864, 0.633732 ], // Cobalt
-            albedo: [ 0, 0, 0 ]
-        }, {
-            specular: [ 0.672411, 0.637331, 0.585456 ], // Platinum
-            albedo: [ 0, 0, 0 ]
-        } ];
+                specular: [ 0.971519, 0.959915, 0.915324 ], // Silver
+                albedo: [ 0, 0, 0 ]
+            }, {
+                specular: [ 0.913183, 0.921494, 0.924524 ], // Aluminium
+                albedo: [ 0, 0, 0 ]
+            }, {
+                specular: [ 1.0, 0.765557, 0.336057 ], // Gold
+                albedo: [ 0, 0, 0 ]
+            }, {
+                specular: [ 0.955008, 0.637427, 0.538163 ], // Copper
+                albedo: [ 0, 0, 0 ]
+            }, // {
+            //     specular: [ 0.549585, 0.556114, 0.554256 ], // Chromium
+            //     albedo: [ 0, 0, 0 ]
+            // },
+            {
+                specular: [ 0.659777, 0.608679, 0.525649 ], // Nickel
+                albedo: [ 0, 0, 0 ]
+            }, //  {
+            //     specular: [ 0.541931, 0.496791, 0.449419 ], // Titanium
+            //     albedo: [ 0, 0, 0 ]
+            // },
+            {
+                specular: [ 0.662124, 0.654864, 0.633732 ], // Cobalt
+                albedo: [ 0, 0, 0 ]
+            }, {
+                specular: [ 0.672411, 0.637331, 0.585456 ], // Platinum
+                albedo: [ 0, 0, 0 ]
+            }
+        ];
 
 
 
         var group = new osg.Node();
 
 
-        materialsConfig.forEach( function( material, index ) {
+        materialsConfig.forEach( function ( material, index ) {
             var radius = 10.0;
             var offset = 5;
 
             var config = createConfig( material.albedo, material.specular );
             var subgroup = new osg.MatrixTransform();
-            subgroup.setMatrix( osg.Matrix.makeTranslate( 0, index* ( 2* radius + offset ), 0, osg.Matrix.create() ));
+            subgroup.setMatrix( osg.Matrix.makeTranslate( 0, index * ( 2 * radius + offset ), 0, osg.Matrix.create() ) );
             config.forEach( function ( config, index ) {
 
                 var segment = 80;
                 var sphere = osg.createTexturedSphere( radius, segment, segment / 2 );
 
-                var color = config.albedo.slice(0);
-                color[3] = 1.0;
+                var color = config.albedo.slice( 0 );
+                color[ 3 ] = 1.0;
                 var albedo = createTexture( color, true );
-                sphere.getOrCreateStateSet().setTextureAttributeAndModes(0, albedo);
+                sphere.getOrCreateStateSet().setTextureAttributeAndModes( 0, albedo );
 
                 var roughness = createTexture( [ config.roughness, config.roughness, config.roughness, 1.0 ], false );
-                sphere.getOrCreateStateSet().setTextureAttributeAndModes(1, roughness);
+                sphere.getOrCreateStateSet().setTextureAttributeAndModes( 1, roughness );
 
-                color = config.specular.slice(0);
-                color[3] = 1.0;
+                color = config.specular.slice( 0 );
+                color[ 3 ] = 1.0;
                 var specular = createTexture( color, true );
-                sphere.getOrCreateStateSet().setTextureAttributeAndModes(3, specular);
+                sphere.getOrCreateStateSet().setTextureAttributeAndModes( 3, specular );
 
                 var transform = new osg.MatrixTransform();
-                transform.setMatrix( osg.Matrix.makeTranslate( index*(2*radius + offset), 0, 0, osg.Matrix.create() ) );
+                transform.setMatrix( osg.Matrix.makeTranslate( index * ( 2 * radius + offset ), 0, 0, osg.Matrix.create() ) );
                 transform.addChild( sphere );
                 subgroup.addChild( transform );
             } );
             group.addChild( subgroup );
 
-        });
+        } );
 
         group.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 0, 'albedoMap' ) );
         group.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 1, 'roughnessMap' ) );
@@ -1364,14 +1364,14 @@ PBRExample.prototype = {
         var group = new osg.Node();
 
         // HDR parameters uniform
-        var uniformExposure = osg.Uniform.createFloat1(1, 'hdrExposure');
+        var uniformExposure = osg.Uniform.createFloat1( 1, 'hdrExposure' );
         var sequence = this.computeHammersleySequence( this.referenceNbSamples );
         var uniformHammersley = osg.Uniform.createFloat2Array( sequence, 'hammersley' );
-        var uniformPrefilterCubemap = osg.Uniform.createInt1(1, 'prefilterCubemap');
+        var uniformPrefilterCubemap = osg.Uniform.createInt1( 1, 'prefilterCubemap' );
 
         var size = 500;
-        var background = this.getEnvSphere(size, group);
-        group.getOrCreateStateSet().addUniform(uniformExposure);
+        var background = this.getEnvSphere( size, group );
+        group.getOrCreateStateSet().addUniform( uniformExposure );
         group.getOrCreateStateSet().addUniform( uniformHammersley );
         group.getOrCreateStateSet().addUniform( uniformPrefilterCubemap );
 
@@ -1382,23 +1382,23 @@ PBRExample.prototype = {
         earlyZ.addChild( groupModel );
         earlyZ.getOrCreateStateSet().setAttributeAndModes( this.getShaderEarlyZ(), osg.StateAttribute.OVERRIDE | osg.StateAttribute.ON );
         earlyZ.getOrCreateStateSet().setAttributeAndModes( new osg.ColorMask( false, false, false, false ) );
-        earlyZ.getOrCreateStateSet().setAttributeAndModes( new osg.Depth('LESS', 0.0, 1.0, true ), osg.StateAttribute.OVERRIDE | osg.StateAttribute.ON );
+        earlyZ.getOrCreateStateSet().setAttributeAndModes( new osg.Depth( 'LESS', 0.0, 1.0, true ), osg.StateAttribute.OVERRIDE | osg.StateAttribute.ON );
         earlyZ.getOrCreateStateSet().setBinNumber( -1 );
-        groupModel.getOrCreateStateSet().setAttributeAndModes( new osg.Depth('LEQUAL', 0.0, 1.0, false ));
+        groupModel.getOrCreateStateSet().setAttributeAndModes( new osg.Depth( 'LEQUAL', 0.0, 1.0, false ) );
 
 
         var nodeEarlyPath = new osg.Node();
-        nodeEarlyPath.addChild(earlyZ);
-        nodeEarlyPath.addChild(groupModel);
+        nodeEarlyPath.addChild( earlyZ );
+        nodeEarlyPath.addChild( groupModel );
 
         var regular = new osg.Node();
-        regular.addChild(groupModel);
-        regular.getOrCreateStateSet().setAttributeAndModes( new osg.Depth('LEQUAL', 0.0, 1.0, true ), osg.StateAttribute.OVERRIDE|osg.StateAttribute.ON );
-        regular.setNodeMask(0x0);
+        regular.addChild( groupModel );
+        regular.getOrCreateStateSet().setAttributeAndModes( new osg.Depth( 'LEQUAL', 0.0, 1.0, true ), osg.StateAttribute.OVERRIDE | osg.StateAttribute.ON );
+        regular.setNodeMask( 0x0 );
 
-        rootGraph.addChild(regular);
-        rootGraph.addChild(nodeEarlyPath);
-        group.addChild ( rootGraph );
+        rootGraph.addChild( regular );
+        rootGraph.addChild( nodeEarlyPath );
+        group.addChild( rootGraph );
 
         var config = [ {
             name: 'Cerberus_by_Andrew_Maximov',
@@ -1520,20 +1520,20 @@ PBRExample.prototype = {
 
     run: function () {
 
-        var canvas = document.getElementById('3DView');
+        var canvas = document.getElementById( '3DView' );
 
         var viewer;
-        viewer = new osgViewer.Viewer(canvas);
+        viewer = new osgViewer.Viewer( canvas );
         Viewer = viewer;
         viewer.init();
         var rotate = new osg.MatrixTransform();
 
         var nbVectors = viewer.getWebGLCaps().getWebGLParameter( 'MAX_FRAGMENT_UNIFORM_VECTORS' );
-        this.referenceNbSamples = Math.min( nbVectors-20, this.referenceNbSamples);
+        this.referenceNbSamples = Math.min( nbVectors - 20, this.referenceNbSamples );
 
-        rotate.addChild(this.createScene());
-        viewer.getCamera().setClearColor([0.0, 0.0, 0.0, 0.0]);
-        viewer.setSceneData(rotate);
+        rotate.addChild( this.createScene() );
+        viewer.getCamera().setClearColor( [ 0.0, 0.0, 0.0, 0.0 ] );
+        viewer.setSceneData( rotate );
         viewer.setupManipulator();
         viewer.getManipulator().computeHomePosition();
 
@@ -1567,7 +1567,7 @@ PBRExample.prototype = {
             '  osg_FragNormal = vec3(NormalMatrix * vec4(Normal, 1.0));',
             '  gl_Position = ProjectionMatrix * ModelViewMatrix * vec4(Vertex,1.0);',
             '}'
-        ].join('\n');
+        ].join( '\n' );
 
         var fragmentshader = [
             '',
@@ -1597,66 +1597,66 @@ PBRExample.prototype = {
             '  gl_FragColor = vec4(c, 1.0);',
             '}',
             ''
-        ].join('\n');
+        ].join( '\n' );
 
         var program = new osg.Program(
-            new osg.Shader('VERTEX_SHADER', vertexshader),
-            new osg.Shader('FRAGMENT_SHADER', fragmentshader));
+            new osg.Shader( 'VERTEX_SHADER', vertexshader ),
+            new osg.Shader( 'FRAGMENT_SHADER', fragmentshader ) );
 
         return program;
     },
 
 
-    getEnvSphere: function (size, scene) {
+    getEnvSphere: function ( size, scene ) {
 
         // create the environment sphere
         //var geom = osg.createTexturedSphere(size, 32, 32);
-        var geom = osg.createTexturedBoxGeometry(0, 0, 0, size, size, size);
-        geom.getOrCreateStateSet().setAttributeAndModes(new osg.CullFace('DISABLE'));
-        geom.getOrCreateStateSet().setAttributeAndModes(this.getShaderBackground());
+        var geom = osg.createTexturedBoxGeometry( 0, 0, 0, size, size, size );
+        geom.getOrCreateStateSet().setAttributeAndModes( new osg.CullFace( 'DISABLE' ) );
+        geom.getOrCreateStateSet().setAttributeAndModes( this.getShaderBackground() );
 
-        var cubemapTransform = osg.Uniform.createMatrix4(osg.Matrix.makeIdentity([]), 'CubemapTransform');
+        var cubemapTransform = osg.Uniform.createMatrix4( osg.Matrix.makeIdentity( [] ), 'CubemapTransform' );
         var mt = new osg.MatrixTransform();
-        mt.setMatrix(osg.Matrix.makeRotate(Math.PI / 2.0, 1, 0, 0, []));
-        mt.addChild(geom);
+        mt.setMatrix( osg.Matrix.makeRotate( Math.PI / 2.0, 1, 0, 0, [] ) );
+        mt.addChild( geom );
         var CullCallback = function () {
-            this.cull = function (node, nv) {
+            this.cull = function ( node, nv ) {
                 // overwrite matrix, remove translate so environment is always at camera origin
-                osg.Matrix.setTrans(nv.getCurrentModelviewMatrix(), 0, 0, 0);
+                osg.Matrix.setTrans( nv.getCurrentModelviewMatrix(), 0, 0, 0 );
                 var m = nv.getCurrentModelviewMatrix();
-                osg.Matrix.copy(m, cubemapTransform.get());
+                osg.Matrix.copy( m, cubemapTransform.get() );
                 cubemapTransform.dirty();
                 return true;
             };
         };
-        mt.setCullCallback(new CullCallback());
-        scene.getOrCreateStateSet().addUniform(cubemapTransform);
+        mt.setCullCallback( new CullCallback() );
+        scene.getOrCreateStateSet().addUniform( cubemapTransform );
 
         var cam = new osg.Camera();
 
-        cam.setReferenceFrame(osg.Transform.ABSOLUTE_RF);
-        cam.addChild(mt);
+        cam.setReferenceFrame( osg.Transform.ABSOLUTE_RF );
+        cam.addChild( mt );
 
         // the update callback get exactly the same view of the camera
         // but configure the projection matrix to always be in a short znear/zfar range to not vary depend on the scene size
         var UpdateCallback = function () {
-            this.update = function (node, nv) {
+            this.update = function ( node, nv ) {
                 var rootCam = Viewer.getCamera();
 
                 //rootCam.
                 var info = {};
-                osg.Matrix.getPerspective(rootCam.getProjectionMatrix(), info);
+                osg.Matrix.getPerspective( rootCam.getProjectionMatrix(), info );
                 var proj = [];
-                osg.Matrix.makePerspective(info.fovy, info.aspectRatio, 1.0, 100.0, proj);
-                cam.setProjectionMatrix(proj);
-                cam.setViewMatrix(rootCam.getViewMatrix());
+                osg.Matrix.makePerspective( info.fovy, info.aspectRatio, 1.0, 100.0, proj );
+                cam.setProjectionMatrix( proj );
+                cam.setViewMatrix( rootCam.getViewMatrix() );
 
                 return true;
             };
         };
-        cam.setUpdateCallback(new UpdateCallback());
+        cam.setUpdateCallback( new UpdateCallback() );
 
-        scene.addChild(cam);
+        scene.addChild( cam );
 
         return geom;
     }
@@ -1664,7 +1664,7 @@ PBRExample.prototype = {
 };
 
 
-window.addEventListener('load', function () {
+window.addEventListener( 'load', function () {
     var example = new PBRExample();
     example.run();
-}, true);
+}, true );
