@@ -10,7 +10,7 @@ var osgDB = OSG.osgDB;
 
 var PBRExample = function () {
 
-    this.referenceNbSamples = 512;
+    this.referenceNbSamples = 2048;
 
 
     this.textureEnvs = {
@@ -682,6 +682,11 @@ PBRExample.prototype = {
 
             // unreal pregenerated texture
 
+
+            // from https://www.shadertoy.com/view/4sfGDB
+            'float seed = 0.;',
+            'float rand() { return fract(sin(seed++)*43758.5453123); }',
+
             'uniform sampler2D integrateBRDF;',
             'uniform sampler2D integrateBRDFSize;',
 
@@ -702,7 +707,6 @@ PBRExample.prototype = {
             'uniform sampler2D envDiffuse;',
             'uniform vec2 envSpecularSize;',
             'uniform vec2 envDiffuseSize;',
-
 
         ].join( '\n' );
     },
@@ -781,7 +785,7 @@ PBRExample.prototype = {
             'uniform int prefilterCubemap;',
 
             '#if ' + reference.toString(),
-            'uniform vec2 hammersley[NB_SAMPLES];',
+            '//uniform vec2 hammersley[NB_SAMPLES];',
             '#endif',
 
             'uniform float hdrExposure;',
@@ -896,7 +900,7 @@ PBRExample.prototype = {
 
             '   for ( int i = 0; i < NB_SAMPLES; i++ ) {',
 
-            '      vec2 xi = hammersley[i];',
+            '      vec2 xi = vec2( rand(), rand() );', //hammersley[i];',
             '      vec3 h = importanceSampleGGX( xi, tangentX, tangentY, normal, MaterialRoughness );',
             '      vec3 l = 2.0 * dot( view, h ) * h - view;',
             '      float ndl =  max( 0.0, dot( normal, l ) );',
@@ -922,7 +926,7 @@ PBRExample.prototype = {
 
 
             'vec3 lightSpecularIndirect2( const in mat3 iblTransform, const in vec3 albedo, const in vec3 normal, const in vec3 view ) {',
-            '  float NoV = min( 0.0, dot( normal, view ) );',
+            '  float NoV = max( 0.0, dot( normal, view ) );',
             '  vec3 R = 2.0 * dot( view, normal ) * normal - view;',
             '  float mult = envSpecularRGBMRange * hdrExposure;',
             '  vec3 prefilteredColor = texturePrefilteredSpecular( MaterialRoughness, iblTransform * R )* mult;',
@@ -1384,14 +1388,14 @@ PBRExample.prototype = {
 
         // HDR parameters uniform
         var uniformExposure = osg.Uniform.createFloat1( 1, 'hdrExposure' );
-        var sequence = this.computeHammersleySequence( this.referenceNbSamples );
-        var uniformHammersley = osg.Uniform.createFloat2Array( sequence, 'hammersley' );
+        //var sequence = this.computeHammersleySequence( this.referenceNbSamples );
+        //var uniformHammersley = osg.Uniform.createFloat2Array( sequence, 'hammersley' );
         var uniformPrefilterCubemap = osg.Uniform.createInt1( 1, 'prefilterCubemap' );
 
         var size = 500;
         var background = this.getEnvSphere( size, group );
         group.getOrCreateStateSet().addUniform( uniformExposure );
-        group.getOrCreateStateSet().addUniform( uniformHammersley );
+        //group.getOrCreateStateSet().addUniform( uniformHammersley );
         group.getOrCreateStateSet().addUniform( uniformPrefilterCubemap );
 
         var rootGraph = new osg.Node();
@@ -1458,10 +1462,18 @@ PBRExample.prototype = {
                 if ( !models[ index ] )
                     return;
                 var model = models[ index ].getChildren()[0];
-                if ( obj.rendering === 'prefilter' )
+                if ( obj.rendering === 'prefilter' ) {
+                    if ( self._viewer.done() ) {
+                        self._viewer.setDone(false);
+                        self._viewer.run();
+                    }
                     model.setShaderPrefiltered();
-                else
+
+                } else {
                     model.setShaderReference();
+                    self._viewer.setDone(true);
+                    self._viewer.frame();
+                }
             };
 
             // function called when selecting a model
@@ -1564,12 +1576,12 @@ PBRExample.prototype = {
 
         var viewer;
         viewer = new osgViewer.Viewer( canvas );
-        Viewer = viewer;
+        this._viewer = viewer;
         viewer.init();
         var rotate = new osg.MatrixTransform();
 
-        var nbVectors = viewer.getWebGLCaps().getWebGLParameter( 'MAX_FRAGMENT_UNIFORM_VECTORS' );
-        this.referenceNbSamples = Math.min( nbVectors - 20, this.referenceNbSamples );
+        //var nbVectors = viewer.getWebGLCaps().getWebGLParameter( 'MAX_FRAGMENT_UNIFORM_VECTORS' );
+        //this.referenceNbSamples = Math.min( nbVectors - 20, this.referenceNbSamples );
 
         rotate.addChild( this.createScene() );
         viewer.getCamera().setClearColor( [ 0.0, 0.0, 0.0, 0.0 ] );
@@ -1578,7 +1590,6 @@ PBRExample.prototype = {
         viewer.getManipulator().computeHomePosition();
 
         viewer.run();
-        this._viewer = viewer;
     },
 
     getShaderBackground: function () {
@@ -1648,6 +1659,7 @@ PBRExample.prototype = {
 
 
     getEnvSphere: function ( size, scene ) {
+        var self = this;
 
         // create the environment sphere
         //var geom = osg.createTexturedSphere(size, 32, 32);
@@ -1681,7 +1693,7 @@ PBRExample.prototype = {
         // but configure the projection matrix to always be in a short znear/zfar range to not vary depend on the scene size
         var UpdateCallback = function () {
             this.update = function ( node, nv ) {
-                var rootCam = Viewer.getCamera();
+                var rootCam = self._viewer.getCamera();
 
                 //rootCam.
                 var info = {};
