@@ -135,9 +135,13 @@ var PBRExample = function () {
     this.textureMipmapEnvs = {
         'integrateBRDF': 'integrateBRDF.png',
         'Alexs_Apartment': {
-            'specular': {
+            'specular0': {
                 'name': 'Alexs_Apt_2k_spec_rgbm_28.750336.png',
                 'range': 28.750336
+            },
+            'specular': {
+                'name': 'Alexs_Apt_2k_spec_rgbm_24.027901.png',
+                'range': 24.027901
             },
             'background': {
                 'name': 'Alexs_Apt_2k.png',
@@ -644,7 +648,7 @@ PBRExample.prototype = {
             '   // uv are virtual to a real panoramic texture 2x1',
             '   // we have mipmap encoding in the same texture',
             '',
-            '   float minimumLod = 2.0;', // because lower level are too low res
+            '   float minimumLod = 1.0;', // because lower level are too low res
             '   float nbMipMap = log2( envSpecularRGBMSize.y/2.0 );',
             '   float targetLod = (1.0-roughness) * nbMipMap;',
             '   targetLod = max( targetLod, minimumLod );',
@@ -1356,7 +1360,9 @@ PBRExample.prototype = {
         self.installShaderOnNodes( group, {
             mapSpecular: true
         } );
-        return group;
+        var rootModel = new osg.Node();
+        rootModel.addChild( group );
+        return rootModel;
     },
 
     createScene: function () {
@@ -1521,6 +1527,27 @@ PBRExample.prototype = {
     run: function () {
 
         var canvas = document.getElementById( '3DView' );
+
+        var options = {};
+        ( function ( options ) {
+            var vars = [],
+                hash;
+            var indexOptions = window.location.href.indexOf( '?' );
+            if ( indexOptions < 0 ) return;
+
+            var hashes = window.location.href.slice( indexOptions + 1 ).split( '&' );
+            for ( var i = 0; i < hashes.length; i++ ) {
+                hash = hashes[ i ].split( '=' );
+                var element = hash[ 0 ];
+                vars.push( element );
+                var result = hash[ 1 ];
+                if ( result === undefined ) {
+                    result = '1';
+                }
+                options[ element ] = result;
+            }
+        } )( options );
+
 
         var viewer;
         viewer = new osgViewer.Viewer( canvas );

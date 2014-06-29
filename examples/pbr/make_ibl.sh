@@ -1,5 +1,6 @@
 dir="$(pwd)"
 input="$(readlink -f $1)"
+size="$2"
 
 filename=$(basename "$input")
 dirname=$(dirname "$input")
@@ -17,7 +18,7 @@ function get_range()
 function create_specular()
 {
     ibl_target="/tmp/${filename}_ibl.tif"
-    cd ~/dev/envtools/ && ./build_ibl_specular.sh "${input}" "${ibl_target}"
+    cd ~/dev/envtools/ && ./build_ibl_specular.sh "${input}" "${ibl_target}" "${size}"
 
     file_range=$(get_range "${ibl_target}" )
 
