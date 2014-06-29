@@ -21,112 +21,28 @@ var PBRExample = function () {
         },
 
         'Walk_Of_Fame': {
-            'specular': [ {
-                'name': 'Mans_Outside_2k_1_0.png',
-                'level': 0
-            }, {
-                'name': 'Mans_Outside_2k_2_1.png',
-                'level': 1
-            }, {
-                'name': 'Mans_Outside_2k_4_2.png',
-                'level': 2
-            }, {
-                'name': 'Mans_Outside_2k_8_3.png',
-                'level': 3
-            }, {
-                'name': 'Mans_Outside_2k_16_4.png',
-                'level': 4
-            }, {
-                'name': 'Mans_Outside_2k_32_5.png',
-                'level': 5
-            }, {
-                'name': 'Mans_Outside_2k_64_6.png',
-                'level': 6
-            }, {
-                'name': 'Mans_Outside_2k_128_7.png',
-                'level': 7
-            }, {
-                'name': 'Mans_Outside_2k_256_8.png',
-                'level': 8
-            }, {
-                'name': 'Mans_Outside_2k_512_9.png',
-                'level': 9
-            } ],
+            'specular': 'Mans_Outside_2k.png',
             'diffuse': 'Mans_Outside_Env.png',
             'background': 'Mans_Outside_2k.png'
         },
 
         'Arches_E_PineTree': {
-            'specular': [ {
-                'name': 'Arches_E_PineTree_3k_1_0.png',
-                'level': 0
-            }, {
-                'name': 'Arches_E_PineTree_3k_2_1.png',
-                'level': 1
-            }, {
-                'name': 'Arches_E_PineTree_3k_4_2.png',
-                'level': 2
-            }, {
-                'name': 'Arches_E_PineTree_3k_8_3.png',
-                'level': 3
-            }, {
-                'name': 'Arches_E_PineTree_3k_16_4.png',
-                'level': 4
-            }, {
-                'name': 'Arches_E_PineTree_3k_32_5.png',
-                'level': 5
-            }, {
-                'name': 'Arches_E_PineTree_3k_64_6.png',
-                'level': 6
-            }, {
-                'name': 'Arches_E_PineTree_3k_128_7.png',
-                'level': 7
-            }, {
-                'name': 'Arches_E_PineTree_3k_256_8.png',
-                'level': 8
-            }, {
-                'name': 'Arches_E_PineTree_3k_512_9.png',
-                'level': 9
-            } ],
+            'specular': 'Arches_E_PineTree_3k.png',
             'diffuse': 'Arches_E_PineTree_Env.png',
             'background': 'Arches_E_PineTree_3k.png'
         },
 
         'GrandCanyon_C_YumaPoint': {
-            'specular': [ {
-                'name': 'GCanyon_C_YumaPoint_3k_1_0.png',
-                'level': 0
-            }, {
-                'name': 'GCanyon_C_YumaPoint_3k_2_1.png',
-                'level': 1
-            }, {
-                'name': 'GCanyon_C_YumaPoint_3k_4_2.png',
-                'level': 2
-            }, {
-                'name': 'GCanyon_C_YumaPoint_3k_8_3.png',
-                'level': 3
-            }, {
-                'name': 'GCanyon_C_YumaPoint_3k_16_4.png',
-                'level': 4
-            }, {
-                'name': 'GCanyon_C_YumaPoint_3k_32_5.png',
-                'level': 5
-            }, {
-                'name': 'GCanyon_C_YumaPoint_3k_64_6.png',
-                'level': 6
-            }, {
-                'name': 'GCanyon_C_YumaPoint_3k_128_7.png',
-                'level': 7
-            }, {
-                'name': 'GCanyon_C_YumaPoint_3k_256_8.png',
-                'level': 8
-            }, {
-                'name': 'GCanyon_C_YumaPoint_3k_512_9.png',
-                'level': 9
-            } ],
+            'specular': 'GCanyon_C_YumaPoint_3k.png',
             'diffuse': 'GCanyon_C_YumaPoint_Env.png',
             'background': 'GCanyon_C_YumaPoint_3k.png'
 
+        },
+
+        'Milkyway': {
+            'specular': 'Milkyway_small.png',
+            'background': 'Milkyway_small.png',
+            'diffuse': 'Milkyway_Light.png'
         }
 
     };
@@ -135,10 +51,6 @@ var PBRExample = function () {
     this.textureMipmapEnvs = {
         'integrateBRDF': 'integrateBRDF.png',
         'Alexs_Apartment': {
-            'specular0': {
-                'name': 'Alexs_Apt_2k_spec_rgbm_28.750336.png',
-                'range': 28.750336
-            },
             'specular': {
                 'name': 'Alexs_Apt_2k_spec_rgbm_24.027901.png',
                 'range': 24.027901
@@ -149,6 +61,64 @@ var PBRExample = function () {
             },
             'diffuse': {
                 'name': 'Alexs_Apt_2k_diff_rgbm_0.098734.png',
+                'range': 0.098734
+            }
+        },
+        'Arches_E_PineTree': {
+            'specular': {
+                'name': 'Arches_E_PineTree_3k_spec_rgbm_71.405060.png',
+                'range': 71.405060
+            },
+            'background': {
+                'name': 'Arches_E_PineTree_3k.png',
+                'range': 30.0
+            },
+            'diffuse': {
+                'name': 'Arches_E_PineTree_3k_diff_rgbm_0.098734.png',
+                'range': 0.098734
+            }
+        },
+        'GrandCanyon_C_YumaPoint': {
+            'specular': {
+                'name': 'GCanyon_C_YumaPoint_3k_spec_rgbm_17.545094.png',
+                'range': 71.405060
+            },
+            'background': {
+                'name': 'GCanyon_C_YumaPoint_3k.png',
+                'range': 30.0
+            },
+            'diffuse': {
+                'name': 'GCanyon_C_YumaPoint_3k_diff_rgbm_0.098734.png',
+                'range': 0.098734
+            }
+        },
+
+        'Milkyway': {
+            'specular': {
+                'name': 'Milkyway_small_spec_rgbm_4.424207.png',
+                'range': 4.424207
+            },
+            'background': {
+                'name': 'Milkyway_small.png',
+                'range': 30.0
+            },
+            'diffuse': {
+                'name': 'Milkyway_small_diff_rgbm_0.098734.png',
+                'range': 0.098734
+            }
+        },
+
+        'Walk_Of_Fame': {
+            'specular': {
+                'name': 'Mans_Outside_2k_spec_rgbm_31.471691.png',
+                'range': 31.471691
+            },
+            'background': {
+                'name': 'Mans_Outside_2k.png',
+                'range': 30.0
+            },
+            'diffuse': {
+                'name': 'Mans_Outside_2k_diff_rgbm_0.098734.png',
                 'range': 0.098734
             }
         }
@@ -1388,19 +1358,16 @@ PBRExample.prototype = {
 
         // HDR parameters uniform
         var uniformExposure = osg.Uniform.createFloat1( 1, 'hdrExposure' );
-        //var sequence = this.computeHammersleySequence( this.referenceNbSamples );
-        //var uniformHammersley = osg.Uniform.createFloat2Array( sequence, 'hammersley' );
         var uniformPrefilterCubemap = osg.Uniform.createInt1( 1, 'prefilterCubemap' );
 
         var size = 500;
         var background = this.getEnvSphere( size, group );
         group.getOrCreateStateSet().addUniform( uniformExposure );
-        //group.getOrCreateStateSet().addUniform( uniformHammersley );
         group.getOrCreateStateSet().addUniform( uniformPrefilterCubemap );
 
         var rootGraph = new osg.Node();
 
-        var groupModel = new osg.Node();
+        var groupModel = new osg.MatrixTransform();
         var earlyZ = new osg.Node();
         earlyZ.addChild( groupModel );
         earlyZ.getOrCreateStateSet().setAttributeAndModes( this.getShaderEarlyZ(), osg.StateAttribute.OVERRIDE | osg.StateAttribute.ON );
@@ -1453,6 +1420,7 @@ PBRExample.prototype = {
                 this.rangeExposure = 1.0;
                 this.environment = 'Alexs_Apartment';
                 this.model = names[ 0 ];
+                this.rotation = 0.0;
             };
             var obj = new ConfigUI();
 
@@ -1515,6 +1483,13 @@ PBRExample.prototype = {
             controller = gui.add( obj, 'rangeExposure', 0, 4 );
             controller.onChange( function ( value ) {
                 uniformExposure.set( value );
+            } );
+
+
+            controller = gui.add( obj, 'rotation', 0, 360 );
+            controller.onChange( function ( value ) {
+                osg.Matrix.makeRotate( value * Math.PI / 360.0, 0,0,1, groupModel.getMatrix() );
+                groupModel.dirtyBound();
             } );
 
 
