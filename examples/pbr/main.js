@@ -1091,6 +1091,8 @@ PBRExample.prototype = {
             var createTexture = function ( image ) {
                 var texture = new osg.Texture();
                 texture.setImage( image );
+                texture.setMinFilter( 'LINEAR_MIPMAP_LINEAR' );
+                texture.setMagFilter( 'LINEAR' );
                 return texture;
             };
 
@@ -1138,6 +1140,9 @@ PBRExample.prototype = {
 
             var createTexture = function ( image ) {
                 var texture = new osg.Texture();
+                texture.setMinFilter( 'LINEAR_MIPMAP_LINEAR' );
+                texture.setMagFilter( 'LINEAR' );
+
                 texture.setImage( image );
                 return texture;
             };
@@ -1195,6 +1200,8 @@ PBRExample.prototype = {
 
             var createTexture = function ( image ) {
                 var texture = new osg.Texture();
+                texture.setMinFilter( 'LINEAR_MIPMAP_LINEAR' );
+                texture.setMagFilter( 'LINEAR' );
                 texture.setImage( image );
                 return texture;
             };
