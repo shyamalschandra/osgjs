@@ -10,7 +10,7 @@ var osgDB = OSG.osgDB;
 
 var PBRExample = function () {
 
-    this.referenceNbSamples = 256;
+    this.referenceNbSamples = 512;
 
 
     this.textureEnvs = {
@@ -518,7 +518,7 @@ PBRExample.prototype = {
 
             'vec2 normalToSphericalUV( const in vec3 n )',
             '{',
-            '    return normalToPanoramaUV( n );',
+            '    //return normalToPanoramaUV( n );',
             '    float EPS = 1e-5;',
             '',
             '    // acos is defined [ -1: 1 ]',
@@ -618,7 +618,7 @@ PBRExample.prototype = {
 
 
             'vec2 texturePrecomputedBRDF( const in float roughness, const in float nov ) {',
-            '    vec4 rgba = texture2D(integrateBRDF, vec2( roughness, nov ) );',
+            '    vec4 rgba = texture2D(integrateBRDF, vec2( nov, roughness ) );',
             '    const float div = 1.0/65535.0;',
             '    float b = (rgba[3] * 65280.0 + rgba[2] * 255.0);',
             '    float a = (rgba[1] * 65280.0 + rgba[0] * 255.0);',
@@ -1091,6 +1091,9 @@ PBRExample.prototype = {
             var createTexture = function ( image ) {
                 var texture = new osg.Texture();
                 texture.setImage( image );
+                texture.setWrapS( 'REPEAT' );
+                texture.setWrapT( 'REPEAT' );
+
                 texture.setMinFilter( 'LINEAR_MIPMAP_LINEAR' );
                 texture.setMagFilter( 'LINEAR' );
                 return texture;
@@ -1140,6 +1143,9 @@ PBRExample.prototype = {
 
             var createTexture = function ( image ) {
                 var texture = new osg.Texture();
+                texture.setWrapS( 'REPEAT' );
+                texture.setWrapT( 'REPEAT' );
+
                 texture.setMinFilter( 'LINEAR_MIPMAP_LINEAR' );
                 texture.setMagFilter( 'LINEAR' );
 
@@ -1200,6 +1206,9 @@ PBRExample.prototype = {
 
             var createTexture = function ( image ) {
                 var texture = new osg.Texture();
+                texture.setWrapS( 'REPEAT' );
+                texture.setWrapT( 'REPEAT' );
+
                 texture.setMinFilter( 'LINEAR_MIPMAP_LINEAR' );
                 texture.setMagFilter( 'LINEAR' );
                 texture.setImage( image );
@@ -1288,6 +1297,9 @@ PBRExample.prototype = {
         };
 
         var materialsConfig = [ {
+                specular: [ 0.5, 0.5, 0.5 ], // plastic
+                albedo: [ 0.6, 0.0, 0.0 ]
+            }, {
                 specular: [ 0.971519, 0.959915, 0.915324 ], // Silver
                 albedo: [ 0, 0, 0 ]
             }, {
@@ -1300,16 +1312,10 @@ PBRExample.prototype = {
                 specular: [ 0.955008, 0.637427, 0.538163 ], // Copper
                 albedo: [ 0, 0, 0 ]
             }, // {
-            //     specular: [ 0.549585, 0.556114, 0.554256 ], // Chromium
-            //     albedo: [ 0, 0, 0 ]
-            // },
             {
                 specular: [ 0.659777, 0.608679, 0.525649 ], // Nickel
                 albedo: [ 0, 0, 0 ]
             }, //  {
-            //     specular: [ 0.541931, 0.496791, 0.449419 ], // Titanium
-            //     albedo: [ 0, 0, 0 ]
-            // },
             {
                 specular: [ 0.662124, 0.654864, 0.633732 ], // Cobalt
                 albedo: [ 0, 0, 0 ]
