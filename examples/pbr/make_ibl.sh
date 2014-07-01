@@ -31,6 +31,8 @@ function create_specular()
 
 function create_diffuse()
 {
+    iconvert "${input}" /tmp/base.tif
+    cd ~/dev/envtools/ && ./envremap -o cube -n $size /tmp/base.tif /tmp/cubemap.tif
     cd ~/dev/envtools/ && ./envtoirr -f /tmp/cubemap.tif /tmp/diffuse_cubemap.tif
     ./envremap -i cube -n 128 /tmp/diffuse_cubemap.tif /tmp/diffuse_rect.tif
 
@@ -40,7 +42,7 @@ function create_diffuse()
     echo "generated diffuse ${output_env}"
 }
 
-create_specular
+#create_specular
 create_diffuse
 
 cd ${dir}

@@ -43,7 +43,14 @@ var PBRExample = function () {
             'specular': 'Milkyway_small.png',
             'background': 'Milkyway_small.png',
             'diffuse': 'Milkyway_Light.png'
+        },
+
+        'Allego': {
+            'specular': 'panorama_map_rgbe.png',
+            'background': 'panorama_map_rgbe.png',
+            'diffuse': 'panorama_map_diff_rgbe.png'
         }
+
 
     };
 
@@ -120,6 +127,34 @@ var PBRExample = function () {
             'diffuse': {
                 'name': 'Mans_Outside_2k_diff_rgbm_0.098734.png',
                 'range': 0.098734
+            }
+        },
+        'Allego09': {
+            'specular': {
+                'name': 'panorama_map_spec_rgbm_880.639160.png',
+                'range': 880.639160
+            },
+            'background': {
+                'name': 'panorama_map_rgbe.png',
+                'range': 30.0
+            },
+            'diffuse': {
+                'name': 'panorama_map_diff_rgbm_0.996094.png',
+                'range': 0.996094
+            }
+        },
+        'Allego03': {
+            'specular': {
+                'name': 'panorama_map_spec_rgbm_880.639160.png',
+                'range': 880.639160
+            },
+            'background': {
+                'name': 'panorama_map_rgbe.png',
+                'range': 30.0
+            },
+            'diffuse': {
+                'name': 'panorama_map_diff_rgbm_0.328576.png',
+                'range': 0.328576
             }
         }
     };
@@ -693,6 +728,7 @@ PBRExample.prototype = {
             'attribute vec3 Vertex;',
             'attribute vec3 Normal;',
             'attribute vec2 TexCoord0;',
+            'attribute vec4 Tangent;',
 
             'uniform mat4 ModelViewMatrix;',
             'uniform mat4 ProjectionMatrix;',
@@ -708,7 +744,7 @@ PBRExample.prototype = {
             '  osg_FragEye = vec3(ModelViewMatrix * vec4(Vertex, 1.0));',
             '  osg_FragNormal = vec3(NormalMatrix * vec4(Normal, 0.0));',
             '  osg_FragLightDirection = vec3(NormalMatrix * vec4(0.0, -1.0, 0.0, 1.0));',
-            '  osg_FragTangent = NormalMatrix * osg_FragTangent;',
+            '  osg_FragTangent = NormalMatrix * Tangent;',
             '  osg_FragTexCoord0 = TexCoord0;',
             '  gl_Position = ProjectionMatrix * ModelViewMatrix * vec4(Vertex,1.0);',
             '}'
@@ -747,7 +783,6 @@ PBRExample.prototype = {
 
             'uniform sampler2D albedoMap;',
             'uniform sampler2D roughnessMap;',
-            'uniform sampler2D metallicMap;',
             'uniform sampler2D normalMap;',
             'uniform sampler2D specularMap;',
             'uniform sampler2D aoMap;',
@@ -917,7 +952,7 @@ PBRExample.prototype = {
 
 
             'vec3 prefilteredAndLUT( const in mat3 iblTransform, const in vec3 E ) {',
-            '  vec3 diffuseIndirect = MaterialAO * lightDiffuseIndirect( iblTransform, MaterialAlbedo, MaterialNormal );',
+            '  vec3 diffuseIndirect = MaterialAO * lightDiffuseIndirect2( iblTransform, MaterialAlbedo, MaterialNormal );',
             '  vec3 specularIndirect = lightSpecularIndirect2( iblTransform, MaterialAlbedo, MaterialNormal, -E );',
             '  vec3 gammaCorrected = linearTosRGB( diffuseIndirect + specularIndirect, DefaultGamma);',
             '  return gammaCorrected;',
@@ -953,13 +988,14 @@ PBRExample.prototype = {
             '  MaterialAlbedo = albedo;',
             '  MaterialAO = vec3(1.0);',
             '#ifdef AO',
-            ' MaterialAO = sRGBToLinear( texture2D( aoMap, osg_FragTexCoord0 ), DefaultGamma ).rgb;',
+            ' MaterialAO = texture2D( aoMap, osg_FragTexCoord0 ).rgb;',
+            ' //MaterialAO = sRGBToLinear( texture2D( aoMap, osg_FragTexCoord0 ), DefaultGamma ).rgb;',
             '#endif',
 
             '#ifdef SPECULAR',
             '  MaterialSpecular = sRGBToLinear( texture2D( specularMap, osg_FragTexCoord0 ), DefaultGamma ).rgb;',
             '#else',
-            '  float metallic = texture2D( metallicMap, osg_FragTexCoord0 ).r;',
+            '  float metallic = texture2D( specularMap, osg_FragTexCoord0 ).r;',
             '  MaterialAlbedo = albedo * (1.0 - metallic);',
             '  MaterialSpecular = mix( dielectricColor, albedo, metallic);',
             '#endif',
@@ -1147,12 +1183,12 @@ PBRExample.prototype = {
             return defer.promise;
         };
 
-        var model = this.getModel( 'robot/Junkbot.osgjs', callbackModel );
-        Q( model ).then( function ( node ) {
-            osg.Matrix.makeIdentity( node.getMatrix() );
+        var modelPromise = this.getModel( 'robot/Junkbot.osgjs', callbackModel );
+        Q( modelPromise ).then( function ( model ) {
+            osg.Matrix.makeIdentity( model.getMatrix() );
         } );
-        return model;
 
+        return modelPromise;
     },
 
 
@@ -1213,12 +1249,134 @@ PBRExample.prototype = {
             return defer.promise;
         };
 
-        var model = this.getModel( 'hotrod/hotrod.osgjs', callbackModel );
-        Q( model ).then( function ( node ) {
-            //osg.Matrix.makeIdentity( node.getMatrix() );
-        } );
-        return model;
 
+
+        return this.getModel( 'hotrod/hotrod.osgjs', callbackModel );
+    },
+
+
+    loadCarModelSpecular: function () {
+
+        var self = this;
+
+        var callbackModel = function ( model ) {
+
+            var defer = Q.defer();
+
+            model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 0, 'albedoMap' ) );
+            model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 1, 'roughnessMap' ) );
+            model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 2, 'normalMap' ) );
+            model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 3, 'specularMap' ) );
+            model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 4, 'aoMap' ) );
+
+            var promises = [];
+            var base = 'hotrod2/';
+            promises.push( self.readImageURL( base + 'hotrod_diffuse.png' ) );
+            promises.push( self.readImageURL( base + 'hotrod_glossiness.png' ) );
+
+            promises.push( self.readImageURL( base + 'hotrod_normal.png' ) );
+            promises.push( self.readImageURL( base + 'hotrod_specular.png' ) );
+            promises.push( self.readImageURL( base + 'hotrod_ao.png' ) );
+
+            var createTexture = function ( image ) {
+                var texture = new osg.Texture();
+                texture.setWrapS( 'REPEAT' );
+                texture.setWrapT( 'REPEAT' );
+
+                texture.setMinFilter( 'LINEAR_MIPMAP_LINEAR' );
+                texture.setMagFilter( 'LINEAR' );
+                texture.setImage( image );
+                return texture;
+            };
+
+            Q.all( promises ).then( function ( args ) {
+                args.forEach( function ( image, index ) {
+                    var texture = createTexture( args[ index ] );
+                    texture.setWrapS( 'REPEAT' );
+                    texture.setWrapT( 'REPEAT' );
+                    model.getOrCreateStateSet().setTextureAttributeAndMode( index, texture );
+                } );
+
+
+                var config = {
+                    mapSpecular: true,
+                    mapAmbientOcclusion: true,
+                    mapGlossiness: true,
+                    mapNormal: true
+                };
+
+                self.installShaderOnNodes( model, config );
+                model.getOrCreateStateSet().setAttributeAndModes( new osg.CullFace( 'DISABLE' ) );
+                defer.resolve( model );
+            } );
+
+            return defer.promise;
+        };
+
+
+
+        return this.getModel( 'hotrod2/hotrod2.osgjs.gz', callbackModel );
+    },
+
+
+
+    loadCarModelMetallic: function () {
+        var self = this;
+
+        var callbackModel = function ( model ) {
+
+            var defer = Q.defer();
+
+            model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 0, 'albedoMap' ) );
+            model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 1, 'roughnessMap' ) );
+            model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 2, 'normalMap' ) );
+            model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 3, 'specularMap' ) );
+            model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 4, 'aoMap' ) );
+
+            var promises = [];
+            var base = 'hotrod2/';
+            promises.push( self.readImageURL( base + 'hotrod_diffuse.png' ) );
+            promises.push( self.readImageURL( base + 'hotrod_roughness.png' ) );
+
+            promises.push( self.readImageURL( base + 'hotrod_normal.png' ) );
+            promises.push( self.readImageURL( base + 'hotrod_metallic.png' ) );
+            promises.push( self.readImageURL( base + 'hotrod_ao.png' ) );
+
+            var createTexture = function ( image ) {
+                var texture = new osg.Texture();
+                texture.setWrapS( 'REPEAT' );
+                texture.setWrapT( 'REPEAT' );
+
+                texture.setMinFilter( 'LINEAR_MIPMAP_LINEAR' );
+                texture.setMagFilter( 'LINEAR' );
+                texture.setImage( image );
+                return texture;
+            };
+
+            Q.all( promises ).then( function ( args ) {
+                args.forEach( function ( image, index ) {
+                    var texture = createTexture( args[ index ] );
+                    texture.setWrapS( 'REPEAT' );
+                    texture.setWrapT( 'REPEAT' );
+                    model.getOrCreateStateSet().setTextureAttributeAndMode( index, texture );
+                } );
+
+
+                var config = {
+                    mapSpecular: false,
+                    mapAmbientOcclusion: true,
+                    mapGlossiness: false,
+                    mapNormal: true
+                };
+
+                self.installShaderOnNodes( model, config );
+                model.getOrCreateStateSet().setAttributeAndModes( new osg.CullFace( 'DISABLE' ) );
+                defer.resolve( model );
+            } );
+
+            return defer.promise;
+        };
+        return this.getModel( 'hotrod2/hotrod2.osgjs.gz', callbackModel );
     },
 
     loadTemplateScene: function () {
@@ -1349,7 +1507,81 @@ PBRExample.prototype = {
         } );
         var rootModel = new osg.Node();
         rootModel.addChild( group );
-        return rootModel;
+        return Q(rootModel);
+    },
+
+
+    loadMireScene: function () {
+        var self = this;
+
+        var callbackModel = function ( model ) {
+
+            var defer = Q.defer();
+
+            model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 0, 'albedoMap' ) );
+            model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 1, 'roughnessMap' ) );
+            model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 2, 'normalMap' ) );
+            model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 3, 'specularMap' ) );
+            model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 4, 'aoMap' ) );
+
+            var promises = [];
+            var base = 'mire/';
+            promises.push( self.readImageURL( base + 'diffuse.png' ) );
+            promises.push( self.readImageURL( base + 'roughness.png' ) );
+
+            promises.push( self.readImageURL( base + 'normal.png' ) );
+            promises.push( self.readImageURL( base + 'metallic.png' ) );
+
+            var createTexture = function ( image ) {
+                var texture = new osg.Texture();
+                texture.setWrapS( 'REPEAT' );
+                texture.setWrapT( 'REPEAT' );
+
+                texture.setMinFilter( 'LINEAR_MIPMAP_LINEAR' );
+                texture.setMagFilter( 'LINEAR' );
+                texture.setImage( image );
+                return texture;
+            };
+
+            Q.all( promises ).then( function ( args ) {
+                args.forEach( function ( image, index ) {
+                    var texture = createTexture( args[ index ] );
+                    texture.setWrapS( 'REPEAT' );
+                    texture.setWrapT( 'REPEAT' );
+                    model.getOrCreateStateSet().setTextureAttributeAndMode( index, texture );
+                } );
+
+
+                var config = {
+                    mapSpecular: false,
+                    mapAmbientOcclusion: false,
+                    mapGlossiness: false,
+                    mapNormal: true
+                };
+
+                self.installShaderOnNodes( model, config );
+                defer.resolve( model );
+            } );
+
+            return defer.promise;
+        };
+
+        var model = new osg.MatrixTransform();
+        var geometry = osg.createTexturedQuadGeometry( -0.5, -0.5, 0,
+                                                       1, 0,0,
+                                                       0,1,0);
+        geometry.getAttributes().Tangent = new osg.BufferArray('ARRAY_BUFFER',
+                                                               [1,0,0,-1,
+                                                                1,0,0,-1,
+                                                                1,0,0,-1,
+                                                                1,0,0,-1 ], 4);
+
+        var mata = osg.Matrix.makeRotate( Math.PI/2, 0,0,1, osg.Matrix.create());
+        var matb = osg.Matrix.makeRotate( -Math.PI/2.0, 1,0,0, model.getMatrix());
+        osg.Matrix.mult( mata, matb, matb );
+        model.addChild( geometry );
+        model.getOrCreateStateSet().setAttributeAndModes( new osg.CullFace( 'DISABLE' ) );
+        return callbackModel( model );
     },
 
     createScene: function () {
@@ -1391,134 +1623,201 @@ PBRExample.prototype = {
         group.addChild( rootGraph );
 
         var config = [ {
+            name: 'Mire',
+            func: this.loadMireScene.bind( this ),
+            promise: undefined,
+            model: new osg.Node()
+        },{
             name: 'Cerberus_by_Andrew_Maximov',
-            func: this.loadDefaultModel.bind( this )
+            func: this.loadDefaultModel.bind( this ),
+            promise: undefined,
+            model: new osg.Node()
         }, {
             name: 'Robot_by_Nicolas_Wirrmann',
-            func: this.loadRobotModel.bind( this )
+            func: this.loadRobotModel.bind( this ),
+            promise: undefined,
+            model: new osg.Node()
         }, {
             name: 'Car_by_Nicolas_Wirrmann',
-            func: this.loadCarModel.bind( this )
+            func: this.loadCarModel.bind( this ),
+            promise: undefined,
+            model: new osg.Node()
         }, {
+            name: 'Car_Specular',
+            func: this.loadCarModelSpecular.bind( this ),
+            promise: undefined,
+            model: new osg.Node()
+        }, {
+            name: 'Car_Metallic',
+            func: this.loadCarModelMetallic.bind( this ),
+            promise: undefined,
+            model: new osg.Node()
+        },{
             name: 'Metallic sphere',
-            func: this.loadTemplateScene.bind( this )
+            func: this.loadTemplateScene.bind( this ),
+            promise: undefined,
+            model: new osg.Node()
         } ];
 
-        Q.all( config.map( function ( element ) {
-            return element.func();
-        } ) ).then( function ( models ) {
 
+        // get array of names
+        var names = config.map( function ( element ) {
+            return element.name;
+        } );
 
-            // get array of names
-            var names = config.map( function ( element ) {
-                return element.name;
-            } );
+        var ConfigUI = function () {
+            this.earlyZ = true;
+            this.rendering = 'prefilter';
+            this.rangeExposure = 1.0;
+            this.environment = 'Alexs_Apartment';
+            this.model = names[ 0 ];
+            this.rotation = 0.0;
+        };
+        var obj = new ConfigUI();
 
-            var ConfigUI = function () {
-                this.earlyZ = true;
-                this.rendering = 'prefilter';
-                this.rangeExposure = 1.0;
-                this.environment = 'Alexs_Apartment';
-                this.model = names[ 0 ];
-                this.rotation = 0.0;
-            };
-            var obj = new ConfigUI();
-
-
-            var setShaderModel = function () {
-                var index = names.indexOf( obj.model );
-                if ( !models[ index ] )
+        var FindSetShaderNodeVisitor = function() {
+            osg.NodeVisitor.call( this, osg.NodeVisitor.TRAVERSE_ACTIVE_CHILDREN );
+            this.init();
+        };
+        FindSetShaderNodeVisitor.prototype = osg.objectInherit( osg.NodeVisitor.prototype, {
+            init: function() {
+                this._found = undefined;
+            },
+            apply: function(node ) {
+                if ( node.setShaderPrefiltered !== undefined ) {
+                    this._found = node;
                     return;
-                var model = models[ index ].getChildren()[0];
-                if ( obj.rendering === 'prefilter' ) {
-                    if ( self._viewer.done() ) {
-                        self._viewer.setDone(false);
-                        self._viewer.run();
-                    }
-                    model.setShaderPrefiltered();
-
-                } else {
-                    model.setShaderReference();
-                    self._viewer.setDone(true);
-                    self._viewer.frame();
                 }
-            };
+                this.traverse(node );
+            }
+        });
+        var visitor = new FindSetShaderNodeVisitor();
 
-            // function called when selecting a model
-            var setModel = function ( str ) {
-                models.forEach( function ( model ) {
-                    model.setNodeMask( 0x0 );
-                } );
+        var setShaderModel = function () {
+            var index = names.indexOf( obj.model );
+            if ( !config[ index ] || config[ index ].promise.isPending() )
+                return;
 
+            visitor.init();
+            config[ index ].model.accept( visitor );
 
-                var index = names.indexOf( str );
-                models[ index ].setNodeMask( ~0x0 );
-
-                setShaderModel();
-
-                self._viewer.getManipulator().setNode( models[ index ] );
-                self._viewer.getManipulator().computeHomePosition();
-            };
-
-            // add all models to group
-            models.forEach( function ( model ) {
-                groupModel.addChild( model );
-            } );
-
-
-            var gui = new window.dat.GUI();
-
-
-            var controller = gui.add( obj, 'earlyZ' );
-            controller.onChange( function ( value ) {
-                if ( value ) {
-                    nodeEarlyPath.setNodeMask( ~0x0 );
-                    regular.setNodeMask( 0x0 );
-                } else {
-                    nodeEarlyPath.setNodeMask( 0x0 );
-                    regular.setNodeMask( ~0x0 );
+            var model = visitor._found;
+            if ( obj.rendering === 'prefilter' ) {
+                if ( self._viewer.done() ) {
+                    self._viewer.setDone(false);
+                    self._viewer.run();
                 }
+                model.setShaderPrefiltered();
+
+            } else {
+                model.setShaderReference();
+                self._viewer.setDone(true);
+                self._viewer.frame();
+            }
+        };
+
+        // function called when selecting a model
+        var setModel = function ( str ) {
+
+            config.forEach( function ( entry ) {
+                if ( !entry.promise || entry.promise.isPending() )
+                    return;
+                entry.model.setNodeMask( 0x0 );
             } );
 
-            controller = gui.add( obj, 'rangeExposure', 0, 4 );
-            controller.onChange( function ( value ) {
-                uniformExposure.set( value );
-            } );
+            var index = names.indexOf( str );
+            config[ index ].model.setNodeMask( ~0x0 );
+
+            setShaderModel();
+
+            self._viewer.getManipulator().setNode( config[ index ].model );
+            self._viewer.getManipulator().computeHomePosition();
+        };
+
+        // add all models to group
+        config.forEach( function ( entry ) {
+            entry.model.setNodeMask(0);
+            groupModel.addChild( entry.model );
+        } );
 
 
-            controller = gui.add( obj, 'rotation', 0, 360 );
-            controller.onChange( function ( value ) {
-                osg.Matrix.makeRotate( value * Math.PI / 360.0, 0,0,1, groupModel.getMatrix() );
-                groupModel.dirtyBound();
-            } );
+        // run loading sequencially
+        config.reduce( function( previous, current ) {
 
+            if (!previous) {
+                var promise = current.func();
+                current.promise = promise;
 
-            controller = gui.add( obj, 'environment', Object.keys( this.textureEnvs ) );
-            controller.onChange( function ( value ) {
+                promise.then( function( model ) {
+                    current.model.addChild( model );
+                });
 
-                this.setEnvironment( value, background, groupModel );
+                return current.promise;
+            }
 
-            }.bind( this ) );
+            var defer = Q.defer();
+            previous.then( function() {
+                var promise = current.func();
+                current.promise = promise;
+                promise.then( function( model ) {
+                    current.model.addChild( model );
+                    defer.resolve();
+                });
+            });
+            return defer.promise;
+        }, undefined );
 
-
-            controller = gui.add( obj, 'model', names );
-            controller.onChange( function ( value ) {
-
-                setModel( value );
-
-            }.bind( this ) );
-
-
-            controller = gui.add( obj, 'rendering', [ 'prefilter', 'reference ' + this.referenceNbSamples.toString() ] );
-            controller.onChange( setShaderModel );
-
-
+        config[0].promise.then( function() {
             setModel( names[ 0 ] );
-            this.setEnvironment( 'Alexs_Apartment', background, groupModel );
+        });
+
+        var gui = new window.dat.GUI();
+
+        var controller = gui.add( obj, 'earlyZ' );
+        controller.onChange( function ( value ) {
+            if ( value ) {
+                nodeEarlyPath.setNodeMask( ~0x0 );
+                regular.setNodeMask( 0x0 );
+            } else {
+                nodeEarlyPath.setNodeMask( 0x0 );
+                regular.setNodeMask( ~0x0 );
+            }
+        } );
+
+        controller = gui.add( obj, 'rangeExposure', 0, 4 );
+        controller.onChange( function ( value ) {
+            uniformExposure.set( value );
+        } );
 
 
-        }.bind( this ) ).done();
+        controller = gui.add( obj, 'rotation', 0, 360 );
+        controller.onChange( function ( value ) {
+            osg.Matrix.makeRotate( value * Math.PI / 360.0, 0,0,1, groupModel.getMatrix() );
+            groupModel.dirtyBound();
+        } );
 
+
+        controller = gui.add( obj, 'environment', Object.keys( this.textureEnvs ) );
+        controller.onChange( function ( value ) {
+
+            this.setEnvironment( value, background, groupModel );
+
+        }.bind( this ) );
+
+
+        controller = gui.add( obj, 'model', names );
+        controller.onChange( function ( value ) {
+
+            setModel( value );
+
+        }.bind( this ) );
+
+
+        controller = gui.add( obj, 'rendering', [ 'prefilter', 'reference ' + this.referenceNbSamples.toString() ] );
+        controller.onChange( setShaderModel );
+
+
+        this.setEnvironment( 'Alexs_Apartment', background, groupModel );
 
         return group;
     },
