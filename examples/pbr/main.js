@@ -4,6 +4,200 @@ var Viewer;
 var osg = OSG.osg;
 var osgViewer = OSG.osgViewer;
 var osgDB = OSG.osgDB;
+var osgUtil = OSG.osgUtil;
+
+
+
+var NodeGenerateMipMapRGBE = function( texture ) {
+    osg.Node.call( this );
+    this._texture = texture;
+
+    var nbMip = Math.log( this._texture.getImage().getWidth() )/Math.log(2);
+    this._nbMipmap = nbMip - 1;
+
+    var UpdateCallback = function() {
+        this._done = false;
+        this.update = function(node, nodeVisitor) {
+
+            if ( nodeVisitor.getVisitorType() === osg.NodeVisitor.UPDATE_VISITOR ) {
+                if ( this._done )
+                    node.setNodeMask(0);
+                else
+                    this.done = true;
+            }
+        };
+    };
+    this.setUpdateCallback( new UpdateCallback () );
+
+};
+
+NodeGenerateMipMapRGBE.prototype = osg.objectInherit( osg.Node.prototype, {
+
+    createSubGraph: function( sourceTexture, destinationTexture, color) {
+        var composer = new osgUtil.Composer();
+        var reduce = new osgUtil.Composer.Filter.Custom([
+            '#ifdef GL_ES',
+            'precision highp float;',
+            '#endif',
+
+            'uniform sampler2D source;',
+            'uniform vec3 color;',
+
+            'void main() {',
+            '  //float decode = texture2D(depthTexture, FragTexCoord0));',
+            '  gl_FragColor = vec4(color, 1.0);',
+            '}',
+            ''].join('\n'), {
+                'source': sourceTexture,
+                'color': color
+            });
+
+        composer.addPass(reduce, destinationTexture);
+        composer.build();
+        return composer;
+    },
+
+    createSubGraphFinal: function( sourceTexture, destinationTexture) {
+
+        var composer = new osgUtil.Composer();
+        var copy = new osgUtil.Composer.Filter.Custom([
+            '#ifdef GL_ES',
+            'precision highp float;',
+            '#endif',
+
+            'uniform sampler2D source;',
+            'uniform float destSize;',
+            'uniform float sourceSize;',
+
+            'void main() {',
+            '  float offset = sourceSize/2.0;',
+            '  if ( gl_FragCoord.x >= sourceSize || ',
+            '        gl_FragCoord.y < offset  || gl_FragCoord.y > offset + sourceSize/2.0 ) {',
+            '      discard;',
+            '      return;',
+            '  }',
+
+            '  vec2 uv = vec2( gl_FragCoord.x/sourceSize, (gl_FragCoord.y - offset) / sourceSize/2.0 );',
+            '  gl_FragColor = texture2D(source, uv);',
+            '}',
+            ''].join('\n'), {
+                'source': sourceTexture,
+                'destSize': destinationTexture.getWidth(),
+                'sourceSize': sourceTexture.getWidth()
+            });
+
+        composer.addPass( copy, destinationTexture);
+        composer.build();
+        return composer;
+    },
+
+    init: function() {
+
+        var sourceTexture = this._texture;
+        var finalTexture = new osg.Texture();
+        finalTexture.setMinFilter( 'NEAREST' );
+        finalTexture.setMagFilter( 'NEAREST' );
+
+        this._finalTexture = finalTexture;
+
+        var maxSize = Math.pow(2, this._nbMipmap);
+        finalTexture.setTextureSize( maxSize, maxSize );
+
+        var colors = [
+            [ 1, 0, 0],
+            [ 0, 1, 0],
+            [ 0, 0, 1]
+        ];
+
+        var root = new osg.Node();
+
+        for ( var i = 0; i < this._nbMipmap; i++ ) {
+            var size = Math.pow(2, this._nbMipmap - i);
+
+            var destinationTexture = new osg.Texture();
+            destinationTexture.setMinFilter( 'NEAREST' );
+            destinationTexture.setMagFilter( 'NEAREST' );
+
+            destinationTexture.setTextureSize( size, size / 2 );
+            var node = this.createSubGraph( sourceTexture, destinationTexture, colors[i%3] );
+
+            var final = this.createSubGraphFinal( destinationTexture, finalTexture);
+            node.addChild( final );
+            root.addChild( node );
+            sourceTexture = destinationTexture;
+        }
+
+        this.addChild ( root );
+    }
+
+
+});
+
+
+var TransformRGBE2FloatTexture = function( texture ) {
+    osg.Node.call( this );
+    this._texture = texture;
+
+
+    var UpdateCallback = function() {
+        this._done = false;
+        this.update = function(node, nodeVisitor) {
+
+            if ( nodeVisitor.getVisitorType() === osg.NodeVisitor.UPDATE_VISITOR ) {
+                if ( this._done )
+                    node.setNodeMask(0);
+                else
+                    this.done = true;
+            }
+        };
+    };
+    this.setUpdateCallback( new UpdateCallback () );
+
+};
+
+TransformRGBE2FloatTexture.prototype = osg.objectInherit( osg.Node.prototype, {
+
+    createSubGraph: function( sourceTexture, destinationTexture, color) {
+        var composer = new osgUtil.Composer();
+        var reduce = new osgUtil.Composer.Filter.Custom([
+            '#ifdef GL_ES',
+            'precision highp float;',
+            '#endif',
+
+            'uniform sampler2D source;',
+            'uniform vec3 color;',
+
+            'void main() {',
+            '  //float decode = texture2D(depthTexture, FragTexCoord0));',
+            '  gl_FragColor = vec4(color, 1.0);',
+            '}',
+            ''].join('\n'), {
+                'source': sourceTexture,
+                'color': color
+            });
+
+        composer.addPass(reduce, destinationTexture);
+        composer.build();
+        return composer;
+    },
+
+
+    init: function() {
+
+        var sourceTexture = this._texture;
+        var finalTexture = new osg.Texture();
+        finalTexture.setTextureSize( sourceTexture.getImage().getWidth(), sourceTexture.getImage().getHeight() );
+        finalTexture.setType( 'FLOAT' );
+        finalTexture.setMinFilter( 'NEAREST' );
+        finalTexture.setMagFilter( 'NEAREST' );
+
+        this._finalTexture = finalTexture;
+        this.addChild( this.createSubGraph( sourceTexture, finalTexture, [ 5,0,5]) );
+
+    }
+
+
+});
 
 
 
@@ -11,9 +205,31 @@ var osgDB = OSG.osgDB;
 var PBRExample = function () {
 
     this.referenceNbSamples = 2048;
+    this._specularFactor = 1.0;
+    this._mobile = 0;
+    this.environmentList = [
+        'Alexs_Apartment',
+        'Walk_Of_Fame',
+        'Arches_E_PineTree',
+        'GrandCanyon_C_YumaPoint',
+        'Milkyway',
+        'Allego03',
+        'Allego09',
+    ];
 
 
-    this.textureEnvs = {
+    this.textureEnvs = {};
+
+    this.textureEnvs.solid = {
+        'Alexs_Apartment': 'Alexs_Apt_2k_2048.png',
+        // 'Walk_Of_Fame': 'Mans_Outside_2k.png',
+        // 'Arches_E_PineTree': 'Arches_E_PineTree_3k.png',
+        // 'GrandCanyon_C_YumaPoint': 'GCanyon_C_YumaPoint_3k.png',
+        // 'Milkyway': 'Milkyway_small.png',
+        // 'Allego03': 'panorama_map_rgbe.png'
+    };
+
+    this.textureEnvs.reference = {
         'Alexs_Apartment': {
             'background': 'Alexs_Apt_2k.png',
             'specular': 'Alexs_Apt_2k.png',
@@ -45,17 +261,21 @@ var PBRExample = function () {
             'diffuse': 'Milkyway_Light.png'
         },
 
-        'Allego': {
+        'Allego03': {
+            'specular': 'panorama_map_rgbe.png',
+            'background': 'panorama_map_rgbe.png',
+            'diffuse': 'panorama_map_diff_rgbe.png'
+        },
+        'Allego09': {
             'specular': 'panorama_map_rgbe.png',
             'background': 'panorama_map_rgbe.png',
             'diffuse': 'panorama_map_diff_rgbe.png'
         }
 
-
     };
 
 
-    this.textureMipmapEnvs = {
+    this.textureEnvs.prefiltered = {
         'integrateBRDF': 'integrateBRDF.png',
         'Alexs_Apartment': {
             'specular': {
@@ -160,6 +380,44 @@ var PBRExample = function () {
     };
 
     this._viewer = undefined;
+
+
+    this._configModel = [ {
+        name: 'Cerberus',
+        func: this.loadDefaultModel.bind( this ),
+        promise: undefined,
+        model: new osg.Node()
+    }, {
+        name: 'Mire',
+        func: this.loadMireScene.bind( this ),
+        promise: undefined,
+        model: new osg.Node()
+    },{
+        name: 'Sphere',
+        func: this.loadTemplateScene.bind( this ),
+        promise: undefined,
+        model: new osg.Node()
+    }, {
+        name: 'Robot',
+        func: this.loadRobotModel.bind( this ),
+        promise: undefined,
+        model: new osg.Node()
+    }, {
+        name: 'Robot-low',
+        func: this.loadRobotModel2.bind( this ),
+        promise: undefined,
+        model: new osg.Node()
+    }, {
+        name: 'Car1',
+        func: this.loadCarModelSpecular.bind( this ),
+        promise: undefined,
+        model: new osg.Node()
+    }, {
+        name: 'Car2',
+        func: this.loadCarModelMetallic.bind( this ),
+        promise: undefined,
+        model: new osg.Node()
+    } ];
 
 };
 
@@ -286,11 +544,8 @@ PBRExample.prototype = {
 
     setEnvironment: function ( name, background, ground ) {
 
-        var environmentConfig = this.textureEnvs[ name ];
-        var environmentName = name;
+        var environmentConfig = this.textureEnvs.reference[ name ];
         var self = this;
-
-
 
         var startUnit = 5;
 
@@ -302,7 +557,7 @@ PBRExample.prototype = {
                     stateSet.addUniform( osg.Uniform.createFloat2( [ w, h ], name + 'Size' ) );
             };
 
-            var createEnvironmnentTexture = function ( name, image, stateSet, unit ) {
+            var createEnvironmnentTexture = function ( name, image, stateSet ) {
                 var texture = new osg.Texture();
                 if ( image )
                     texture.setImage( image );
@@ -338,12 +593,12 @@ PBRExample.prototype = {
         };
 
         var mipmap = function () {
-            var config = self.textureMipmapEnvs[ name ];
+            var config = self.textureEnvs.prefiltered[ name ];
             var mipmapTexture = [
                 self.readImageURL( 'textures/' + name + '/' + config.background.name ),
                 self.readImageURL( 'textures/' + name + '/' + config.diffuse.name ),
                 self.readImageURL( 'textures/' + name + '/' + config.specular.name ),
-                self.readImageURL( 'textures/' + self.textureMipmapEnvs.integrateBRDF )
+                self.readImageURL( 'textures/' + self.textureEnvs.prefiltered.integrateBRDF )
             ];
 
 
@@ -380,6 +635,66 @@ PBRExample.prototype = {
             } );
         };
 
+
+        var solid = function () {
+            var image = self.textureEnvs.solid[ name ];
+            var texture = [
+                self.readImageURL( 'textures/' + name + '/' + image ),
+            ];
+
+            var setNameTextureUnit = function ( stateSet, name, unit, w, h ) {
+                stateSet.addUniform( osg.Uniform.createInt1( unit, name ) );
+                stateSet.addUniform( osg.Uniform.createFloat2( [ w, h ], name + 'Size' ) );
+            };
+
+            var createEnvironmnentTexture = function ( name, image, stateSet, textureSource ) {
+
+                var texture;
+                if ( textureSource )
+                    texture = textureSource;
+                else {
+                    texture = new osg.Texture();
+                    if ( image )
+                        texture.setImage( image );
+                    texture.setMinFilter( 'NEAREST' );
+                    texture.setMagFilter( 'NEAREST' );
+                }
+
+                stateSet.setTextureAttributeAndMode( startUnit, texture );
+                var width = image ? image.getWidth() : 0;
+                var height = image ? image.getHeight() : 0;
+
+                if ( image )
+                    setNameTextureUnit( stateSet, name, startUnit, width, height );
+                startUnit += 1;
+                return texture;
+            };
+
+
+            var createEnvironmnentTextureMipmapped = function( name, image, stateSet ) {
+
+                var texture = new osg.Texture();
+                if ( image )
+                    texture.setImage( image );
+                texture.setMinFilter( 'NEAREST' );
+                texture.setMagFilter( 'NEAREST' );
+
+                var node = new TransformRGBE2FloatTexture( texture );
+                node.init();
+                self._rootNode.addChild( node );
+                createEnvironmnentTexture(name, image, stateSet, node._finalTexture);
+
+            };
+
+            Q.all( texture ).then( function ( images ) {
+                createEnvironmnentTexture( 'environmnent', images[ 0 ], background.getOrCreateStateSet() );
+                createEnvironmnentTextureMipmapped( 'environmnent', images[ 0 ], ground.getOrCreateStateSet() );
+
+            } );
+        };
+
+        if (self.textureEnvs.solid[ name ])
+            solid();
         mipmap();
         reference();
     },
@@ -567,6 +882,9 @@ PBRExample.prototype = {
             '}',
 
             'vec4 textureRGBMLinear(const in sampler2D texture, const in vec2 size, const in vec2 uv ) {',
+            '#if ' + this._mobile.toString(),
+            '    return textureRGBM(texture, uv );',
+            '#else',
             '    vec2 t = 1.0 / size;',
             '    ',
 
@@ -578,9 +896,14 @@ PBRExample.prototype = {
             '    vec4 A = mix(a, b, f.x),',
             '         B = mix(c, d, f.x);',
             '    return mix(A, B, f.y);',
+            '#endif',
             '}',
 
+
             'vec4 textureRGBMLinearSpecular(const in sampler2D texture, const in vec2 size, const in vec2 uv, const in vec2 maxBox ) {',
+            '#if ' + this._mobile.toString(),
+            '    return textureRGBM(texture, uv );',
+            '#else',
             '    vec2 t = 1.0 / size;',
 
             '    ',
@@ -595,6 +918,7 @@ PBRExample.prototype = {
             '    vec4 A = mix(a, b, f.x),',
             '         B = mix(c, d, f.x);',
             '    return mix(A, B, f.y);',
+            '#endif',
             '}',
 
             'vec4 textureRGBELinear(const in sampler2D texture, const in vec2 size, const in vec2 uv) {',
@@ -620,7 +944,6 @@ PBRExample.prototype = {
             '    vec2 uv = normalToSphericalUV( normal );',
             '    return textureRGBMLinear(texture, size, uv.xy ).rgb * textureRange;',
             '}',
-
 
             'vec2 texturePrecomputedBRDF( const in float roughness, const in float nov ) {',
             '    vec4 rgba = texture2D(integrateBRDF, vec2( nov, roughness ) );',
@@ -929,6 +1252,7 @@ PBRExample.prototype = {
             '}',
             '#endif',
 
+            '#define FactorSpecular ' + this._specularFactor.toString(),
 
             'vec3 lightSpecularIndirect2( const in mat3 iblTransform, const in vec3 albedo, const in vec3 normal, const in vec3 view ) {',
             '  float NoV = max( 0.0, dot( normal, view ) );',
@@ -936,7 +1260,7 @@ PBRExample.prototype = {
             '  float mult = envSpecularRGBMRange * hdrExposure;',
             '  vec3 prefilteredColor = texturePrefilteredSpecular( MaterialRoughness, iblTransform * R )* mult;',
             '  vec2 envBRDF = texturePrecomputedBRDF( MaterialRoughness, NoV );',
-            '  return prefilteredColor * ( MaterialSpecular * envBRDF.x + envBRDF.y );',
+            '  return prefilteredColor * ( MaterialSpecular * envBRDF.x + envBRDF.y ) * float(FactorSpecular) ;',
             '',
             '}',
 
@@ -952,7 +1276,7 @@ PBRExample.prototype = {
 
 
             'vec3 prefilteredAndLUT( const in mat3 iblTransform, const in vec3 E ) {',
-            '  vec3 diffuseIndirect = MaterialAO * lightDiffuseIndirect2( iblTransform, MaterialAlbedo, MaterialNormal );',
+            '  vec3 diffuseIndirect = MaterialAO * lightDiffuseIndirect( iblTransform, MaterialAlbedo, MaterialNormal );',
             '  vec3 specularIndirect = lightSpecularIndirect2( iblTransform, MaterialAlbedo, MaterialNormal, -E );',
             '  vec3 gammaCorrected = linearTosRGB( diffuseIndirect + specularIndirect, DefaultGamma);',
             '  return gammaCorrected;',
@@ -1124,7 +1448,7 @@ PBRExample.prototype = {
             return defer.promise;
         };
 
-        return this.getModel( 'model/Cerberus_by_Andrew_Maximov.osgjs', callbackModel );
+        return this.getModel( 'model/Cerberus_by_Andrew_Maximov.osgjs.gz', callbackModel );
     },
 
 
@@ -1183,7 +1507,7 @@ PBRExample.prototype = {
             return defer.promise;
         };
 
-        var modelPromise = this.getModel( 'robot/Junkbot.osgjs', callbackModel );
+        var modelPromise = this.getModel( 'robot/Junkbot.osgjs.gz', callbackModel );
         Q( modelPromise ).then( function ( model ) {
             osg.Matrix.makeIdentity( model.getMatrix() );
         } );
@@ -1191,8 +1515,7 @@ PBRExample.prototype = {
         return modelPromise;
     },
 
-
-    loadCarModel: function () {
+    loadRobotModel2: function () {
 
         var self = this;
 
@@ -1207,12 +1530,12 @@ PBRExample.prototype = {
             model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 4, 'aoMap' ) );
 
             var promises = [];
-            promises.push( self.readImageURL( 'hotrod/hotrod_diffuse.png' ) );
-            promises.push( self.readImageURL( 'hotrod/hotrod_glossiness.png' ) );
+            promises.push( self.readImageURL( 'robot/Textures/map_A_2.jpg' ) );
+            promises.push( self.readImageURL( 'robot/Textures/map_R_2.jpg' ) );
 
-            promises.push( self.readImageURL( 'hotrod/hotrod_normal.png' ) );
-            promises.push( self.readImageURL( 'hotrod/hotrod_specular.png' ) );
-            promises.push( self.readImageURL( 'hotrod/hotrod_ao.png' ) );
+            promises.push( self.readImageURL( 'robot/Textures/map_N_2.jpg' ) );
+            promises.push( self.readImageURL( 'robot/Textures/map_S_2.jpg' ) );
+            promises.push( self.readImageURL( 'robot/Textures/map_AO_2.jpg' ) );
 
             var createTexture = function ( image ) {
                 var texture = new osg.Texture();
@@ -1221,23 +1544,20 @@ PBRExample.prototype = {
 
                 texture.setMinFilter( 'LINEAR_MIPMAP_LINEAR' );
                 texture.setMagFilter( 'LINEAR' );
+
                 texture.setImage( image );
                 return texture;
             };
 
             Q.all( promises ).then( function ( args ) {
                 args.forEach( function ( image, index ) {
-                    var texture = createTexture( args[ index ] );
-                    texture.setWrapS( 'REPEAT' );
-                    texture.setWrapT( 'REPEAT' );
-                    model.getOrCreateStateSet().setTextureAttributeAndMode( index, texture );
+                    model.getOrCreateStateSet().setTextureAttributeAndMode( index, createTexture( args[ index ] ) );
                 } );
-
 
                 var config = {
                     mapSpecular: true,
                     mapAmbientOcclusion: true,
-                    mapGlossiness: false,
+                    mapGlossiness: true,
                     mapNormal: true
                 };
 
@@ -1249,11 +1569,13 @@ PBRExample.prototype = {
             return defer.promise;
         };
 
+        var modelPromise = this.getModel( 'robot/Junkbot.osgjs.gz', callbackModel );
+        Q( modelPromise ).then( function ( model ) {
+            osg.Matrix.makeIdentity( model.getMatrix() );
+        } );
 
-
-        return this.getModel( 'hotrod/hotrod.osgjs', callbackModel );
+        return modelPromise;
     },
-
 
     loadCarModelSpecular: function () {
 
@@ -1335,7 +1657,7 @@ PBRExample.prototype = {
 
             var promises = [];
             var base = 'hotrod2/';
-            promises.push( self.readImageURL( base + 'hotrod_diffuse.png' ) );
+            promises.push( self.readImageURL( base + 'hotrod_basecolor.png' ) );
             promises.push( self.readImageURL( base + 'hotrod_roughness.png' ) );
 
             promises.push( self.readImageURL( base + 'hotrod_normal.png' ) );
@@ -1622,43 +1944,7 @@ PBRExample.prototype = {
         rootGraph.addChild( nodeEarlyPath );
         group.addChild( rootGraph );
 
-        var config = [ {
-            name: 'Mire',
-            func: this.loadMireScene.bind( this ),
-            promise: undefined,
-            model: new osg.Node()
-        },{
-            name: 'Cerberus_by_Andrew_Maximov',
-            func: this.loadDefaultModel.bind( this ),
-            promise: undefined,
-            model: new osg.Node()
-        }, {
-            name: 'Robot_by_Nicolas_Wirrmann',
-            func: this.loadRobotModel.bind( this ),
-            promise: undefined,
-            model: new osg.Node()
-        }, {
-            name: 'Car_by_Nicolas_Wirrmann',
-            func: this.loadCarModel.bind( this ),
-            promise: undefined,
-            model: new osg.Node()
-        }, {
-            name: 'Car_Specular',
-            func: this.loadCarModelSpecular.bind( this ),
-            promise: undefined,
-            model: new osg.Node()
-        }, {
-            name: 'Car_Metallic',
-            func: this.loadCarModelMetallic.bind( this ),
-            promise: undefined,
-            model: new osg.Node()
-        },{
-            name: 'Metallic sphere',
-            func: this.loadTemplateScene.bind( this ),
-            promise: undefined,
-            model: new osg.Node()
-        } ];
-
+        var config = this._configModel;
 
         // get array of names
         var names = config.map( function ( element ) {
@@ -1848,18 +2134,45 @@ PBRExample.prototype = {
         } )( options );
 
 
+        if ( options.model) {
+            var array = this._configModel.filter( function( element ) {
+                return ( element.name.toLowerCase() === options.model.toLowerCase() );
+            });
+
+            if ( array.length ) {
+                this._configModel = array;
+            }
+        }
+
+        if ( options.specularFactor ) {
+            this._specularFactor = parseFloat( options.specularFactor );
+        }
+
+        if ( options.mobile  ) {
+            this._mobile = 1;
+        }
+
         var viewer;
         viewer = new osgViewer.Viewer( canvas );
         this._viewer = viewer;
         viewer.init();
+
+        var gl = viewer.getState().getGraphicContext();
+        console.log ( gl.getExtension('OES_texture_float') );
+        console.log ( gl.getExtension('OES_texture_float_linear') );
+        console.log ( gl.getExtension('EXT_shader_texture_lod') );
+
         var rotate = new osg.MatrixTransform();
 
         //var nbVectors = viewer.getWebGLCaps().getWebGLParameter( 'MAX_FRAGMENT_UNIFORM_VECTORS' );
         //this.referenceNbSamples = Math.min( nbVectors - 20, this.referenceNbSamples );
 
         rotate.addChild( this.createScene() );
+
+        this._rootNode = new osg.Node();
+        this._rootNode.addChild(rotate);
         viewer.getCamera().setClearColor( [ 0.0, 0.0, 0.0, 0.0 ] );
-        viewer.setSceneData( rotate );
+        viewer.setSceneData( this._rootNode );
         viewer.setupManipulator();
         viewer.getManipulator().computeHomePosition();
 

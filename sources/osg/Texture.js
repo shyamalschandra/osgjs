@@ -312,9 +312,20 @@ define( [
         setUnrefImageDataAfterApply: function ( bool ) {
             this._unrefImageDataAfterApply = bool;
         },
-        setInternalFormat: function ( internalFormat ) {
-            this._internalFormat = internalFormat;
+
+        setInternalFormat: function ( formatSource ) {
+            var format = formatSource;
+            if ( format ) {
+                if ( typeof ( format ) === 'string' ) {
+                    format = Texture[ format ];
+                }
+            } else {
+                format = Texture.RGBA;
+            }
+
+            this._internalFormat = format;
         },
+
         getInternalFormat: function () {
             return this._internalFormat;
         },
