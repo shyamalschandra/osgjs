@@ -42,7 +42,7 @@ function create_diffuse()
     echo "generated diffuse ${output_env}"
 }
 
-#create_specular
+create_specular
 create_diffuse
 
 cd ${dir}

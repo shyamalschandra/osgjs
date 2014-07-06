@@ -1,6 +1,8 @@
+
+'use strict';
+
 var Q = window.Q;
 var OSG = window.OSG;
-var Viewer;
 var osg = OSG.osg;
 var osgViewer = OSG.osgViewer;
 var osgDB = OSG.osgDB;
@@ -8,203 +10,11 @@ var osgUtil = OSG.osgUtil;
 
 
 
-var NodeGenerateMipMapRGBE = function( texture ) {
-    osg.Node.call( this );
-    this._texture = texture;
-
-    var nbMip = Math.log( this._texture.getImage().getWidth() )/Math.log(2);
-    this._nbMipmap = nbMip - 1;
-
-    var UpdateCallback = function() {
-        this._done = false;
-        this.update = function(node, nodeVisitor) {
-
-            if ( nodeVisitor.getVisitorType() === osg.NodeVisitor.UPDATE_VISITOR ) {
-                if ( this._done )
-                    node.setNodeMask(0);
-                else
-                    this.done = true;
-            }
-        };
-    };
-    this.setUpdateCallback( new UpdateCallback () );
-
-};
-
-NodeGenerateMipMapRGBE.prototype = osg.objectInherit( osg.Node.prototype, {
-
-    createSubGraph: function( sourceTexture, destinationTexture, color) {
-        var composer = new osgUtil.Composer();
-        var reduce = new osgUtil.Composer.Filter.Custom([
-            '#ifdef GL_ES',
-            'precision highp float;',
-            '#endif',
-
-            'uniform sampler2D source;',
-            'uniform vec3 color;',
-
-            'void main() {',
-            '  //float decode = texture2D(depthTexture, FragTexCoord0));',
-            '  gl_FragColor = vec4(color, 1.0);',
-            '}',
-            ''].join('\n'), {
-                'source': sourceTexture,
-                'color': color
-            });
-
-        composer.addPass(reduce, destinationTexture);
-        composer.build();
-        return composer;
-    },
-
-    createSubGraphFinal: function( sourceTexture, destinationTexture) {
-
-        var composer = new osgUtil.Composer();
-        var copy = new osgUtil.Composer.Filter.Custom([
-            '#ifdef GL_ES',
-            'precision highp float;',
-            '#endif',
-
-            'uniform sampler2D source;',
-            'uniform float destSize;',
-            'uniform float sourceSize;',
-
-            'void main() {',
-            '  float offset = sourceSize/2.0;',
-            '  if ( gl_FragCoord.x >= sourceSize || ',
-            '        gl_FragCoord.y < offset  || gl_FragCoord.y > offset + sourceSize/2.0 ) {',
-            '      discard;',
-            '      return;',
-            '  }',
-
-            '  vec2 uv = vec2( gl_FragCoord.x/sourceSize, (gl_FragCoord.y - offset) / sourceSize/2.0 );',
-            '  gl_FragColor = texture2D(source, uv);',
-            '}',
-            ''].join('\n'), {
-                'source': sourceTexture,
-                'destSize': destinationTexture.getWidth(),
-                'sourceSize': sourceTexture.getWidth()
-            });
-
-        composer.addPass( copy, destinationTexture);
-        composer.build();
-        return composer;
-    },
-
-    init: function() {
-
-        var sourceTexture = this._texture;
-        var finalTexture = new osg.Texture();
-        finalTexture.setMinFilter( 'NEAREST' );
-        finalTexture.setMagFilter( 'NEAREST' );
-
-        this._finalTexture = finalTexture;
-
-        var maxSize = Math.pow(2, this._nbMipmap);
-        finalTexture.setTextureSize( maxSize, maxSize );
-
-        var colors = [
-            [ 1, 0, 0],
-            [ 0, 1, 0],
-            [ 0, 0, 1]
-        ];
-
-        var root = new osg.Node();
-
-        for ( var i = 0; i < this._nbMipmap; i++ ) {
-            var size = Math.pow(2, this._nbMipmap - i);
-
-            var destinationTexture = new osg.Texture();
-            destinationTexture.setMinFilter( 'NEAREST' );
-            destinationTexture.setMagFilter( 'NEAREST' );
-
-            destinationTexture.setTextureSize( size, size / 2 );
-            var node = this.createSubGraph( sourceTexture, destinationTexture, colors[i%3] );
-
-            var final = this.createSubGraphFinal( destinationTexture, finalTexture);
-            node.addChild( final );
-            root.addChild( node );
-            sourceTexture = destinationTexture;
-        }
-
-        this.addChild ( root );
-    }
-
-
-});
-
-
-var TransformRGBE2FloatTexture = function( texture ) {
-    osg.Node.call( this );
-    this._texture = texture;
-
-
-    var UpdateCallback = function() {
-        this._done = false;
-        this.update = function(node, nodeVisitor) {
-
-            if ( nodeVisitor.getVisitorType() === osg.NodeVisitor.UPDATE_VISITOR ) {
-                if ( this._done )
-                    node.setNodeMask(0);
-                else
-                    this.done = true;
-            }
-        };
-    };
-    this.setUpdateCallback( new UpdateCallback () );
-
-};
-
-TransformRGBE2FloatTexture.prototype = osg.objectInherit( osg.Node.prototype, {
-
-    createSubGraph: function( sourceTexture, destinationTexture, color) {
-        var composer = new osgUtil.Composer();
-        var reduce = new osgUtil.Composer.Filter.Custom([
-            '#ifdef GL_ES',
-            'precision highp float;',
-            '#endif',
-
-            'uniform sampler2D source;',
-            'uniform vec3 color;',
-
-            'void main() {',
-            '  //float decode = texture2D(depthTexture, FragTexCoord0));',
-            '  gl_FragColor = vec4(color, 1.0);',
-            '}',
-            ''].join('\n'), {
-                'source': sourceTexture,
-                'color': color
-            });
-
-        composer.addPass(reduce, destinationTexture);
-        composer.build();
-        return composer;
-    },
-
-
-    init: function() {
-
-        var sourceTexture = this._texture;
-        var finalTexture = new osg.Texture();
-        finalTexture.setTextureSize( sourceTexture.getImage().getWidth(), sourceTexture.getImage().getHeight() );
-        finalTexture.setType( 'FLOAT' );
-        finalTexture.setMinFilter( 'NEAREST' );
-        finalTexture.setMagFilter( 'NEAREST' );
-
-        this._finalTexture = finalTexture;
-        this.addChild( this.createSubGraph( sourceTexture, finalTexture, [ 5,0,5]) );
-
-    }
-
-
-});
-
-
-
 
 var PBRExample = function () {
 
     this.referenceNbSamples = 2048;
+    this._solidNbSamples = 8;
     this._specularFactor = 1.0;
     this._mobile = 0;
     this.environmentList = [
@@ -221,12 +31,12 @@ var PBRExample = function () {
     this.textureEnvs = {};
 
     this.textureEnvs.solid = {
-        'Alexs_Apartment': 'Alexs_Apt_2k_2048.png',
-        // 'Walk_Of_Fame': 'Mans_Outside_2k.png',
-        // 'Arches_E_PineTree': 'Arches_E_PineTree_3k.png',
-        // 'GrandCanyon_C_YumaPoint': 'GCanyon_C_YumaPoint_3k.png',
-        // 'Milkyway': 'Milkyway_small.png',
-        // 'Allego03': 'panorama_map_rgbe.png'
+        'Alexs_Apartment': 'Alexs_Apt_2k_mip_rgbe.png',
+        'Walk_Of_Fame': 'Mans_Outside_2k_mip_rgbe.png',
+        'Arches_E_PineTree': 'Arches_E_PineTree_3k_mip_rgbe.png',
+        'GrandCanyon_C_YumaPoint': 'GCanyon_C_YumaPoint_3k_mip_rgbe.png',
+        'Allego03': 'panorama_map_mip_rgbe.png',
+        'Allego09': 'panorama_map_mip_rgbe.png'
     };
 
     this.textureEnvs.reference = {
@@ -387,7 +197,8 @@ var PBRExample = function () {
         func: this.loadDefaultModel.bind( this ),
         promise: undefined,
         model: new osg.Node()
-    }, {
+    }
+, {
         name: 'Mire',
         func: this.loadMireScene.bind( this ),
         promise: undefined,
@@ -637,6 +448,53 @@ PBRExample.prototype = {
 
 
         var solid = function () {
+
+
+            var getShaderBackground = function () {
+
+                var vertexshader = [
+                    '',
+                    '#ifdef GL_ES',
+                    'precision highp float;',
+                    '#endif',
+                    'attribute vec3 Vertex;',
+                    'attribute vec2 TexCoord0;',
+                    'uniform mat4 ModelViewMatrix;',
+                    'uniform mat4 ProjectionMatrix;',
+
+                    'varying vec2 FragTexCoord0;',
+
+                    'void main(void) {',
+                    '  FragTexCoord0 = TexCoord0;',
+                    '  gl_Position = ProjectionMatrix * ModelViewMatrix * vec4(Vertex,1.0);',
+                    '}'
+                ].join( '\n' );
+
+                var fragmentshader = [
+                    '',
+                    '#ifdef GL_ES',
+                    'precision highp float;',
+                    '#endif',
+
+                    'varying vec2 FragTexCoord0;',
+                    'uniform sampler2D source;',
+
+                    'void main(void) {',
+
+                    '  gl_FragColor = vec4( texture2D( source, FragTexCoord0).rgb, 1.0);',
+                    '}',
+                    ''
+                ].join( '\n' );
+
+                var program = new osg.Program(
+                    new osg.Shader( 'VERTEX_SHADER', vertexshader ),
+                    new osg.Shader( 'FRAGMENT_SHADER', fragmentshader ) );
+
+                return program;
+            };
+
+
+
             var image = self.textureEnvs.solid[ name ];
             var texture = [
                 self.readImageURL( 'textures/' + name + '/' + image ),
@@ -673,22 +531,40 @@ PBRExample.prototype = {
 
             var createEnvironmnentTextureMipmapped = function( name, image, stateSet ) {
 
-                var texture = new osg.Texture();
+                var textureSrc = new osg.Texture();
                 if ( image )
-                    texture.setImage( image );
-                texture.setMinFilter( 'NEAREST' );
-                texture.setMagFilter( 'NEAREST' );
+                    textureSrc.setImage( image );
+                textureSrc.setMinFilter( 'NEAREST' );
+                textureSrc.setMagFilter( 'NEAREST' );
 
-                var node = new TransformRGBE2FloatTexture( texture );
+                var node = new TransformRGBE2FloatTexture( textureSrc );
                 node.init();
                 self._rootNode.addChild( node );
-                createEnvironmnentTexture(name, image, stateSet, node._finalTexture);
 
+                var texture = node._finalTexture;
+                stateSet.setTextureAttributeAndMode( startUnit, texture );
+                setNameTextureUnit( stateSet, name, startUnit, texture.getWidth(), texture.getHeight() );
+                startUnit += 1;
+
+                // convert rgbe texture to float with the gpu
+                var quad = osg.createTexturedQuadGeometry(
+                     -1,-1,0,
+                     20,0,0,
+                     0,20,0 );
+
+                quad.getOrCreateStateSet().setTextureAttributeAndModes( 10, texture );
+                quad.getOrCreateStateSet().setAttributeAndModes( getShaderBackground() );
+
+                quad.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 10, 'source' ) );
+
+                //ground.removeChildren();
+                //ground.addChild( quad );
             };
 
             Q.all( texture ).then( function ( images ) {
-                createEnvironmnentTexture( 'environmnent', images[ 0 ], background.getOrCreateStateSet() );
-                createEnvironmnentTextureMipmapped( 'environmnent', images[ 0 ], ground.getOrCreateStateSet() );
+                createEnvironmnentTexture( 'environment', images[ 0 ], background.getOrCreateStateSet() );
+                createEnvironmnentTexture( 'environment', images[ 0 ], ground.getOrCreateStateSet() );
+//                createEnvironmnentTextureMipmapped( 'environmnent', images[ 0 ], ground.getOrCreateStateSet() );
 
             } );
         };
@@ -706,19 +582,21 @@ PBRExample.prototype = {
             'float TextureLevel = 0.0;',
             '#define DefaultGamma 2.4',
 
-            '#ifdef BIAS',
-            'float getBias( vec2 size, vec2 uv, float lod ) {',
-            '  vec2  dx        = dFdx(uv) * size[0];',
-            '  vec2  dy        = dFdy(uv) * size[1];',
-            '  float  dotx        = dot(dx, dx);',
-            '  float  doty        = dot(dy, dy);',
-            '  float delta_max_sqr = dotx + doty;  ',
-            '  float current_lod = 0.5 * log2(0.5*delta_max_sqr);   ',
-            '  float new_bias = lod - current_lod;',
-            '  return new_bias;',
+            'vec4 computeUVForMipmap( const in float level, const in vec2 uv, const in vec2 size ) {',
+            '    // our texture is square, so each level is width x height/2',
+            '    float u = uv[0];',
+            '    float v = uv[1];',
+            '    float height = pow( 2.0, level );',
+            '    float heightInTextureSpace = height/size.y;', // rescale to the size of the mipmap level
+            '    float maxU = 2.0 * heightInTextureSpace;',
+            '    float maxV = maxU;',
+            '    u *= maxU;',
+            '    v *= maxU;',
+            '    v += heightInTextureSpace;',
+
+            '    return vec4( u, v , maxU, maxV );',
             '}',
-            '#endif',
-            '',
+
             '',
             'float srgb_to_linearrgb1(const in float c, const in float gamma)',
             '{',
@@ -809,15 +687,11 @@ PBRExample.prototype = {
             '    return col_to;',
             '}',
 
-            'vec4 textureRGBE(const in sampler2D texture, const in vec2 size, const in vec2 uv) {',
-            '    #ifdef BIAS',
-            '       vec4 rgbe = texture2D(texture, uv, getBias( size, uv, TextureLevel );',
-            '    #else',
-            '       vec4 rgbe = texture2D(texture, uv );',
-            '    #endif',
+            'vec3 textureRGBE(const in sampler2D texture, const in vec2 uv) {',
+            '    vec4 rgbe = texture2D(texture, uv );',
 
             '    float f = pow(2.0, rgbe.w * 255.0 - (128.0 + 8.0));',
-            '    return vec4(rgbe.rgb * 255.0 * f, 1.0);',
+            '    return rgbe.rgb * 255.0 * f;',
             '}',
 
             'vec4 textureRGBM(const in sampler2D texture, const in vec2 uv ) {',
@@ -830,7 +704,7 @@ PBRExample.prototype = {
             '{',
             'float n = length(dir.xz);',
             'vec2 pos = vec2( (n>0.0000001) ? dir.x / n : 0.0, dir.y);',
-            'pos = acos(pos)*InversePI;',
+            'pos = acos(pos)*INV_PI;',
             'pos.x = (dir.z > 0.0) ? pos.x*0.5 : 0.9999999-(pos.x*0.5);',
             '//pos.y = 1.0-pos.y;',
             'return pos;',
@@ -853,12 +727,12 @@ PBRExample.prototype = {
             '        return vec2( 0.5, 1.0-EPS);',
             '    }',
             '',
-            '    float yaw = acos(n.y) / PI;',
+            '    float yaw = acos(n.y) * INV_PI;',
             '    float pitch;',
             '    float y = n.z;',
             '    if ( abs( y ) < EPS )',
             '        y = EPS;',
-            '    pitch = ( atan(n.x, y) + PI) / (2.0 * PI);',
+            '    pitch = ( atan(n.x, y) + PI) * 0.5  * INV_PI;',
             '',
             '    return vec2( pitch, yaw );',
             '}',
@@ -921,16 +795,49 @@ PBRExample.prototype = {
             '#endif',
             '}',
 
-            'vec4 textureRGBELinear(const in sampler2D texture, const in vec2 size, const in vec2 uv) {',
+            'vec3 textureRGBELinearPanoramic(const in sampler2D texture, const in vec2 size, const in vec2 uv, const in vec2 maxBox ) {',
             '    vec2 t = 1.0 / size;',
             '    ',
-            '    vec4 a = textureRGBE(texture,  size, uv ),',
-            '         b = textureRGBE(texture,  size, uv + vec2(t.x, 0.0) ),',
-            '         c = textureRGBE(texture,  size, uv + vec2(0.0, t.y) ),',
-            '         d = textureRGBE(texture,  size, uv + vec2(t.x, t.y) );',
+            '    float maxX = mod(uv.x+t.x, maxBox.x);',
+            '    float maxY = min(uv.y+t.y, maxBox.y-t.y);', // clamp to one pixel before
+
+            '    vec3 a = textureRGBE(texture, uv ),',
+            '         b = textureRGBE(texture, vec2( maxX, uv.y) ),',
+            '         c = textureRGBE(texture, vec2( uv.x, maxY) ),',
+            '         d = textureRGBE(texture, vec2( maxX, maxY) );',
+            '    vec2 f = fract(uv * size);',
+            '    vec3 A = mix(a, b, f.x),',
+            '         B = mix(c, d, f.x);',
+            '    return mix(A, B, f.y);',
+            '}',
+
+            'vec3 texturePanoramicRGBELod(const in sampler2D texture, const in vec3 direction, const float lodInput) {',
+
+            '   vec2 uvBase = normalToSphericalUV( direction );',
+            '   uvBase.y *= 0.5;',
+            '   vec2 size = environmentSize;',
+            '   float lod = max(2.0, MaxLOD-lodInput);',
+            '   float lod0 = floor(lod);',
+            '   vec4 uv0 = computeUVForMipmap(lod0, uvBase, size );',
+            '   vec3 texel0 = textureRGBELinearPanoramic( texture, size, uv0.xy, uv0.zw);',
+
+            '   float lod1 = ceil(lod);',
+            '   vec4 uv1 = computeUVForMipmap(lod1, uvBase, size );',
+            '   vec3 texel1 = textureRGBELinearPanoramic( texture, size, uv1.xy, uv1.zw);',
+
+            '    return mix(texel0, texel1, fract( lod ) );',
+            '}',
+
+            'vec3 textureRGBELinear(const in sampler2D texture, const in vec2 size, const in vec2 uv) {',
+            '    vec2 t = 1.0 / size;',
+            '    ',
+            '    vec3 a = textureRGBE(texture, uv ),',
+            '         b = textureRGBE(texture, uv + vec2(t.x, 0.0) ),',
+            '         c = textureRGBE(texture, uv + vec2(0.0, t.y) ),',
+            '         d = textureRGBE(texture, uv + vec2(t.x, t.y) );',
 
             '    vec2 f = fract(uv * size);',
-            '    vec4 A = mix(a, b, f.x),',
+            '    vec3 A = mix(a, b, f.x),',
             '        B = mix(c, d, f.x);',
             '    return mix(A, B, f.y);',
             '}',
@@ -951,21 +858,6 @@ PBRExample.prototype = {
             '    float b = (rgba[3] * 65280.0 + rgba[2] * 255.0);',
             '    float a = (rgba[1] * 65280.0 + rgba[0] * 255.0);',
             '    return vec2( a, b ) * div;',
-            '}',
-
-            'vec4 computeUVForMipmap( const in float level, const in vec2 uv, const in vec2 size ) {',
-            '    // our texture is square, so each level is width x height/2',
-            '    float u = uv[0];',
-            '    float v = uv[1];',
-            '    float height = pow( 2.0, level );',
-            '    float heightInTextureSpace = height/size.y;', // rescale to the size of the mipmap level
-            '    float maxU = 2.0 * heightInTextureSpace;',
-            '    float maxV = maxU;',
-            '    u *= maxU;',
-            '    v *= maxU;',
-            '    v += heightInTextureSpace;',
-
-            '    return vec4( u, v , maxU, maxV );',
             '}',
 
             'vec3 texturePrefilteredSpecular( const in float roughness, const in vec3 direction ) {',
@@ -990,8 +882,6 @@ PBRExample.prototype = {
             '   vec4 uv0Max = computeUVForMipmap( lowLod, virtualUV, size );',
 
             '   vec3 texel0 = textureRGBMLinearSpecular( envSpecularRGBM, size, uv0Max.xy, uv0Max.zw).rgb;',
-            '   //texel0 = textureRGBM(envSpecularRGBM, uv0 ).rgb * range;',
-            '   //return texel0;',
 
             '   vec4 uv1Max = computeUVForMipmap( highLod, virtualUV, size );',
             '   vec3 texel1 = textureRGBMLinearSpecular( envSpecularRGBM, size, uv1Max.xy, uv1Max.zw ).rgb;',
@@ -1006,7 +896,10 @@ PBRExample.prototype = {
     getCommonShader: function () {
         return [
             '#define PI 3.1415926535897932384626433832795',
-            '#define InversePI 1.0/PI',
+            '#define INV_PI 1.0/PI',
+            '#define INV_LOG2 1.4426950408889634073599246810019',
+
+            'float MaxLOD = 0.0;',
 
             // unreal pregenerated texture
 
@@ -1036,11 +929,32 @@ PBRExample.prototype = {
             'uniform vec2 envSpecularSize;',
             'uniform vec2 envDiffuseSize;',
 
+            // solid
+            'uniform sampler2D environment;',
+            'uniform vec2 environmentSize;',
+
         ].join( '\n' );
     },
 
-    getShader: function ( config, reference ) {
+    getShader: function ( config, shaderType ) {
         if ( !config ) config = {};
+
+        if ( !shaderType )
+            shaderType = {};
+
+        var reference = 0;
+        var solid = 0;
+        var prefilter = 0;
+        var solidSamples = 2;
+        if ( shaderType.reference )
+            reference = 1;
+        if ( shaderType.solid ) {
+            solid = 1;
+            solidSamples = shaderType.samples;
+        }
+
+        if ( solid + reference === 0 )
+            prefilter = 1;
 
         var vertexshader = [
             '',
@@ -1095,14 +1009,21 @@ PBRExample.prototype = {
             'precision highp float;',
             '#endif',
 
+
             this.getCommonShader(),
             ambientOcclusion,
             specular,
             glossiness,
             normalmap,
 
-            '#define NB_SAMPLES ' + this.referenceNbSamples,
 
+            '#if ' + reference.toString(),
+            '#define NB_SAMPLES ' + this.referenceNbSamples,
+            '#endif',
+
+            '#if ' + solid.toString(),
+            '#define NB_SAMPLES ' + solidSamples.toString(),
+            '#endif',
 
             'uniform sampler2D albedoMap;',
             'uniform sampler2D roughnessMap;',
@@ -1110,18 +1031,17 @@ PBRExample.prototype = {
             'uniform sampler2D specularMap;',
             'uniform sampler2D aoMap;',
 
-            'uniform int prefilterCubemap;',
-
-            '#if ' + reference.toString(),
-            '//uniform vec2 hammersley[NB_SAMPLES];',
-            '#endif',
-
             'uniform float hdrExposure;',
             'uniform mat4 CubemapTransform;',
 
             '#ifdef GL_OES_standard_derivatives',
             '#extension GL_OES_standard_derivatives : enable',
             '#endif',
+
+            '#if ' + solid.toString(),
+            'uniform vec2 hammersley[NB_SAMPLES];',
+            '#endif',
+
 
             'varying vec3 osg_FragEye;',
             'varying vec3 osg_FragNormal;',
@@ -1135,8 +1055,10 @@ PBRExample.prototype = {
             'vec3 MaterialSpecular = vec3(0.04);',
             'vec3 MaterialAlbedo;',
             'vec3 MaterialNormal;',
-            'vec3 MaterialAO;',
+            'float MaterialAO;',
 
+
+            '#if ' + solid.toString(),
 
             'vec3 fresnel( float vdh, vec3 F0 ) {',
             '// Schlick with Spherical Gaussian approximation',
@@ -1145,10 +1067,37 @@ PBRExample.prototype = {
             '    return F0 + (vec3(1.0 ) - F0) * sphg;',
             '}',
 
-            '#if ' + reference.toString(),
+            '// w is either Ln or Vn',
+            'float G1( float ndw, float k ) {',
+            '// One generic factor of the geometry function divided by ndw',
+            '// NB : We should have k > 0',
+            '    return 1.0 / ( ndw*(1.0-k) + k );',
+            '}',
+
+            'float visibility(float ndl,float ndv,float Roughness) {',
+            '// Schlick with Smith-like choice of k',
+            '// cf http://blog.selfshadow.com/publications/s2013-shading-course/karis/s2013_pbs_epic_notes_v2.pdf p3',
+            '// visibility is a Cook-Torrance geometry function divided by (n.l)*(n.v)',
+            '    float k = Roughness * Roughness * 0.5;',
+            '    return G1(ndl,k)*G1(ndv,k);',
+            '}',
+
+            'vec3 cookTorranceContrib(',
+            '	float vdh,',
+            '	float ndh,',
+            '	float ndl,',
+            '	float ndv,',
+            '	vec3 Ks,',
+            '	float Roughness)',
+            '{',
+            '// This is the contribution when using importance sampling with the GGX based',
+            '// sample distribution. This means ct_contrib = ct_brdf / ggx_probability',
+            '	return fresnel(vdh,Ks) * (visibility(ndl,ndv,Roughness) * vdh * ndl / ndh );',
+            '}',
+            '#endif',
 
             '// A,B,C are ',
-            'vec3 importanceSampleGGX(vec2 Xi, vec3 tangentX, vec3 tangentY, vec3 normal, float roughness)',
+            'vec3 importanceSampleGGX(const in vec2 Xi, const in vec3 tangentX, const in vec3 tangentY, const in vec3 normal, const in float roughness)',
             '{',
             '	float a = roughness*roughness;',
 
@@ -1162,6 +1111,8 @@ PBRExample.prototype = {
             '   h.z = cosT;',
             '	return tangentX * h.x + tangentY * h.y + normal * h.z;',
             '}',
+
+            '#if ' + reference.toString(),
 
 
             'float geometrySmithSchlickGGX(float alpha, float NdV, float NdL)',
@@ -1241,9 +1192,6 @@ PBRExample.prototype = {
             '         float G = geometrySmithSchlickGGX( MaterialRoughness, ndv, ndl );',
             '         float Fc = pow( 1.0 - vdh, 5.0 );',
             '         vec3 F = (1.0 - Fc) * MaterialSpecular + Fc;',
-            // Incident light = color * ndl
-            // Microfacet specular = D*G*F / (4*ndl*ndv)
-            // pdf = D * ndh / (4 * vdh)
             '         specularLighting += color * F * G * vdh / (ndh * ndv);',
             '      }',
 
@@ -1264,11 +1212,117 @@ PBRExample.prototype = {
             '',
             '}',
 
+            '#if ' + solid.toString(),
+
+            'vec3 diffuseBRDF(',
+            '	vec3 Nn,',
+            '	vec3 Ln,',
+            '	vec3 Vn,',
+            '	vec3 Kd)',
+            '{',
+            '	return Kd;',
+            '}',
+
+            'vec3 importanceSampleLambert(vec2 Xi, vec3 A, vec3 B, vec3 C)',
+            '{',
+            '	float cosT = sqrt(Xi.y);',
+            '	float sinT = sqrt(1.0-Xi.y);',
+            '	float phi = 2.0*PI*Xi.x;',
+            '	return (sinT*cos(phi)) * A + (sinT*sin(phi)) * B + cosT * C;',
+            '}',
+            '',
+            'float probabilityLambert(const in vec3 Ln, const in vec3 Nn)',
+            '{',
+            '	return max( 0.0, dot(Nn, Ln) * INV_PI );',
+            '}',
+
+            'float normal_distrib(',
+            '	float ndh,',
+            '	float Roughness)',
+            '{',
+            '// use GGX / Trowbridge-Reitz, same as Disney and Unreal 4',
+            '// cf http://blog.selfshadow.com/publications/s2013-shading-course/karis/s2013_pbs_epic_notes_v2.pdf p3',
+            '	float alpha = Roughness * Roughness;',
+            '	float tmp = alpha / (ndh*ndh*(alpha*alpha-1.0)+1.0);',
+            '	return tmp * tmp * INV_PI;',
+            '}',
+
+            'float probabilityGGX(float ndh, float vdh, float Roughness)',
+            '{',
+            '	return normal_distrib(ndh, Roughness) * ndh / (4.0*vdh);',
+            '}',
+
+            'float distortion(const in vec3 Wn)',
+            '{',
+            '	// Computes the inverse of the solid angle of the (differential) pixel in',
+            '	// the cube map pointed at by Wn',
+            '	float sinT = max(0.0000001, sqrt(1.0-Wn.y*Wn.y));',
+            '	return 1.0/sinT;',
+            '}',
+            'float computeLOD(vec3 Ln, float p)',
+            '{',
+            '	return max(0.0, (MaxLOD-1.5) - 0.5*(log(float(NB_SAMPLES)) + log( p * distortion(Ln) ))',
+            '		* INV_LOG2);',
+            '}',
+
+            'vec3 solid( const in mat3 iblTransform, const in vec3 normal, const in vec3 view ) {',
+            '',
+            '   MaxLOD = log ( environmentSize[0] ) * INV_LOG2 - 1.0;',
+            '   //vectors used for importance sampling',
+            '   vec3 upVector = abs(normal.z) < 0.999 ? vec3(0.0,0.0,1.0) : vec3(1.0,0.0,0.0);',
+            '   vec3 tangentX = normalize( cross( upVector, normal ) );',
+            '   vec3 tangentY = cross( normal, tangentX );',
+
+            '   float ndv = max( 0.0, dot(normal, view) );',
+
+            '   vec3 contrib = vec3(0.0);',
+
+            '   for ( int i = 0; i < NB_SAMPLES; i++ ) {',
+
+            '      vec2 xi = hammersley[i];',
+
+            '      vec3 isl = importanceSampleLambert( xi, tangentX, tangentY, normal );',
+            '      float probLambert = probabilityLambert(isl, normal);',
+
+
+            '      float lodDiffuse = computeLOD(isl, probLambert);',
+            '      vec3 diffuseContrib = diffuseBRDF( normal, isl,  view, MaterialAlbedo);',
+            '      vec3 ray = iblTransform * isl;',
+            '      vec3 texel = texturePanoramicRGBELod(environment, ray, lodDiffuse);',
+            '      contrib += MaterialAO * hdrExposure * texel * diffuseContrib;',
+
+
+            '      vec3 h = importanceSampleGGX( xi, tangentX, tangentY, normal, MaterialRoughness );',
+            '',
+            '      float vdh = dot( view, h );',
+            '      vec3 l = (2.0 * vdh * h - view);',
+            '      float ndl =  dot( normal, l );',
+
+
+            '      if ( ndl > 0.0 ) {',
+            '         float ndh =  max( 0.0, dot( normal, h ) );',
+            '         vdh = max( 0.0, vdh );',
+            '         float probGGX = probabilityGGX( ndh, vdh, MaterialRoughness);',
+            '         float lodSpecular = MaterialRoughness < 0.01 ? 0.0: computeLOD( l, probGGX );',
+            '         vec3 specularContrib = cookTorranceContrib( vdh, ndh, ndl, ndv, MaterialSpecular, MaterialRoughness);',
+            '         vec3 raySpec = iblTransform * l;',
+            '         vec3 color = texturePanoramicRGBELod(environment, raySpec, lodSpecular);',
+            '         contrib += hdrExposure * color * specularContrib;',
+            '      }',
+
+            '   }',
+            '   contrib = contrib / float(NB_SAMPLES);',
+
+            '   vec3 gammaCorrected = linearTosRGB( contrib, DefaultGamma);',
+            '   return gammaCorrected;',
+            '}',
+            '#endif',
+
 
             '#if ' + reference.toString(),
             'vec3 reference( const in mat3 iblTransform, const in vec3 E ) {',
             '  vec3 diffuseIndirect = MaterialAO * lightDiffuseIndirect( iblTransform, MaterialAlbedo, MaterialNormal );',
-            '  vec3 specularIndirect = lightSpecularIndirect( iblTransform, MaterialAlbedo, MaterialNormal, -E );',
+            '  vec3 specularIndirect = lightSpecularIndirect( iblTransform, MaterialAlbedo, MaterialNormal, E );',
             '  vec3 gammaCorrected = linearTosRGB( diffuseIndirect + specularIndirect, DefaultGamma);',
             '  return gammaCorrected;',
             '}',
@@ -1277,7 +1331,7 @@ PBRExample.prototype = {
 
             'vec3 prefilteredAndLUT( const in mat3 iblTransform, const in vec3 E ) {',
             '  vec3 diffuseIndirect = MaterialAO * lightDiffuseIndirect( iblTransform, MaterialAlbedo, MaterialNormal );',
-            '  vec3 specularIndirect = lightSpecularIndirect2( iblTransform, MaterialAlbedo, MaterialNormal, -E );',
+            '  vec3 specularIndirect = lightSpecularIndirect2( iblTransform, MaterialAlbedo, MaterialNormal, E );',
             '  vec3 gammaCorrected = linearTosRGB( diffuseIndirect + specularIndirect, DefaultGamma);',
             '  return gammaCorrected;',
             '}',
@@ -1310,9 +1364,9 @@ PBRExample.prototype = {
 
             '  MaterialNormal = normal;',
             '  MaterialAlbedo = albedo;',
-            '  MaterialAO = vec3(1.0);',
+            '  MaterialAO = 1.0;',
             '#ifdef AO',
-            ' MaterialAO = texture2D( aoMap, osg_FragTexCoord0 ).rgb;',
+            ' MaterialAO = texture2D( aoMap, osg_FragTexCoord0 ).r;',
             ' //MaterialAO = sRGBToLinear( texture2D( aoMap, osg_FragTexCoord0 ), DefaultGamma ).rgb;',
             '#endif',
 
@@ -1324,16 +1378,15 @@ PBRExample.prototype = {
             '  MaterialSpecular = mix( dielectricColor, albedo, metallic);',
             '#endif',
 
-            '#if 0',
-            '  vec3 diffuseIndirect = MaterialAO * lightDiffuseIndirect( iblTransform, MaterialAlbedo, MaterialNormal );',
-            '  vec3 specularIndirect = lightSpecularIndirect( iblTransform, MaterialAlbedo, MaterialNormal, -E );',
-            '#endif',
-
             'vec4 result;',
             '#if ' + reference.toString(),
-            '  result = vec4( reference( iblTransform, E ), 1.0);',
-            '#else',
-            '  result = vec4( prefilteredAndLUT( iblTransform, E ), 1.0);',
+            '  result = vec4( reference( iblTransform, -E ), 1.0);',
+            '#endif',
+            '#if ' + solid.toString(),
+            '  result = vec4( solid( iblTransform, MaterialNormal, -E ), 1.0);',
+            '#endif',
+            '#if ' + prefilter.toString(),
+            '  result = vec4( prefilteredAndLUT( iblTransform, -E ), 1.0);',
             '#endif',
 
             '  gl_FragColor = result;',
@@ -1390,14 +1443,18 @@ PBRExample.prototype = {
 
 
     installShaderOnNodes: function ( model, config ) {
-        var reference = this.getShader( config, 1 );
-        var prefiltered = this.getShader( config, 0 );
+        var reference = this.getShader( config, { reference: 1} );
+        var solid = this.getShader( config, { solid: 1, samples: this._solidNbSamples} );
+        var prefiltered = this.getShader( config );
 
         model.setShaderReference = function () {
             this.getOrCreateStateSet().setAttributeAndModes( reference );
         };
         model.setShaderPrefiltered = function () {
             this.getOrCreateStateSet().setAttributeAndModes( prefiltered );
+        };
+        model.setShaderSolid = function () {
+            this.getOrCreateStateSet().setAttributeAndModes( solid );
         };
         model.setShaderPrefiltered();
     },
@@ -1912,12 +1969,14 @@ PBRExample.prototype = {
 
         // HDR parameters uniform
         var uniformExposure = osg.Uniform.createFloat1( 1, 'hdrExposure' );
-        var uniformPrefilterCubemap = osg.Uniform.createInt1( 1, 'prefilterCubemap' );
+
+        var sequence = this.computeHammersleySequence( this._solidNbSamples );
+        var uniformHammersley = osg.Uniform.createFloat2Array( sequence, 'hammersley' );
 
         var size = 500;
         var background = this.getEnvSphere( size, group );
         group.getOrCreateStateSet().addUniform( uniformExposure );
-        group.getOrCreateStateSet().addUniform( uniformPrefilterCubemap );
+        group.getOrCreateStateSet().addUniform( uniformHammersley );
 
         var rootGraph = new osg.Node();
 
@@ -1988,12 +2047,15 @@ PBRExample.prototype = {
             config[ index ].model.accept( visitor );
 
             var model = visitor._found;
-            if ( obj.rendering === 'prefilter' ) {
+            if ( obj.rendering === 'prefilter' || obj.rendering === 'solid' ) {
                 if ( self._viewer.done() ) {
                     self._viewer.setDone(false);
                     self._viewer.run();
                 }
-                model.setShaderPrefiltered();
+                if ( obj.rendering === 'prefilter' )
+                    model.setShaderPrefiltered();
+                else
+                    model.setShaderSolid();
 
             } else {
                 model.setShaderReference();
@@ -2083,7 +2145,7 @@ PBRExample.prototype = {
         } );
 
 
-        controller = gui.add( obj, 'environment', Object.keys( this.textureEnvs ) );
+        controller = gui.add( obj, 'environment', this.environmentList );
         controller.onChange( function ( value ) {
 
             this.setEnvironment( value, background, groupModel );
@@ -2099,7 +2161,7 @@ PBRExample.prototype = {
         }.bind( this ) );
 
 
-        controller = gui.add( obj, 'rendering', [ 'prefilter', 'reference ' + this.referenceNbSamples.toString() ] );
+        controller = gui.add( obj, 'rendering', [ 'prefilter', 'reference ' + this.referenceNbSamples.toString(), 'solid' ] );
         controller.onChange( setShaderModel );
 
 
@@ -2301,6 +2363,227 @@ PBRExample.prototype = {
     }
 
 };
+
+
+// convert rgbe image to mipmap
+
+var NodeGenerateMipMapRGBE = function( texture ) {
+    osg.Node.call( this );
+    this._texture = texture;
+
+    var nbMip = Math.log( this._texture.getImage().getWidth() )/Math.log(2);
+    this._nbMipmap = nbMip - 1;
+
+    var UpdateCallback = function() {
+        this._done = false;
+        this.update = function(node, nodeVisitor) {
+
+            if ( nodeVisitor.getVisitorType() === osg.NodeVisitor.UPDATE_VISITOR ) {
+                if ( this._done )
+                    node.setNodeMask(0);
+                else
+                    this.done = true;
+            }
+        };
+    };
+    this.setUpdateCallback( new UpdateCallback () );
+
+};
+
+NodeGenerateMipMapRGBE.prototype = osg.objectInherit( osg.Node.prototype, {
+
+    createSubGraph: function( sourceTexture, destinationTexture, color) {
+        var composer = new osgUtil.Composer();
+        var reduce = new osgUtil.Composer.Filter.Custom([
+            '#ifdef GL_ES',
+            'precision highp float;',
+            '#endif',
+
+            'uniform sampler2D source;',
+            'varying vec2 FragTexCoord0;',
+            'uniform vec3 color;',
+
+            'vec4 textureRGBE(const in sampler2D texture, const in vec2 uv) {',
+            '    vec4 rgbe = texture2D(texture, uv );',
+
+            '    float f = pow(2.0, rgbe.w * 255.0 - (128.0 + 8.0));',
+            '    return vec4(rgbe.rgb * 255.0 * f, 1.0);',
+            '}',
+
+            'void main() {',
+            '  vec3 decode = textureRGBE(source, FragTexCoord0).rgb;',
+            '  gl_FragColor = vec4(decode, 1.0);',
+            '}',
+            ''].join('\n'), {
+                'source': sourceTexture,
+                'color': color
+            });
+
+        composer.addPass(reduce, destinationTexture);
+        composer.build();
+        return composer;
+    },
+
+    createSubGraphFinal: function( sourceTexture, destinationTexture) {
+
+        var composer = new osgUtil.Composer();
+        var copy = new osgUtil.Composer.Filter.Custom([
+            '#ifdef GL_ES',
+            'precision highp float;',
+            '#endif',
+
+            'uniform sampler2D source;',
+            'uniform float destSize;',
+            'uniform float sourceSize;',
+
+            'void main() {',
+            '  float offset = sourceSize/2.0;',
+            '  if ( gl_FragCoord.x >= sourceSize || ',
+            '        gl_FragCoord.y < offset  || gl_FragCoord.y > offset + sourceSize/2.0 ) {',
+            '      discard;',
+            '      return;',
+            '  }',
+
+            '  vec2 uv = vec2( gl_FragCoord.x/sourceSize, (gl_FragCoord.y - offset) / sourceSize/2.0 );',
+            '  gl_FragColor = texture2D(source, uv);',
+            '}',
+            ''].join('\n'), {
+                'source': sourceTexture,
+                'destSize': destinationTexture.getWidth(),
+                'sourceSize': sourceTexture.getWidth()
+            });
+
+        composer.addPass( copy, destinationTexture);
+        composer.build();
+        return composer;
+    },
+
+    init: function() {
+
+        var sourceTexture = this._texture;
+        var finalTexture = new osg.Texture();
+        finalTexture.setMinFilter( 'NEAREST' );
+        finalTexture.setMagFilter( 'NEAREST' );
+
+        this._finalTexture = finalTexture;
+
+        var maxSize = Math.pow(2, this._nbMipmap);
+        finalTexture.setTextureSize( maxSize, maxSize );
+
+        var colors = [
+            [ 1, 0, 0],
+            [ 0, 1, 0],
+            [ 0, 0, 1]
+        ];
+
+        var root = new osg.Node();
+
+        for ( var i = 0; i < this._nbMipmap; i++ ) {
+            var size = Math.pow(2, this._nbMipmap - i);
+
+            var destinationTexture = new osg.Texture();
+            destinationTexture.setMinFilter( 'NEAREST' );
+            destinationTexture.setMagFilter( 'NEAREST' );
+
+            destinationTexture.setTextureSize( size, size / 2 );
+            var node = this.createSubGraph( sourceTexture, destinationTexture, colors[i%3] );
+
+            var final = this.createSubGraphFinal( destinationTexture, finalTexture);
+            node.addChild( final );
+            root.addChild( node );
+            sourceTexture = destinationTexture;
+        }
+
+        this.addChild ( root );
+    }
+
+
+});
+
+
+// convert rgbe image to float texture
+var TransformRGBE2FloatTexture = function( texture ) {
+    osg.Node.call( this );
+    this._texture = texture;
+
+
+    var UpdateCallback = function() {
+        this._done = false;
+        this.update = function(node, nodeVisitor) {
+
+            if ( nodeVisitor.getVisitorType() === osg.NodeVisitor.UPDATE_VISITOR ) {
+                if ( this._done )
+                    node.setNodeMask(0);
+                else
+                    this.done = true;
+            }
+        };
+    };
+    this.setUpdateCallback( new UpdateCallback () );
+
+};
+
+TransformRGBE2FloatTexture.prototype = osg.objectInherit( osg.Node.prototype, {
+
+    createSubGraph: function( sourceTexture, destinationTexture, color) {
+        var composer = new osgUtil.Composer();
+        var reduce = new osgUtil.Composer.Filter.Custom([
+            '#ifdef GL_ES',
+            'precision highp float;',
+            '#endif',
+
+            'uniform sampler2D source;',
+            'varying vec2 FragTexCoord0;',
+            'uniform vec3 color;',
+
+            'vec4 textureRGBE(const in sampler2D texture, const in vec2 uv) {',
+            '    vec4 rgbe = texture2D(texture, uv );',
+
+            '    float f = pow(2.0, rgbe.w * 255.0 - (128.0 + 8.0));',
+            '    return vec4(rgbe.rgb * 255.0 * f, 1.0);',
+            '}',
+
+            'void main() {',
+            '  vec3 decode = textureRGBE(source, FragTexCoord0).rgb;',
+            '  //gl_FragColor = vec4(vec3(1.0,0.0,1.0), 1.0);',
+            '  gl_FragColor = vec4(decode, 1.0);',
+            '}',
+            ''].join('\n'), {
+                'source': sourceTexture,
+                'color': color
+            });
+
+        composer.addPass(reduce, destinationTexture);
+        composer.build();
+        return composer;
+    },
+
+
+    init: function() {
+
+        var sourceTexture = this._texture;
+        var finalTexture = new osg.Texture();
+        finalTexture.setTextureSize( sourceTexture.getImage().getWidth(), sourceTexture.getImage().getHeight() );
+        finalTexture.setType( 'FLOAT' );
+         finalTexture.setMinFilter( 'LINEAR' );
+         finalTexture.setMagFilter( 'LINEAR' );
+         // finalTexture.setMinFilter( 'LINEAR' );
+         // finalTexture.setMagFilter( 'LINEAR' );
+
+        this._finalTexture = finalTexture;
+        var composer = this.createSubGraph( sourceTexture, finalTexture, [ 5,0,5]);
+        this.addChild( composer );
+
+        // add an attribute to work around this bug
+        // https://github.com/cedricpinson/osgjs/issues/78
+        composer.getOrCreateStateSet().setAttributeAndModes( new osg.Viewport( 0,0,finalTexture.getWidth(), finalTexture.getHeight()));
+
+    }
+
+
+});
+
+
 
 
 window.addEventListener( 'load', function () {
