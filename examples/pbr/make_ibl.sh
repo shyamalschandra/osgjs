@@ -14,35 +14,88 @@ function get_range()
     echo "${range}"
 }
 
-
-function create_specular()
+function encodeTexture()
 {
-    ibl_target="/tmp/${filename}_ibl.tif"
-    cd ~/dev/envtools/ && ./build_ibl_specular.sh "${input}" "${ibl_target}" "${size}"
+    local input="${1}"
+    outputdir="${2}"
+    file_range=$(get_range "${input}" )
 
-    file_range=$(get_range "${ibl_target}" )
+    local filename=$(basename "$input")
+    local filename_without_extension="${filename%.*}"
 
+    mkdir -p "${outputdir}/rgbm"
+    output="${outputdir}/rgbm/${filename_without_extension}_${file_range}.png"
+    cd ~/dev/rgbx/build && ./rgbx -m rgbm -r ${file_range} "${input}" "${output}"
 
-    output="${dirname}/${filename_without_extension}_spec_${method}_${file_range}.png"
-
-    cd ~/dev/rgbx/build && ./rgbx -m ${method} -r ${file_range} "${ibl_target}" "${output}"
-    echo "generated specular ${output}"
+    mkdir -p "${outputdir}/rgbe"
+    output="${outputdir}/rgbe/${filename_without_extension}.png"
+    cd ~/dev/rgbx/build && ./rgbx -m rgbe "${input}" "${output}"
 }
 
-function create_diffuse()
+function create_prefiltered_specular()
 {
-    iconvert "${input}" /tmp/base.tif
-    cd ~/dev/envtools/ && ./envremap -o cube -n $size /tmp/base.tif /tmp/cubemap.tif
-    cd ~/dev/envtools/ && ./envtoirr -f /tmp/cubemap.tif /tmp/diffuse_cubemap.tif
-    ./envremap -i cube -n 128 /tmp/diffuse_cubemap.tif /tmp/diffuse_rect.tif
+    local input="${1}"
+    dirdest="${2}"
 
-    file_range=$(get_range "/tmp/diffuse_rect.tif" )
-    output_env="${dirname}/${filename_without_extension}_diff_${method}_${file_range}.png"
-    cd ~/dev/rgbx/build && ./rgbx -m ${method} -r ${file_range} /tmp/diffuse_rect.tif "${output_env}"
-    echo "generated diffuse ${output_env}"
+    ibl="${dirdest}/${filename_without_extension}_spec.tif"
+    cd ~/dev/envtools/ && ./build_ibl_specular.sh "${input}" "${ibl}" "${size}"
+
+    encodeTexture "${ibl}" "${dirdest}/prefilter"
+    echo "generated specular ${filename}"
 }
 
-create_specular
-create_diffuse
+function create_prefiltered_diffuse()
+{
+    local input="${1}"
+    dirdest="${2}"
 
-cd ${dir}
+    ibl="${dirdest}/${filename_without_extension}_diff.tif"
+
+    cd ~/dev/envtools/ && ./envtoirr -f ${input} /tmp/diffuse_cubemap.tif
+    ./envremap -i cube -n 128 /tmp/diffuse_cubemap.tif "${ibl}"
+
+    encodeTexture "${ibl}" "${dirdest}/prefilter"
+    echo "generated diffuse ${filename}"
+}
+
+
+function create_background()
+{
+    in="${1}"
+    dirdest="${2}"
+    out="${dirdest}/${filename_without_extension}_bg.jpg"
+
+    oiiotool "${in}" --resize "${size}x${size}" -o /tmp/bg_square.tif
+    cd ~/dev/sht/ && ./shtrans -g128 -o /tmp/bg.tif /tmp/bg_square.tif && ./shtrans -i -o /tmp/bg_blurred.tif /tmp/bg.tif
+
+    let "h=${size}/2"
+    oiiotool /tmp/bg_blurred.tif --resize "${size}x${h}" -o "${out}"
+    echo "generated background ${filename}"
+}
+
+
+function create_mipmap()
+{
+    local input="${1}"
+    dirdest="${2}"
+
+    out="${dirdest}/${filename_without_extension}_mip.tif"
+
+    cd ~/dev/envtools && ./build_multires.sh ${input} ${out} ${size}
+
+    encodeTexture "${out}" "${dirdest}/solid"
+    echo "generated mipmap ${filename}"
+}
+
+
+iconvert "${input}" "/tmp/input.tif"
+generic="/tmp/input_cubemap.tif"
+cd ~/dev/envtools/ && ./envremap -o cube -n $size "/tmp/input.tif" "${generic}"
+destdir="${dirname}"
+
+
+create_prefiltered_specular "${generic}" "${destdir}"
+create_prefiltered_diffuse "${generic}" "${destdir}"
+exit 0
+create_background "${input}" "${destdir}"
+create_mipmap "${input}" "${destdir}"
