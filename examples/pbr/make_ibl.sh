@@ -96,6 +96,5 @@ destdir="${dirname}"
 
 create_prefiltered_specular "${generic}" "${destdir}"
 create_prefiltered_diffuse "${generic}" "${destdir}"
-exit 0
 create_background "${input}" "${destdir}"
 create_mipmap "${input}" "${destdir}"

@@ -18,6 +18,17 @@ var PBRExample = function () {
     this._stateSetEnvironment = undefined;
 
     this._configModel = [ {
+        name: 'C3PO',
+        func: this.loadC3POModel.bind( this ),
+        promise: undefined,
+        model: new osg.Node(),
+        config: {
+            mapNormal: true,
+            mapSpecular: false,
+            mapAmbientOcclusion: false,
+            mapGlossiness: false
+        }
+    }, {
         name: 'Cerberus',
         func: this.loadDefaultModel.bind( this ),
         promise: undefined,
@@ -103,7 +114,7 @@ var PBRExample = function () {
 
     this._configGUI = {
         earlyZ: true,
-        rendering: 'prefilter',
+        rendering: 'solid',
         rangeExposure: 1.0,
         environment : 'Alexs_Apartment',
         model: this._modelList[0],
@@ -119,7 +130,8 @@ var PBRExample = function () {
         'Alexs_Apartment': 'Alexs_Apt_2k_bg.jpg',
         'Allego': 'panorama_map_bg.jpg',
         'GrandCanyon_C_YumaPoint': 'GCanyon_C_YumaPoint_3k_bg.jpg',
-        'Walk_Of_Fame': 'Mans_Outside_2k_bg.jpg'
+        'Walk_Of_Fame': 'Mans_Outside_2k_bg.jpg',
+        'HDR_Free_City_Night_Lights': 'HDR_Free_City_Night_Lights_Ref_bg.jpg'
     };
 
     this._environmentList = Object.keys(this.textureEnvs.bg);
@@ -129,13 +141,15 @@ var PBRExample = function () {
             'Alexs_Apartment': 'Alexs_Apt_2k_mip.png',
             'Allego': 'panorama_map_mip.png',
             'GCanyon_C_YumaPoint': 'GCanyon_C_YumaPoint_3k_mip.png',
-            'Walk_Of_Fame': 'Mans_Outside_2k_mip.png'
+            'Walk_Of_Fame': 'Mans_Outside_2k_mip.png',
+            'HDR_Free_City_Night_Lights': 'HDR_Free_City_Night_Lights_Ref_mip.png'
         },
         rgbm: {
             'Alexs_Apartment': 'Alexs_Apt_2k_mip_17.375849.png',
             'Allego': 'panorama_map_mip_963.479187.png',
             'GrandCanyon_C_YumaPoint': 'GCanyon_C_YumaPoint_3k_mip_18.460438.png',
-            'Walk_Of_Fame': 'Mans_Outside_2k_mip_34.611233.png'
+            'Walk_Of_Fame': 'Mans_Outside_2k_mip_34.611233.png',
+            'HDR_Free_City_Night_Lights': 'HDR_Free_City_Night_Lights_Ref_mip_839.186951.png'
         }
     };
 
@@ -156,6 +170,10 @@ var PBRExample = function () {
             'Walk_Of_Fame': {
                 'diff': 'Mans_Outside_2k_diff_0.136116.png',
                 'spec': 'Mans_Outside_2k_spec_31.384483.png'
+            },
+            'HDR_Free_City_Night_Lights': {
+                'diff': 'HDR_Free_City_Night_Lights_Ref_diff_0.108381.png',
+                'spec': 'HDR_Free_City_Night_Lights_Ref_spec_957.209351.png'
             }
         },
         rgbe: {
@@ -174,6 +192,10 @@ var PBRExample = function () {
             'Walk_Of_Fame': {
                 'diff': 'Mans_Outside_2k_diff.png',
                 'spec': 'Mans_Outside_2k_spec.png'
+            },
+            'HDR_Free_City_Night_Lights': {
+                'diff': 'HDR_Free_City_Night_Lights_Ref_diff.png',
+                'spec': 'HDR_Free_City_Night_Lights_Ref_spec.png'
             }
         },
         'integrateBRDF': 'integrateBRDF.png'
@@ -1377,6 +1399,58 @@ PBRExample.prototype = {
         return this.getModel( 'hotrod2/hotrod2.osgjs.gz', callbackModel );
     },
 
+
+
+    loadC3POModel: function () {
+        var self = this;
+
+        var callbackModel = function ( model ) {
+
+            var defer = Q.defer();
+
+            model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 0, 'albedoMap' ) );
+            model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 1, 'roughnessMap' ) );
+            model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 2, 'normalMap' ) );
+            model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 3, 'specularMap' ) );
+            // model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 4, 'aoMap' ) );
+
+            var promises = [];
+            var base = 'C3PO_head/textures/4k/';
+            promises.push( self.readImageURL( base + 'c3po_D.tga.png' ) );
+            promises.push( self.readImageURL( base + 'c3po_R.tga.png' ) );
+
+            promises.push( self.readImageURL( base + 'c3po_N.tga.png' ) );
+            promises.push( self.readImageURL( base + 'c3po_M.tga.png' ) );
+            // promises.push( self.readImageURL( base + 'hotrod_ao.png' ) );
+
+            var createTexture = function ( image ) {
+                var texture = new osg.Texture();
+                texture.setWrapS( 'REPEAT' );
+                texture.setWrapT( 'REPEAT' );
+
+                texture.setMinFilter( 'LINEAR_MIPMAP_LINEAR' );
+                texture.setMagFilter( 'LINEAR' );
+                texture.setImage( image );
+                return texture;
+            };
+
+            Q.all( promises ).then( function ( args ) {
+                args.forEach( function ( image, index ) {
+                    var texture = createTexture( args[ index ] );
+                    texture.setWrapS( 'REPEAT' );
+                    texture.setWrapT( 'REPEAT' );
+                    model.getOrCreateStateSet().setTextureAttributeAndMode( index, texture );
+                } );
+
+                model.getOrCreateStateSet().setAttributeAndModes( new osg.CullFace( 'DISABLE' ) );
+                defer.resolve( model );
+            } );
+
+            return defer.promise;
+        };
+        return this.getModel( 'C3PO_head/c3po.osgjs.gz', callbackModel );
+    },
+
     loadTemplateScene: function () {
 
         var self = this;
@@ -1737,7 +1811,7 @@ PBRExample.prototype = {
 
         }.bind( this ) );
 
-        controller = gui.add( obj, 'nbSamples', [ 4, 8, 16, 32, 64 ] );
+        controller = gui.add( obj, 'nbSamples', [ 1, 4, 8, 16, 32, 64 ] );
         controller.onChange( function ( value ) {
 
             obj.nbSamples = value;
@@ -1806,11 +1880,13 @@ PBRExample.prototype = {
             this._configGUI.textureMethod = options.textureMethod;
         }
 
-
         if ( options.nbSamples) {
             this._configGUI.nbSamples = parseInt(options.nbSamples);
         }
 
+        if ( options.rendering ) {
+            this._configGUI.rendering = options.rendering;
+        }
 
         if ( options.mobile  ) {
             this._mobile = 1;
@@ -1836,6 +1912,10 @@ PBRExample.prototype = {
         this._rootNode = new osg.Node();
         this._rootNode.addChild(rotate);
         viewer.getCamera().setClearColor( [ 0.0, 0.0, 0.0, 0.0 ] );
+
+        // only clear depth because we have a background
+        viewer.getCamera().setClearMask( osg.Camera.DEPTH_BUFFER_BIT );
+
         viewer.setSceneData( this._rootNode );
         viewer.setupManipulator();
         viewer.getManipulator().computeHomePosition();
@@ -1898,9 +1978,9 @@ PBRExample.prototype = {
         // create the environment sphere
         //var geom = osg.createTexturedSphere(size, 32, 32);
         var geom = osg.createTexturedBoxGeometry( 0, 0, 0, size, size, size );
-
         this._stateSetBackground = geom.getOrCreateStateSet();
         geom.getOrCreateStateSet().setAttributeAndModes( new osg.CullFace( 'DISABLE' ) );
+        geom.getOrCreateStateSet().setAttributeAndModes( new osg.Depth(0, 0, 1, false) );
         geom.getOrCreateStateSet().setAttributeAndModes( this.getShaderBackground() );
 
         var cubemapTransform = osg.Uniform.createMatrix4( osg.Matrix.makeIdentity( [] ), 'CubemapTransform' );
@@ -1921,7 +2001,7 @@ PBRExample.prototype = {
         scene.getOrCreateStateSet().addUniform( cubemapTransform );
 
         var cam = new osg.Camera();
-
+        cam.setClearMask( 0x0 );
         cam.setReferenceFrame( osg.Transform.ABSOLUTE_RF );
         cam.addChild( mt );
 
