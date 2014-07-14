@@ -644,6 +644,19 @@ PBRExample.prototype = {
 
             'uniform sampler2D envBackground;',
 
+
+            'vec3 cubemapReflectionVector(const in mat4 transform, const in vec3 view, const in vec3 normal)',
+            '{',
+            '  vec3 lv = reflect(view, normal);',
+            '  lv = normalize(lv);',
+            '  vec3 x = vec3(transform[0][0], transform[1][0], transform[2][0]);',
+            '  vec3 y = vec3(transform[0][1], transform[1][1], transform[2][1]);',
+            '  vec3 z = vec3(transform[0][2], transform[1][2], transform[2][2]);',
+            '  mat3 m = mat3(x,y,z);',
+            '  return m*lv;',
+            '}',
+
+
         ].join( '\n' );
     },
 
@@ -659,12 +672,14 @@ PBRExample.prototype = {
         var textureRGBE = textureMethod === 'RGBE' ? 1 : 0;
         var textureRGBM = textureMethod === 'RGBM' ? 1 : 0;
         var solid = rendering === 'solid' ? 1 : 0;
+        var solid2 = rendering === 'solid2' ? 1 : 0;
         var prefilter = rendering === 'prefilter' ? 1 : 0;
         var nbSamples = 2;
 
-        if ( solid ) {
+        if ( solid || solid2 ) {
             nbSamples = shaderType.samples;
         }
+
 
         var vertexshader = [
             '',
@@ -730,6 +745,9 @@ PBRExample.prototype = {
             '#if ' + solid.toString(),
             '#define NB_SAMPLES ' + nbSamples,
             '#endif',
+            '#if ' + solid2.toString(),
+            '#define NB_SAMPLES ' + nbSamples,
+            '#endif',
 
             'uniform sampler2D albedoMap;',
             'uniform sampler2D roughnessMap;',
@@ -745,6 +763,10 @@ PBRExample.prototype = {
             '#endif',
 
             '#if ' + solid.toString(),
+            'uniform vec2 hammersley[NB_SAMPLES];',
+            '#endif',
+
+            '#if ' + solid2.toString(),
             'uniform vec2 hammersley[NB_SAMPLES];',
             '#endif',
 
@@ -764,7 +786,7 @@ PBRExample.prototype = {
             'float MaterialAO;',
 
 
-            '#if ' + solid.toString(),
+            '#if 1', // + solid.toString(),
 
             'vec3 fresnel( float vdh, vec3 F0 ) {',
             '// Schlick with Spherical Gaussian approximation',
@@ -819,17 +841,6 @@ PBRExample.prototype = {
             '}',
 
 
-            'vec3 cubemapReflectionVector(const in mat4 transform, const in vec3 view, const in vec3 normal)',
-            '{',
-            '  vec3 lv = reflect(view, normal);',
-            '  lv = normalize(lv);',
-            '  vec3 x = vec3(transform[0][0], transform[1][0], transform[2][0]);',
-            '  vec3 y = vec3(transform[0][1], transform[1][1], transform[2][1]);',
-            '  vec3 z = vec3(transform[0][2], transform[1][2], transform[2][2]);',
-            '  mat3 m = mat3(x,y,z);',
-            '  return m*lv;',
-            '}',
-
             this.getTextureEnvFunctions(),
 
             // apply some gamma correction (http://www.geeks3d.com/20101001/tutorial-gamma-correction-a-story-of-linearity/)
@@ -845,8 +856,22 @@ PBRExample.prototype = {
             '  return m;',
             '}',
 
-            '#if ' + solid.toString(),
+            'float distortion(const in vec3 Wn)',
+            '{',
+            '	// Computes the inverse of the solid angle of the (differential) pixel in',
+            '	// the cube map pointed at by Wn',
+            '	float sinT = max(0.0000001, sqrt(1.0-Wn.y*Wn.y));',
+            '	return 1.0/sinT;',
+            '}',
 
+            'float computeLOD(const in vec3 Ln, const in float p)',
+            '{',
+            '	return max(0.0, (MaxLOD-1.5) - 0.5*(log(float(NB_SAMPLES)) + log( p * distortion(Ln) ))',
+            '		* INV_LOG2);',
+            '}',
+
+
+            '#if 1', // + solid.toString(),
             'vec3 diffuseBRDF(',
             '	vec3 Nn,',
             '	vec3 Ln,',
@@ -885,18 +910,6 @@ PBRExample.prototype = {
             '	return normal_distrib(ndh, Roughness) * ndh / (4.0*vdh);',
             '}',
 
-            'float distortion(const in vec3 Wn)',
-            '{',
-            '	// Computes the inverse of the solid angle of the (differential) pixel in',
-            '	// the cube map pointed at by Wn',
-            '	float sinT = max(0.0000001, sqrt(1.0-Wn.y*Wn.y));',
-            '	return 1.0/sinT;',
-            '}',
-            'float computeLOD(vec3 Ln, float p)',
-            '{',
-            '	return max(0.0, (MaxLOD-1.5) - 0.5*(log(float(NB_SAMPLES)) + log( p * distortion(Ln) ))',
-            '		* INV_LOG2);',
-            '}',
 
             'vec3 solid( const in mat3 iblTransform, const in vec3 normal, const in vec3 view ) {',
             '',
@@ -965,7 +978,6 @@ PBRExample.prototype = {
             '      vec3 color = texturePanoramic' + textureMethod + 'Lod(environment, environmentSize, environmentRange, raySpec, lodSpecular);',
             '#endif',
 
-
             '         contrib += hdrExposure * color * specularContrib;',
             '      }',
 
@@ -974,6 +986,194 @@ PBRExample.prototype = {
 
             '   vec3 gammaCorrected = linearTosRGB( contrib, DefaultGamma);',
             '   return gammaCorrected;',
+            '}',
+
+            '#endif',
+
+
+            '#if ' + solid2.toString(),
+
+            'vec3 tangentX;',
+            'vec3 tangentY;',
+            '',
+            'vec3 F_Schlick( const in vec3 f0, const in float vdh ) {',
+            '// Schlick with Spherical Gaussian approximation',
+            '// cf http://blog.selfshadow.com/publications/s2013-shading-course/karis/s2013_pbs_epic_notes_v2.pdf p3',
+            '    float sphg = pow(2.0, (-5.55473*vdh - 6.98316) * vdh);',
+            '    return f0 + (vec3(1.0 ) - f0) * sphg;',
+            '}',
+            '',
+            'float G_SmithGGX(const in float NdotL, const in float NdotV, const in float roughness) {',
+            '// cf http://blog.selfshadow.com/publications/s2013-shading-course/karis/s2013_pbs_epic_notes_v2.pdf p3',
+            '// visibility is a Cook-Torrance geometry function divided by (n.l)*(n.v)',
+            '    float k = roughness * roughness * 0.5;',
+            '    return NdotL * NdotV * G1(NdotL,k) * G1(NdotV,k);',
+            '}',
+            'float G_SmithGGX2(const in float NdotL, const in float NdotV, const in float roughness) {',
+            '    float k = roughness * roughness * 0.5;',
+            '    return G1(NdotL,k) * G1(NdotV,k);',
+            '}',
+            '',
+            'float D_GGX( const in float NdotH, const in float roughness) {',
+            '	float alpha = roughness * roughness;',
+            '	float tmp = alpha / (NdotH*NdotH*(alpha*alpha-1.0)+1.0);',
+            '	return tmp * tmp * INV_PI;',
+            '}',
+            '',
+            'vec3 evaluateSpecularIBL( const in mat3 iblTransform, const in vec3 N, const in vec3 V ) {',
+            '',
+            '    vec3 contrib = vec3(0.0);',
+            '    float roughness = max(0.015, MaterialRoughness);',
+            '    vec3 f0 = MaterialSpecular;',
+            '',
+            '    for ( int i = 0; i < NB_SAMPLES; i++ ) {',
+            '        vec2 u = hammersley[i];',
+            '',
+            '        // GGX NDF sampling',
+            '        float alpha = roughness*roughness;',
+            '        float cosThetaH = sqrt( (1.0-u.y) / (1.0 + (alpha*alpha-1.0)*u.y) );',
+            '        float sinThetaH = sqrt(1.0 - cosThetaH*cosThetaH );',
+            '        float phiH = 2.0 * u.x * PI;',
+            '',
+            '        // Convert sample from half angle to incident angle',
+            '        vec3 H;',
+            '        H = vec3( sinThetaH*cos(phiH), sinThetaH*sin(phiH), cosThetaH);',
+            '        H = normalize(tangentX * H.x + tangentY * H.y + N * H.z);',
+            '',
+            '        float VdotH = dot(V, H);',
+            '',
+            '        vec3 L = normalize(2.0 * VdotH * H - V);',
+            '',
+            '        float LdotH = max( 0.0, dot(H, L));',
+            '        float NdotH = max( 0.0, dot(H, N));',
+            '        float NdotV = max( 0.0, dot(V, N));',
+            '        float NdotL = max( 0.0, dot(L, N));',
+            '        VdotH = max( 0.0, VdotH );',
+            '',
+            '',
+            '        // Importance sampling weight for each sample',
+            '        //',
+            '        //   weight = fr . (N.L)',
+            '        //',
+            '        // with:',
+            '        //   fr  = D(H) . F(H) . G(V, L) / ( 4 (N.L) (N.V) )',
+            '        //',
+            '        // Since we integrate in the microfacet space, we include the',
+            '        // jacobian of the transform',
+            '        //',
+            '        //   pdf = D(H) . (N.H) / ( 4 (L.H) )',
+            '        float D         = D_GGX(NdotH, roughness);',
+            '        // float roughness2 = roughness * roughness;',
+            '        // float tmp = roughness2 / (NdotH*NdotH*(roughness2*roughness2-1.0)+1.0);',
+            '        // D = tmp * tmp * INV_PI;',
+            '',
+            '',
+            '',
+            '        float pdfH      = D * NdotH;',
+            '        //float pdf 	= pdfH / (4.0f * LdotH); // from Sebastien Lagarde',
+            '        float pdf 	= pdfH / (4.0 * VdotH);',
+            '',
+            '        // Implicit weight (N.L canceled out)',
+            '        //float3 F	   = F_Schlick(f0, f90, LdotH); // form Sebastien Lagarde',
+            '        vec3  F         = F_Schlick(f0, VdotH);',
+            '        float G         = G_SmithGGX(NdotL, NdotV, roughness);',
+            '',
+            '        // N.V should be also canceled out if G is like the one in epic paper',
+            '        // but actually it s simpler to divide by pdf later',
+            '        vec3 weight = F * G * D / (4.0 * NdotV);',
+            '        vec3 weight2 = F * G_SmithGGX2(NdotL, NdotV, roughness) * VdotH * NdotL /NdotH;',
+            '',
+            '#if 0', // compare
+            '            float probGGX = probabilityGGX( NdotH, VdotH, roughness);',
+            '            if ( abs( probGGX - pdf ) > 1e-3 )',
+            '                return vec3(1.0,0.0,1.0);',
+
+            '            if ( length( fresnel( VdotH, f0 ) - F ) > 1e-3 )',
+            '                return vec3(1.0,0.0,1.0);',
+
+            '            if ( abs( G_SmithGGX2(NdotL, NdotV, roughness)*NdotL*NdotV - G ) > 1e-3 )',
+            '                return vec3(1.0,0.0,1.0);',
+
+            '            if ( length( weight2 - weight/pdf) > 1e3)',
+            '                return vec3(1.0,0.0,1.0);',
+            '#endif',
+
+            '        if ( NdotL > 0.0 && pdf > 0.0 )',
+            '        {',
+            '            //contrib += g_IBL.SampleLevel(sampler, L, 0).rgb * weight / pdf;',
+            '',
+
+            '            float lod = roughness < 0.01 ? 0.0: computeLOD( L, pdf );',
+            '',
+            '            // could we remove the transform ?',
+            '            vec3 dir = iblTransform * L;',
+            '',
+            '#if ' + textureRGBE.toString(),
+            'vec3 color = texturePanoramic' + textureMethod + 'Lod(environment, environmentSize, dir, lod);',
+            '#endif',
+            '#if ' + textureRGBM.toString(),
+            'vec3 color = texturePanoramic' + textureMethod + 'Lod(environment, environmentSize, environmentRange, dir, lod);',
+            '#endif',
+            '            contrib += color * weight / pdf;',
+            '        }',
+            '    }',
+            '',
+            '    contrib *= 1.0/float(NB_SAMPLES);',
+            '  return contrib;',
+            '}',
+            '',
+            'vec3 evaluateDiffuseIBL( const in mat3 iblTransform, const in vec3 N, const in vec3 V ) {',
+            '',
+            '    vec3 contrib = vec3(0.0);',
+            '',
+            '    for ( int i = 0; i < NB_SAMPLES; i++ ) {',
+            '',
+            '        // get sample',
+            '        vec2 u = hammersley[i];',
+            '',
+            '        // compute L vector from importance sampling with cos',
+            '        float sinT = sqrt( 1.0-u.y );',
+            '        float phi = 2.0*PI*u.x;',
+            '        vec3 L = (sinT*cos(phi)) * tangentX + (sinT*sin(phi)) * tangentY + sqrt( u.y ) * N;',
+            '',
+            '        float NdotL = dot( L, N );',
+            '',
+            '        // compute pdf to get the good lod',
+            '        float pdf = max( 0.0, NdotL * INV_PI );',
+            '',
+            '        float lod = computeLOD(L, pdf);',
+            '        vec3 dir = iblTransform * L;',
+            '',
+            '#if ' + textureRGBE.toString(),
+            'vec3 texel = texturePanoramic' + textureMethod + 'Lod(environment, environmentSize, dir, lod);',
+            '#endif',
+
+            '#if ' + textureRGBM.toString(),
+            'vec3 texel = texturePanoramic' + textureMethod + 'Lod(environment, environmentSize, environmentRange, dir, lodDiffuse);',
+            '#endif',
+            '',
+            '      contrib += texel;',
+            '   }',
+            '',
+            '   contrib *= MaterialAlbedo * MaterialAO / float(NB_SAMPLES);',
+            '   return contrib;',
+            '}',
+            '',
+            'vec3 solid2( const in mat3 iblTransform, const in vec3 normal, const in vec3 view) {',
+            '',
+            '    MaxLOD = log ( environmentSize[0] ) * INV_LOG2 - 1.0;',
+            '    vec3 color = vec3(0.0);',
+            '',
+            '    //vectors used for importance sampling',
+            '    vec3 tangent = normalize(osg_FragTangent.xyz);',
+            '    vec3 binormal = osg_FragTangent.w * cross(normal, tangent);',
+            '    tangentX = normalize(tangent - normal*dot(tangent, normal)); // local tangent',
+            '    tangentY = normalize(binormal  - normal*dot(binormal, normal)  - tangentX*dot(binormal, tangentX)); // local bitange',
+            '',
+            '    color += evaluateDiffuseIBL(iblTransform, normal, view );',
+            '    color += evaluateSpecularIBL(iblTransform, normal, view );',
+            '    color *= hdrExposure;',
+            '    return linearTosRGB( color, DefaultGamma);',
             '}',
             '#endif',
 
@@ -1083,6 +1283,9 @@ PBRExample.prototype = {
             '#endif',
             '#if ' + prefilter.toString(),
             '  result = vec4( prefilteredAndLUT( iblTransform, -E ), 1.0);',
+            '#endif',
+            '#if ' + solid2.toString(),
+            '  result = vec4( solid2( iblTransform, MaterialNormal, -E ), 1.0);',
             '#endif',
 
             '  gl_FragColor = result;',
@@ -1828,7 +2031,7 @@ PBRExample.prototype = {
         }.bind( this ) );
 
 
-        controller = gui.add( obj, 'rendering', [ 'prefilter', 'solid' ] );
+        controller = gui.add( obj, 'rendering', [ 'prefilter', 'solid', 'solid2' ] );
         controller.onChange( setShaderModel );
 
 
