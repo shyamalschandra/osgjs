@@ -502,11 +502,7 @@ PBRExample.prototype = {
             '}',
 
             'vec3 textureRGBMLinear(const in sampler2D texture, const in vec2 size, const in vec2 uv ) {',
-            '#if ' + this._mobile.toString(),
-            '    return textureRGBM(texture, uv );',
-            '#else',
             '    vec2 t = 1.0 / size;',
-            '    ',
 
             '    vec3 a = textureRGBM(texture, uv ),',
             '         b = textureRGBM(texture, uv + vec2(t.x, 0.0) ),',
@@ -516,7 +512,6 @@ PBRExample.prototype = {
             '    vec3 A = mix(a, b, f.x),',
             '         B = mix(c, d, f.x);',
             '    return mix(A, B, f.y);',
-            '#endif',
             '}',
 
             'vec3 textureRGBELinearPanoramic(const in sampler2D texture, const in vec2 size, const in vec2 uv, const in vec2 maxBox ) {',
@@ -614,6 +609,7 @@ PBRExample.prototype = {
     getCommonShader: function () {
         return [
             '#define PI 3.1415926535897932384626433832795',
+            '#define PI_2 (2.0*3.1415926535897932384626433832795)',
             '#define INV_PI 1.0/PI',
             '#define INV_LOG2 1.4426950408889634073599246810019',
 
@@ -674,10 +670,14 @@ PBRExample.prototype = {
         var solid = rendering === 'solid' ? 1 : 0;
         var solid2 = rendering === 'solid2' ? 1 : 0;
         var prefilter = rendering === 'prefilter' ? 1 : 0;
-        var nbSamples = 2;
+        var nbSamples = 1;
+        var brute = 0;
+        if ( prefilter )
+            solid = solid2 = 0;
 
         if ( solid || solid2 ) {
             nbSamples = shaderType.samples;
+            brute = 1;
         }
 
 
@@ -742,12 +742,7 @@ PBRExample.prototype = {
             normalmap,
 
 
-            '#if ' + solid.toString(),
             '#define NB_SAMPLES ' + nbSamples,
-            '#endif',
-            '#if ' + solid2.toString(),
-            '#define NB_SAMPLES ' + nbSamples,
-            '#endif',
 
             'uniform sampler2D albedoMap;',
             'uniform sampler2D roughnessMap;',
@@ -762,11 +757,7 @@ PBRExample.prototype = {
             '#extension GL_OES_standard_derivatives : enable',
             '#endif',
 
-            '#if ' + solid.toString(),
-            'uniform vec2 hammersley[NB_SAMPLES];',
-            '#endif',
-
-            '#if ' + solid2.toString(),
+            '#if ' + brute.toString(),
             'uniform vec2 hammersley[NB_SAMPLES];',
             '#endif',
 
@@ -786,7 +777,7 @@ PBRExample.prototype = {
             'float MaterialAO;',
 
 
-            '#if 1', // + solid.toString(),
+            '#if ' + brute.toString(),
 
             'vec3 fresnel( float vdh, vec3 F0 ) {',
             '// Schlick with Spherical Gaussian approximation',
@@ -871,7 +862,7 @@ PBRExample.prototype = {
             '}',
 
 
-            '#if 1', // + solid.toString(),
+            '#if '  + brute.toString(),
             'vec3 diffuseBRDF(',
             '	vec3 Nn,',
             '	vec3 Ln,',
@@ -1023,6 +1014,103 @@ PBRExample.prototype = {
             'vec3 evaluateSpecularIBL( const in mat3 iblTransform, const in vec3 N, const in vec3 V ) {',
             '',
             '    vec3 contrib = vec3(0.0);',
+            '    float roughness = max( MaterialRoughness, 0.015);',
+            '    vec3 f0 = MaterialSpecular;',
+            '',
+            '',
+            '    float NdotV = max( 0.0, dot(V, N));',
+            '    float alpha = roughness*roughness;',
+            '    float alpha2 = alpha*alpha;',
+            '',
+            '    float alpha2MinusOne = alpha2 - 1.0;',
+            '',
+            '    vec3 H, L;',
+            '',
+            '    for ( int i = 0; i < NB_SAMPLES; i++ ) {',
+            '',
+            '        vec2 u = hammersley[i];',
+            '',
+            '        // GGX NDF sampling',
+            '        float cosThetaH = sqrt( (1.0-u.y) / (1.0 + alpha2MinusOne * u.y) );',
+            '        float sinThetaH = sqrt(1.0 - cosThetaH*cosThetaH );',
+            '        float phiH = u.x * PI_2;',
+            '',
+            '        // Convert sample from half angle to incident angle',
+            '        H = vec3( sinThetaH*cos(phiH), sinThetaH*sin(phiH), cosThetaH);',
+            '        H = normalize(tangentX * H.x + tangentY * H.y + N * H.z);',
+            '',
+            '        L = normalize(2.0 * dot(V, H) * H - V);',
+            '',
+            '        float LdotH = max( 0.0, dot(H, L));',
+            '        float NdotH = max( 0.0, dot(H, N));',
+            '        float NdotL = max( 0.0, dot(L, N));',
+            '',
+            '',
+            '        // Importance sampling weight for each sample',
+            '        //',
+            '        //   weight = fr . (N.L)',
+            '        //',
+            '        // with:',
+            '        //   fr  = D(H) . F(H) . G(V, L) / ( 4 (N.L) (N.V) )',
+            '        //',
+            '        // Since we integrate in the microfacet space, we include the',
+            '        // jacobian of the transform',
+            '        //',
+            '        //   pdf = D(H) . (N.H) / ( 4 (L.H) )',
+            '',
+            '',
+            '        // float D         = D_GGX(NdotH, roughness);',
+            '        float tmp = alpha / ( NdotH * NdotH*( alpha2MinusOne ) + 1.0);',
+            '        float D = tmp * tmp * INV_PI;',
+            '',
+            '        float pdfH      = D * NdotH;',
+            '        float pdf       = pdfH / (4.0 * LdotH);',
+            '',
+            '        // Implicit weight (N.L canceled out)',
+            '        //float3 F	   = F_Schlick(f0, f90, LdotH); // form Sebastien Lagarde',
+            '        vec3 F         = F_Schlick(f0, LdotH);',
+            '',
+            '',
+            '        // Geometry  G(V, L )',
+            '        // float G     = G_SmithGGX(NdotL, NdotV, roughness);',
+            '        // cf http://blog.selfshadow.com/publications/s2013-shading-course/karis/s2013_pbs_epic_notes_v2.pdf p3',
+            '        float k = alpha * 0.5;',
+            '        // NdotL and NdotV can be simplifided later because of the weight / pdf',
+            '        // float G = NdotL * NdotV * G1(NdotL,k) * G1(NdotV,k);',
+            '        float Goptim = G1(NdotL,k) * G1(NdotV,k);',
+            '',
+            '        // original weight',
+            '        // vec3 weight = F * G * D / (4.0 * NdotV);',
+            '        // optimized weight because of the weight * 1.0/pdf',
+            '        vec3 weight = F * ( Goptim * LdotH * NdotL / NdotH );',
+            '',
+            '        if ( NdotL > 0.0 && pdf > 0.0 )',
+            '        {',
+            '            //contrib += g_IBL.SampleLevel(sampler, L, 0).rgb * weight / pdf;',
+            '',
+            '            float lod = roughness < 0.01 ? 0.0: computeLOD( L, pdf );',
+            '',
+            '            // could we remove the transform ?',
+            '            vec3 dir = iblTransform * L;',
+            '',
+            '#if ' + textureRGBE.toString(),
+            'vec3 color = texturePanoramic' + textureMethod + 'Lod(environment, environmentSize, dir, lod);',
+            '#endif',
+            '#if ' + textureRGBM.toString(),
+            'vec3 color = texturePanoramic' + textureMethod + 'Lod(environment, environmentSize, environmentRange, dir, lod);',
+            '#endif',
+            '            //contrib += color * weight / pdf;',
+            '            contrib += color * weight;',
+            '        }',
+            '    }',
+            '',
+            '    contrib *= 1.0/float(NB_SAMPLES);',
+            '    return contrib;',
+            '}',
+
+            'vec3 evaluateSpecularIBL2( const in mat3 iblTransform, const in vec3 N, const in vec3 V ) {',
+            '',
+            '    vec3 contrib = vec3(0.0);',
             '    float roughness = max(0.015, MaterialRoughness);',
             '    vec3 f0 = MaterialSpecular;',
             '',
@@ -1076,6 +1164,7 @@ PBRExample.prototype = {
             '        // Implicit weight (N.L canceled out)',
             '        //float3 F	   = F_Schlick(f0, f90, LdotH); // form Sebastien Lagarde',
             '        vec3  F         = F_Schlick(f0, VdotH);',
+
             '        float G         = G_SmithGGX(NdotL, NdotV, roughness);',
             '',
             '        // N.V should be also canceled out if G is like the one in epic paper',
@@ -1133,7 +1222,7 @@ PBRExample.prototype = {
             '',
             '        // compute L vector from importance sampling with cos',
             '        float sinT = sqrt( 1.0-u.y );',
-            '        float phi = 2.0*PI*u.x;',
+            '        float phi = PI_2*u.x;',
             '        vec3 L = (sinT*cos(phi)) * tangentX + (sinT*sin(phi)) * tangentY + sqrt( u.y ) * N;',
             '',
             '        float NdotL = dot( L, N );',
@@ -1149,7 +1238,7 @@ PBRExample.prototype = {
             '#endif',
 
             '#if ' + textureRGBM.toString(),
-            'vec3 texel = texturePanoramic' + textureMethod + 'Lod(environment, environmentSize, environmentRange, dir, lodDiffuse);',
+            'vec3 texel = texturePanoramic' + textureMethod + 'Lod(environment, environmentSize, environmentRange, dir, lod);',
             '#endif',
             '',
             '      contrib += texel;',
@@ -1170,8 +1259,12 @@ PBRExample.prototype = {
             '    tangentX = normalize(tangent - normal*dot(tangent, normal)); // local tangent',
             '    tangentY = normalize(binormal  - normal*dot(binormal, normal)  - tangentX*dot(binormal, tangentX)); // local bitange',
             '',
-            '    color += evaluateDiffuseIBL(iblTransform, normal, view );',
-            '    color += evaluateSpecularIBL(iblTransform, normal, view );',
+            // '    mat3 ibl = mat3( 1.0, 0.0, 0.0,',
+            // '                     0.0, 1.0, 0.0,',
+            // '                     0.0, 0.0, 1.0);',
+            '    mat3 ibl = iblTransform;',
+            '    color += evaluateDiffuseIBL(ibl, normal, view );',
+            '    color += evaluateSpecularIBL(ibl, normal, view );',
             '    color *= hdrExposure;',
             '    return linearTosRGB( color, DefaultGamma);',
             '}',
@@ -1618,7 +1711,10 @@ PBRExample.prototype = {
             // model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 4, 'aoMap' ) );
 
             var promises = [];
-            var base = 'C3PO_head/textures/4k/';
+            var vers = '4k';
+            if ( this._mobile )
+                vers = '2k';
+            var base = 'C3PO_head/textures/' + vers + '/';
             promises.push( self.readImageURL( base + 'c3po_D.tga.png' ) );
             promises.push( self.readImageURL( base + 'c3po_R.tga.png' ) );
 
@@ -2094,9 +2190,15 @@ PBRExample.prototype = {
         if ( options.mobile  ) {
             this._mobile = 1;
         }
+        if ( this._mobile )
+            this._configGUI.nbSamples = 1;
+
+        var opts = {
+            useDevicePixelRatio: false
+        };
 
         var viewer;
-        viewer = new osgViewer.Viewer( canvas );
+        viewer = new osgViewer.Viewer( canvas, opts );
         this._viewer = viewer;
         viewer.init();
 
