@@ -206,6 +206,21 @@ var PBRExample = function () {
 
 PBRExample.prototype = {
 
+    modelFinishLoading: function() {
+        this._loading--;
+        if ( !this._loading ) {
+            console.log( 'loading finished' );
+            document.getElementById( 'loading' ).style.display = 'None';
+        }
+    },
+
+    modelStartLoading: function( name ) {
+        this._loading++;
+        if ( name ) {
+            console.log( 'loading ' + name );
+        }
+        document.getElementById( 'loading' ).style.display = 'Block';
+    },
 
     setEnvironmentUniforms: function ( method, stateSet, name, unit, w, h, range ) {
 
@@ -1688,7 +1703,7 @@ PBRExample.prototype = {
 
                 model.getOrCreateStateSet().setAttributeAndModes( new osg.CullFace( 'DISABLE' ) );
                 defer.resolve( model );
-            } );
+            }.bind(this) );
 
             return defer.promise;
         };
@@ -2042,12 +2057,16 @@ PBRExample.prototype = {
         config.reduce( function( previous, current ) {
 
             if (!previous) {
+                this.modelStartLoading( current.name );
+
                 var promise = current.func();
                 current.promise = promise;
 
                 promise.then( function( model ) {
                     current.model.addChild( model );
-                });
+                    this.modelFinishLoading();
+
+                }.bind( this ) );
 
                 return current.promise;
             }
@@ -2062,7 +2081,7 @@ PBRExample.prototype = {
                 });
             });
             return defer.promise;
-        }, undefined );
+        }.bind( this ) , undefined );
 
         config[0].promise.then( function() {
             setModel( config[0].name );
@@ -2359,28 +2378,6 @@ PBRExample.prototype = {
     getModel: function ( url, callback ) {
         var self = this;
 
-        var removeLoading = function ( node, child ) {
-
-            this._nbLoading -= 1;
-            this._loaded.push( child );
-
-            if ( this._nbLoading === 0 ) {
-                document.getElementById( 'loading' ).style.display = 'None';
-                this._viewer.getManipulator().computeHomePosition();
-            }
-
-        }.bind( this );
-
-        var addLoading = function () {
-
-            if ( !this._nbLoading ) this._nbLoading = 0;
-            if ( !this._loaded ) this._loaded = [];
-
-            this._nbLoading += 1;
-            document.getElementById( 'loading' ).style.display = 'Block';
-
-        }.bind( this );
-
 
         var node = new osg.MatrixTransform();
         node.setMatrix( osg.Matrix.makeRotate( -Math.PI / 2, 1, 0, 0, [] ) );
@@ -2409,7 +2406,7 @@ PBRExample.prototype = {
                     if ( req.status === 200 ) {
                         Q.when( osgDB.parseSceneGraph( JSON.parse( req.responseText ), opts ) ).then( function ( child ) {
                             node.addChild( child );
-                            removeLoading( node, child );
+                            //removeLoading( node, child );
                             osg.log( 'success ' + url );
 
                             var cbPromise = true;
@@ -2429,14 +2426,14 @@ PBRExample.prototype = {
                         } );
 
                     } else {
-                        removeLoading( node );
+                        // removeLoading( node );
                         osg.log( 'error ' + url );
                         defer.reject( node );
                     }
                 }
             }.bind( this );
             req.send( null );
-            addLoading();
+            // addLoading();
 
             return defer.promise;
 
