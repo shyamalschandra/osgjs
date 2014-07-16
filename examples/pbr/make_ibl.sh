@@ -66,7 +66,7 @@ function create_background()
     out="${dirdest}/${filename_without_extension}_bg.jpg"
 
     oiiotool "${in}" --resize "${size}x${size}" -o /tmp/bg_square.tif
-    cd ~/dev/sht/ && ./shtrans -g128 -o /tmp/bg.tif /tmp/bg_square.tif && ./shtrans -i -o /tmp/bg_blurred.tif /tmp/bg.tif
+    cd ~/dev/sht/ && ./shtrans -g200 -o /tmp/bg.tif /tmp/bg_square.tif && ./shtrans -i -o /tmp/bg_blurred.tif /tmp/bg.tif
 
     let "h=${size}/2"
     oiiotool /tmp/bg_blurred.tif --resize "${size}x${h}" -o "${out}"
