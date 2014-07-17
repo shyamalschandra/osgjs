@@ -25,7 +25,9 @@
             model: new osg.Node(),
             thumbnail: 'thumbnail.jpg',
             description: {
+                rank: 1,
                 title: 'C3PO',
+                author:'Christian Hecht',
                 link: ''
             },
             title: 'C3PO',
@@ -43,7 +45,9 @@
             model: new osg.Node(),
             thumbnail: 'thumbnail.jpg',
             description: {
+                rank: 1,
                 title: 'C3PO',
+                author:'Christian Hecht',
                 link: ''
             },
             config: {
@@ -60,8 +64,10 @@
             model: new osg.Node(),
             thumbnail: 'thumbnail.jpg',
             description: {
-                title: 'Cerberus by Andrew Maximov',
-                link: 'http://artisaverb.info/Cerberus.html'
+                title: 'Cerberus',
+                link: 'http://artisaverb.info/Cerberus.html',
+                rank: 1,
+                author:'Andrew Maximov'
             },
             config: {
                 mapNormal: true
@@ -74,8 +80,10 @@
             model: new osg.Node(),
             thumbnail: 'thumbnail.jpg',
             description: {
-                title: 'Mire test by Allegorithmic',
-                link: 'http://www.allegorithmic.com/'
+                title: 'Mire test',
+                rank: 1,
+                link: 'http://www.allegorithmic.com/',
+                author:'Allegorithmic'
             },
             config: {
                 mapSpecular: false,
@@ -91,8 +99,10 @@
             model: new osg.Node(),
             thumbnail: 'thumbnail.jpg',
             description: {
-                title: 'Sphere test scene by program',
-                link: ''
+                title: 'Sphere test',
+                rank: 1,
+                link: '',
+                author:'The matrix'
             },
             config: {
                 mapNormal: false,
@@ -108,7 +118,9 @@
             model: new osg.Node(),
             thumbnail: 'thumbnail.jpg',
             description: {
-                title: 'Junkbot by Paweł Łyczkowski (design + model) + Nicolas Wirrmann (texturing)',
+                title: 'Junkbot',
+                rank: 1,
+                author:'Paweł Łyczkowski (design + model) + Nicolas Wirrmann (texturing)',
                 link: ''
             },
             config: {
@@ -126,7 +138,9 @@
             model: new osg.Node(),
             thumbnail: 'thumbnail.jpg',
             description: {
-                title: 'Hotrod by Christophe Desse (design + model) + Jeremie Noguer (texturing)',
+                title: 'Hotrod',
+                author: 'Christophe Desse (design + model) + Jeremie Noguer (texturing)',
+                rank: 1,
                 link: ''
             },
             config: {
@@ -144,7 +158,9 @@
             model: new osg.Node(),
             thumbnail: 'thumbnail.jpg',
             description: {
-                title: 'Hotrod by Christophe Desse (design + model) + Jeremie Noguer (texturing)',
+                title: 'Hotrod',
+                author: 'Christophe Desse (design + model) + Jeremie Noguer (texturing)',
+                rank: 1,
                 link: ''
             },
             config: {
