@@ -10,6 +10,7 @@
 
     var PBRExample = function ( config ) {
 
+        this._textureHighres = false;
         this._mobile = 0;
 
         // set by createScene
@@ -18,11 +19,33 @@
 
         this._configModel = [ {
             name: 'C3PO',
-            root: 'C3PO_head',
+            root: 'C3PO_optim/',
             func: this.loadC3POModel.bind( this ),
             promise: undefined,
             model: new osg.Node(),
             thumbnail: 'thumbnail.jpg',
+            description: {
+                title: 'C3PO',
+                link: ''
+            },
+            title: 'C3PO',
+            config: {
+                mapNormal: true,
+                mapSpecular: false,
+                mapAmbientOcclusion: false,
+                mapGlossiness: false
+            }
+        }, {
+            name: 'C3PO-original',
+            root: 'C3PO_head/',
+            func: this.loadC3POModelOrig.bind( this ),
+            promise: undefined,
+            model: new osg.Node(),
+            thumbnail: 'thumbnail.jpg',
+            description: {
+                title: 'C3PO',
+                link: ''
+            },
             config: {
                 mapNormal: true,
                 mapSpecular: false,
@@ -31,20 +54,29 @@
             }
         }, {
             name: 'Cerberus',
-            root: 'model',
+            root: 'model/',
             func: this.loadDefaultModel.bind( this ),
             promise: undefined,
             model: new osg.Node(),
             thumbnail: 'thumbnail.jpg',
+            description: {
+                title: 'Cerberus by Andrew Maximov',
+                link: 'http://artisaverb.info/Cerberus.html'
+            },
             config: {
                 mapNormal: true
             }
         }, {
             name: 'Mire',
             func: this.loadMireScene.bind( this ),
+            root: 'mire/',
             promise: undefined,
             model: new osg.Node(),
             thumbnail: 'thumbnail.jpg',
+            description: {
+                title: 'Mire test by Allegorithmic',
+                link: 'http://www.allegorithmic.com/'
+            },
             config: {
                 mapSpecular: false,
                 mapAmbientOcclusion: false,
@@ -54,9 +86,14 @@
         }, {
             name: 'Sphere',
             func: this.loadTemplateScene.bind( this ),
+            root: '',
             promise: undefined,
             model: new osg.Node(),
             thumbnail: 'thumbnail.jpg',
+            description: {
+                title: 'Sphere test scene by program',
+                link: ''
+            },
             config: {
                 mapNormal: false,
                 mapSpecular: true,
@@ -66,22 +103,14 @@
         }, {
             name: 'Robot',
             func: this.loadRobotModel.bind( this ),
+            root: 'robot/',
             promise: undefined,
             model: new osg.Node(),
             thumbnail: 'thumbnail.jpg',
-            config: {
-                mapSpecular: true,
-                mapAmbientOcclusion: true,
-                mapGlossiness: true,
-                mapNormal: true
-            }
-
-        }, {
-            name: 'Robot-low',
-            func: this.loadRobotModel2.bind( this ),
-            promise: undefined,
-            model: new osg.Node(),
-            thumbnail: 'thumbnail.jpg',
+            description: {
+                title: 'Junkbot by Paweł Łyczkowski (design + model) + Nicolas Wirrmann (texturing)',
+                link: ''
+            },
             config: {
                 mapSpecular: true,
                 mapAmbientOcclusion: true,
@@ -92,9 +121,14 @@
         }, {
             name: 'Car1',
             func: this.loadCarModelSpecular.bind( this ),
+            root: 'hotrod2/',
             promise: undefined,
             model: new osg.Node(),
             thumbnail: 'thumbnail.jpg',
+            description: {
+                title: 'Hotrod by Christophe Desse (design + model) + Jeremie Noguer (texturing)',
+                link: ''
+            },
             config: {
                 mapSpecular: true,
                 mapAmbientOcclusion: true,
@@ -105,9 +139,14 @@
         }, {
             name: 'Car2',
             func: this.loadCarModelMetallic.bind( this ),
+            root: 'hotrod2/',
             promise: undefined,
             model: new osg.Node(),
             thumbnail: 'thumbnail.jpg',
+            description: {
+                title: 'Hotrod by Christophe Desse (design + model) + Jeremie Noguer (texturing)',
+                link: ''
+            },
             config: {
                 mapSpecular: false,
                 mapAmbientOcclusion: true,
@@ -224,6 +263,9 @@
         this._viewer = undefined;
 
         this.handleOptions();
+
+        console.log( JSON.stringify(this._configGUI) );
+
     };
 
     PBRExample.prototype = {
@@ -1540,13 +1582,18 @@
                 model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 3, 'specularMap' ) );
                 model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 4, 'aoMap' ) );
 
-                var promises = [];
-                promises.push( self.readImageURL( root + '/Textures/map_A.jpg' ) );
-                promises.push( self.readImageURL( root + '/Textures/map_R.jpg' ) );
 
-                promises.push( self.readImageURL( root + '/Textures/map_N.jpg' ) );
-                promises.push( self.readImageURL( root + '/Textures/map_S.jpg' ) );
-                promises.push( self.readImageURL( root + '/Textures/map_AO.jpg' ) );
+                var prefix = '_2';
+                if ( this._textureHighres )
+                    prefix = '';
+
+                var promises = [];
+                promises.push( self.readImageURL( root + 'Textures/map_A'+prefix+'.jpg' ) );
+                promises.push( self.readImageURL( root + 'Textures/map_R'+prefix+'.jpg' ) );
+
+                promises.push( self.readImageURL( root + 'Textures/map_N'+prefix+'.jpg' ) );
+                promises.push( self.readImageURL( root + 'Textures/map_S'+prefix+'.jpg' ) );
+                promises.push( self.readImageURL( root + 'Textures/map_AO'+prefix+'.jpg' ) );
 
                 var createTexture = function ( image ) {
                     var texture = new osg.Texture();
@@ -1572,61 +1619,7 @@
                 return defer.promise;
             };
 
-            var modelPromise = this.getModel( root + '/Junkbot.osgjs.gz', callbackModel );
-            Q( modelPromise ).then( function ( model ) {
-                osg.Matrix.makeIdentity( model.getMatrix() );
-            } );
-
-            return modelPromise;
-        },
-
-        loadRobotModel2: function ( config ) {
-
-            var self = this;
-            var root = config.root;
-            var callbackModel = function ( model ) {
-
-                var defer = Q.defer();
-
-                model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 0, 'albedoMap' ) );
-                model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 1, 'roughnessMap' ) );
-                model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 2, 'normalMap' ) );
-                model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 3, 'specularMap' ) );
-                model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 4, 'aoMap' ) );
-
-                var promises = [];
-                promises.push( self.readImageURL( root + '/Textures/map_A_2.jpg' ) );
-                promises.push( self.readImageURL( root + '/Textures/map_R_2.jpg' ) );
-
-                promises.push( self.readImageURL( root + '/Textures/map_N_2.jpg' ) );
-                promises.push( self.readImageURL( root + '/Textures/map_S_2.jpg' ) );
-                promises.push( self.readImageURL( root + '/Textures/map_AO_2.jpg' ) );
-
-                var createTexture = function ( image ) {
-                    var texture = new osg.Texture();
-                    texture.setWrapS( 'REPEAT' );
-                    texture.setWrapT( 'REPEAT' );
-
-                    texture.setMinFilter( 'LINEAR_MIPMAP_LINEAR' );
-                    texture.setMagFilter( 'LINEAR' );
-
-                    texture.setImage( image );
-                    return texture;
-                };
-
-                Q.all( promises ).then( function ( args ) {
-                    args.forEach( function ( image, index ) {
-                        model.getOrCreateStateSet().setTextureAttributeAndMode( index, createTexture( args[ index ] ) );
-                    } );
-
-                    model.getOrCreateStateSet().setAttributeAndModes( new osg.CullFace( 'DISABLE' ) );
-                    defer.resolve( model );
-                } );
-
-                return defer.promise;
-            };
-
-            var modelPromise = this.getModel( root + '/Junkbot.osgjs.gz', callbackModel );
+            var modelPromise = this.getModel( root + 'Junkbot.osgjs.gz', callbackModel );
             Q( modelPromise ).then( function ( model ) {
                 osg.Matrix.makeIdentity( model.getMatrix() );
             } );
@@ -1649,7 +1642,7 @@
                 model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 4, 'aoMap' ) );
 
                 var promises = [];
-                var base = root + '/';
+                var base = root;
                 promises.push( self.readImageURL( base + 'hotrod_diffuse.png' ) );
                 promises.push( self.readImageURL( base + 'hotrod_glossiness.png' ) );
 
@@ -1683,7 +1676,7 @@
                 return defer.promise;
             };
 
-            return this.getModel( root + '/hotrod2.osgjs.gz', callbackModel );
+            return this.getModel( root + 'hotrod2.osgjs.gz', callbackModel );
         },
 
 
@@ -1703,7 +1696,7 @@
                 model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 4, 'aoMap' ) );
 
                 var promises = [];
-                var base = root + '/';
+                var base = root;
                 promises.push( self.readImageURL( base + 'hotrod_basecolor.png' ) );
                 promises.push( self.readImageURL( base + 'hotrod_roughness.png' ) );
 
@@ -1736,9 +1729,8 @@
 
                 return defer.promise;
             };
-            return this.getModel( root + '/hotrod2.osgjs.gz', callbackModel );
+            return this.getModel( root + 'hotrod2.osgjs.gz', callbackModel );
         },
-
 
 
         loadC3POModel: function ( config ) {
@@ -1752,13 +1744,67 @@
                 model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 1, 'roughnessMap' ) );
                 model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 2, 'normalMap' ) );
                 model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 3, 'specularMap' ) );
+
+                var promises = [];
+                var vers = '2k';
+                if ( this._textureHighres )
+                    vers = '4k';
+
+                var base = config.root + 'textures/' + vers + '/';
+                promises.push( self.readImageURL( base + 'c3po_D.tga.png' ) );
+                promises.push( self.readImageURL( base + 'c3po_R.tga.png' ) );
+
+                promises.push( self.readImageURL( base + 'c3po_N.tga.png' ) );
+                promises.push( self.readImageURL( base + 'c3po_M.tga.png' ) );
+
+                var createTexture = function ( image ) {
+                    var texture = new osg.Texture();
+                    texture.setWrapS( 'REPEAT' );
+                    texture.setWrapT( 'REPEAT' );
+
+                    texture.setMinFilter( 'LINEAR_MIPMAP_LINEAR' );
+                    texture.setMagFilter( 'LINEAR' );
+                    texture.setImage( image );
+                    return texture;
+                };
+
+                Q.all( promises ).then( function ( args ) {
+                    args.forEach( function ( image, index ) {
+                        var texture = createTexture( args[ index ] );
+                        texture.setWrapS( 'REPEAT' );
+                        texture.setWrapT( 'REPEAT' );
+                        model.getOrCreateStateSet().setTextureAttributeAndMode( index, texture );
+                    } );
+
+                    model.getOrCreateStateSet().setAttributeAndModes( new osg.CullFace( 'DISABLE' ) );
+                    defer.resolve( model );
+                } );
+
+                return defer.promise;
+            };
+            return this.getModel( config.root + 'C3PO_head.osgjs.gz', callbackModel );
+        },
+
+        loadC3POModelOrig: function ( config ) {
+            var self = this;
+
+            var callbackModel = function ( model ) {
+
+                var defer = Q.defer();
+
+                model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 0, 'albedoMap' ) );
+                model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 1, 'roughnessMap' ) );
+                model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 2, 'normalMap' ) );
+                model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 3, 'specularMap' ) );
                 // model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 4, 'aoMap' ) );
 
                 var promises = [];
-                var vers = '4k';
-                if ( this._mobile )
-                    vers = '2k';
-                var base = config.root + '/textures/' + vers + '/';
+
+                var vers = '2k';
+                if ( this._textureHighres )
+                    vers = '4k';
+
+                var base = config.root + 'textures/' + vers + '/';
                 promises.push( self.readImageURL( base + 'c3po_D.tga.png' ) );
                 promises.push( self.readImageURL( base + 'c3po_R.tga.png' ) );
 
@@ -1791,7 +1837,7 @@
 
                 return defer.promise;
             };
-            return this.getModel( config.root + '/c3po.osgjs.gz', callbackModel );
+            return this.getModel( config.root + 'c3po.osgjs.gz', callbackModel );
         },
 
         loadTemplateScene: function () {
@@ -1935,10 +1981,9 @@
                 model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 1, 'roughnessMap' ) );
                 model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 2, 'normalMap' ) );
                 model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 3, 'specularMap' ) );
-                model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 4, 'aoMap' ) );
 
                 var promises = [];
-                var base = root + '/';
+                var base = root;
                 promises.push( self.readImageURL( base + 'diffuse.png' ) );
                 promises.push( self.readImageURL( base + 'roughness.png' ) );
 
@@ -2104,13 +2149,18 @@
 
                 var defer = Q.defer();
                 previous.then( function () {
-                    var promise = current.func();
+
+                    this.modelStartLoading( current.name );
+
+                    var promise = current.func( current );
                     current.promise = promise;
                     promise.then( function ( model ) {
                         current.model.addChild( model );
                         defer.resolve();
-                    } );
-                } );
+                        this.modelFinishLoading();
+
+                    }.bind( this ) );
+                }.bind(this) );
                 return defer.promise;
             }.bind( this ), undefined );
 
@@ -2228,8 +2278,16 @@
                 }
             }
 
-            if ( options.textureMethod ) {
-                this._configGUI.textureMethod = options.textureMethod;
+            if ( options.mobile ) {
+                this._mobile = 1;
+            }
+
+            if ( options.textureSize === 'high' ) {
+                this._configGUI.textureSize = options.textureSize;
+            }
+
+            if ( options.highres ) {
+                this._textureHighres = true;
             }
 
             if ( options.nbSamples ) {
@@ -2240,28 +2298,34 @@
                 this._configGUI.rendering = options.rendering;
             }
 
-            if ( options.mobile ) {
-                this._mobile = 1;
-            }
 
             var osgOptions = {
                 useDevicePixelRatio: true
             };
+
 
             if ( this._mobile ) {
                 this._configGUI.nbSamples = 1;
                 osgOptions.useDevicePixelRatio = false;
             }
 
+
             this._osgOptions = osgOptions;
 
         },
 
-        getThumbnailModel: function() {
+        getModelThumbnail: function() {
             var model = this._configGUI.model;
             var idx = this._modelList.indexOf( model );
             var configModel = this._configModel[ idx ];
             return configModel.root + '/' + configModel.thumbnail;
+        },
+
+        getModelDescription: function() {
+            var model = this._configGUI.model;
+            var idx = this._modelList.indexOf( model );
+            var configModel = this._configModel[ idx ];
+            return configModel.description;
         },
 
         run: function ( canvas ) {
