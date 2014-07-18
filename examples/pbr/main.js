@@ -2315,14 +2315,11 @@
             }
 
 
-            var osgOptions = {
-                useDevicePixelRatio: true
-            };
-
+            var osgOptions = {};
 
             if ( this._mobile ) {
                 this._configGUI.nbSamples = 1;
-                osgOptions.useDevicePixelRatio = false;
+                osgOptions.overrideDevicePixelRatio = 0.5;
             }
 
 

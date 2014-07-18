@@ -70,13 +70,15 @@ define( [
                 if ( clientWidth < 1 ) clientWidth = 1;
                 if ( clientHeight < 1 ) clientHeight = 1;
 
-                var devicePixelRatio = 1;
-                if ( this._options.getBoolean( 'useDevicePixelRatio' ) ) {
-                    devicePixelRatio = window.devicePixelRatio || 1;
-                }
+                var devicePixelRatio = window.devicePixelRatio || 1;
+                var overrideDevicePixelRatio = this._options.getNumber( 'overrideDevicePixelRatio' );
 
-                var widthPixel = clientWidth * devicePixelRatio;
-                var heightPixel = clientHeight * devicePixelRatio;
+                // override the pixel ratio, used to save pixel on mobile
+                if ( typeof overrideDevicePixelRatio === 'number' )
+                    devicePixelRatio = overrideDevicePixelRatio;
+
+                var widthPixel = Math.floor( clientWidth * devicePixelRatio );
+                var heightPixel = Math.floor( clientHeight * devicePixelRatio );
 
                 if ( canvasWidth !== widthPixel ) {
                     canvas.width = widthPixel;
