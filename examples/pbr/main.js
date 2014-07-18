@@ -8,6 +8,28 @@
     var osgDB = OSG.osgDB;
     var osgUtil = OSG.osgUtil;
 
+    var mobileCheck = function () {
+
+        if ( navigator.userAgent.match( /Mobile/i ) )
+            return true;
+        if ( navigator.userAgent.match( /Android/i ) )
+            return true;
+        if ( navigator.userAgent.match( /iPhone/i ) )
+            return true;
+        if ( navigator.userAgent.match( /iPad/i ) )
+            return true;
+        if ( navigator.userAgent.match( /iPod/i ) )
+            return true;
+        if ( navigator.userAgent.match( /BlackBerry/i ) )
+            return true;
+        if ( navigator.userAgent.match( /Windows Phone/i ) )
+            return true;
+
+        return false;
+
+    };
+
+
     var PBRExample = function ( config ) {
 
         this._textureHighres = false;
@@ -2298,6 +2320,11 @@
                 this._mobile = 1;
             }
 
+            // auto check
+            if ( options.mobile === undefined ) {
+                this._mobile = mobileCheck();
+            }
+
             if ( options.textureSize === 'high' ) {
                 this._configGUI.textureSize = options.textureSize;
             }
@@ -2319,7 +2346,7 @@
 
             if ( this._mobile ) {
                 this._configGUI.nbSamples = 1;
-                osgOptions.overrideDevicePixelRatio = 0.5;
+                osgOptions.overrideDevicePixelRatio = 1.0;
             }
 
 
