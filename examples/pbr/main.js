@@ -217,7 +217,7 @@
 
         this._configGUI = {
             earlyZ: true,
-            rendering: 'solid',
+            rendering: 'solid2',
             rangeExposure: 1.0,
             environment: 'Alexs_Apartment',
             model: this._modelList[ 0 ],
@@ -759,7 +759,6 @@
                         model.getOrCreateStateSet().setTextureAttributeAndMode( index, texture );
                     } );
 
-                    model.getOrCreateStateSet().setAttributeAndModes( new osg.CullFace( 'DISABLE' ) );
                     defer.resolve( model );
                 } );
 
@@ -813,7 +812,6 @@
                         model.getOrCreateStateSet().setTextureAttributeAndMode( index, texture );
                     } );
 
-                    model.getOrCreateStateSet().setAttributeAndModes( new osg.CullFace( 'DISABLE' ) );
                     defer.resolve( model );
                 }.bind( this ) );
 
@@ -866,7 +864,6 @@
                         model.getOrCreateStateSet().setTextureAttributeAndMode( index, texture );
                     } );
 
-                    model.getOrCreateStateSet().setAttributeAndModes( new osg.CullFace( 'DISABLE' ) );
                     defer.resolve( model );
                 } );
 
@@ -921,7 +918,6 @@
                         model.getOrCreateStateSet().setTextureAttributeAndMode( index, texture );
                     } );
 
-                    model.getOrCreateStateSet().setAttributeAndModes( new osg.CullFace( 'DISABLE' ) );
                     defer.resolve( model );
                 } );
 
@@ -1496,8 +1492,11 @@
             var geom = osg.createTexturedBoxGeometry( 0, 0, 0, size, size, size );
             this._stateSetBackground = geom.getOrCreateStateSet();
             geom.getOrCreateStateSet().setAttributeAndModes( new osg.CullFace( 'DISABLE' ) );
-            geom.getOrCreateStateSet().setAttributeAndModes( new osg.Depth( 0, 0, 1, false ) );
+
+            // display the environment only for pixel on depth == 1 meaning the background
+            geom.getOrCreateStateSet().setAttributeAndModes( new osg.Depth( 'EQUAL', 1, 1.1, false ) );
             geom.getOrCreateStateSet().setAttributeAndModes( this.getShaderBackground() );
+            this._stateSetBackground.setRenderBinDetails( 10, 'RenderBin' );
 
             var cubemapTransform = osg.Uniform.createMatrix4( osg.Matrix.makeIdentity( [] ), 'CubemapTransform' );
             var mt = new osg.MatrixTransform();
@@ -1520,18 +1519,19 @@
             cam.setClearMask( 0x0 );
             cam.setReferenceFrame( osg.Transform.ABSOLUTE_RF );
             cam.addChild( mt );
+            cam.setCullCallback(new CullCallback());
+            cam.setRenderOrder( osg.Camera.POST_RENDER, 0 );
 
             // the update callback get exactly the same view of the camera
             // but configure the projection matrix to always be in a short znear/zfar range to not vary depend on the scene size
+            var info = {};
+            var proj = [];
             var UpdateCallback = function () {
-                this.update = function ( node, nv ) {
+                this.update = function ( /*node, nv*/ ) {
                     var rootCam = self._viewer.getCamera();
 
-                    //rootCam.
-                    var info = {};
                     osg.Matrix.getPerspective( rootCam.getProjectionMatrix(), info );
-                    var proj = [];
-                    osg.Matrix.makePerspective( info.fovy, info.aspectRatio, 1.0, 100.0, proj );
+                    osg.Matrix.makePerspective( info.fovy, info.aspectRatio, 1.0, 1000.0, proj );
                     cam.setProjectionMatrix( proj );
                     cam.setViewMatrix( rootCam.getViewMatrix() );
 
@@ -1539,7 +1539,6 @@
                 };
             };
             cam.setUpdateCallback( new UpdateCallback() );
-
             scene.addChild( cam );
 
             return geom;
