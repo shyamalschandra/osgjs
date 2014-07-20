@@ -606,14 +606,16 @@ vec3 evaluateIBL( const in mat3 iblTransform, const in vec3 N, const in vec3 V )
     for ( int i = 0; i < NB_SAMPLES; i++ ) {
 
         vec2 u = hammersley[i];
-
+        float phi = PI_2 * u.x;
+        float sinPhi = sin(phi);
+        float cosPhi = cos(phi);
         // diffuse part
 
         // compute L vector from importance sampling with cos
         if ( diffusePart ) {
-            float sinT = sqrt( 1.0-u.y );
-            float phi = PI_2*u.x;
-            L = (sinT*cos(phi)) * tangentX + (sinT*sin(phi)) * tangentY + sqrt( u.y ) * N;
+            float cosT = sqrt( 1.0 - u.y );
+            float sinT = sqrt( 1.0 - cosT * cosT );
+            L = ( sinT* cosPhi ) * tangentX + ( sinT* sinPhi ) * tangentY + cosT * N;
 
             NdotL = dot( L, N );
 
@@ -644,10 +646,9 @@ vec3 evaluateIBL( const in mat3 iblTransform, const in vec3 N, const in vec3 V )
         // GGX NDF sampling
         float cosThetaH = sqrt( (1.0-u.y) / (1.0 + alpha2MinusOne * u.y) );
         float sinThetaH = sqrt(1.0 - cosThetaH*cosThetaH );
-        float phiH = u.x * PI_2;
 
         // Convert sample from half angle to incident angle
-        H = vec3( sinThetaH*cos(phiH), sinThetaH*sin(phiH), cosThetaH);
+        H = vec3( sinThetaH * cosPhi, sinThetaH * sinPhi, cosThetaH);
         H = normalize(tangentX * H.x + tangentY * H.y + N * H.z);
 
         L = normalize(2.0 * dot(V, H) * H - V);
@@ -725,8 +726,8 @@ vec3 evaluateSpecularIBL( const in mat3 iblTransform, const in vec3 N, const in 
     vec3 contrib = vec3(0.0);
     // if dont simplify the math you can get a rougness of 0 and it will
     // produce an error on D_GGX / 0.0
-    // float roughness = max( MaterialRoughness, 0.015);
-    float roughness = MaterialRoughness;
+    float roughness = max( MaterialRoughness, 0.015);
+    //float roughness = MaterialRoughness;
 
     vec3 f0 = MaterialSpecular;
 
