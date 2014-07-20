@@ -1,87 +1,53 @@
-
-
+<!DOCTYPE html>
 <html>
-
 <head>
-<style>
-  body {
-  background:-moz-radial-gradient(farthest-side, rgba(0,0,0,0) 90%, rgba(0,0,0,0.1) 150%) rgb(76,76,76);
-  background:-webkit-gradient(radial, center center, 500, center center, 1400, from(rgba(0,0,0,0)), to(rgba(0,0,0,0.2))) rgb(76,76,76);
-  overflow:hidden;
-  padding:0;
-  margin:0;
-  color: white;
-  }
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Physical Based Rendering prototype</title>
+    <link rel="stylesheet" type="text/css" href="../templates/css/base.css">
 
-  a:link {text-decoration: none; color: black;}
-  a:visited {text-decoration: none; color: black;}
-  a:active {text-decoration: none; color: black;}
-  a:hover {text-decoration: underline;  color: black;}
+    <style type="text/css">
+    /* Custom CSS goes here */
+    #loading {
+    position: absolute;
+    }
+    </style>
 
-  #ViewContainer {
-  position: absolute;
-  }
-
-  code {
-    font-size: 10px;
-  }
-
-  #loading {
-  position: absolute;
-  left: 10px;
-  height: 10px;
-  }
-
-  #copyright {
-  position: absolute;
-  text-align: center;
-  width: 100%;
-  top: 0px;
-  }
-
-</style>
-<title>PBR</title>
-<meta charset="utf-8">
-<meta http-equiv="content-type" content="text/html">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-
-<script type="text/javascript" src="../vendors/Q.js"></script>
-<script type="text/javascript" src="../vendors/Hammer.js"></script>
-<script type="text/javascript" src="../vendors/Leap.js"></script>
-<script type="text/javascript" src="../vendors/dat.gui.js"></script>
-<script type="text/javascript" src="../../builds/active/OSG.js"></script>
-<script type="text/javascript" src="env.js"></script>
-<script type="text/javascript" src="main.js"></script>
+    <!-- Javascript -->
+    <script type="text/javascript" src="../vendors/jquery-2.1.1.js"></script>
+    <script type="text/javascript" src="../vendors/Q.js"></script>
+    <script type="text/javascript" src="../vendors/Hammer.js"></script>
+    <script type="text/javascript" src="../vendors/Leap.js"></script>
+    <script type="text/javascript" src="../vendors/dat.gui.js"></script>
+    <script type="text/javascript" src="../../builds/active/OSG.js"></script>
+    <script type="text/javascript" src="main.js"></script>
 
 </head>
 
-<body>
 
 
-  <div id="ViewContainer">
-    <canvas id="3DView" style="border: none; width:100vw ; height:100vh"  ></canvas>
-  </div>
+<body class="osgjs-theme-dark">
   <div id="loading">Loading</div>
-
-  <div id='copyright'>
-
-  <div>
-    <a src='http://artisaverb.info/Cerberus.html'>Cerberus</a> :  Andrew Maximov
+  <div id="ViewContainer" class="osgjs-fullpage">
+    <!-- very important change the size of the parent element instead-->
+    <canvas id="View" style="height:100%;width:100%;" oncontextmenu="return false;"></canvas>
   </div>
 
-  <div>
-  Junkbot : Paweł Łyczkowski (design + model) + Nicolas Wirrmann (texturing)
-  </div>
+  <div class="osgjs-info osgjs-info-dark">
 
-  <div>
-  Hotrod ( Car ) : Christophe Desse (design + model) + Jeremie Noguer (texturing)
-  </div>
+    <a href="http://osgjs.org/" class="osgjs-powered" title="Powered by OSG.JS">
+      <img src="http://osgjs.org/assets/logo.png" alt="" width="32" height="32">
+      <strong>OSG.JS</strong>
+    </a>
 
-  <div>
-  environment : <a src='http://www.hdrlabs.com/sibl/archive.html'>hdrlabs</a> and <a src='http://www.allegorithmic.com/'>allegorithmic</a>
-  </div>
+    <div class="osgjs-description">
+      Physical Based Rendering prototype. environment <a src='http://www.hdrlabs.com/sibl/archive.html'>hdrlabs</a> and <a src='http://www.allegorithmic.com/'>allegorithmic</a><br>
+      <div id="model-description"></div>
+      special thanks to <a ref="http://seblagarde.wordpress.com/">Sebastien Lagarde</a>
+    </div>
 
   </div>
 
 </body>
+
 </html>

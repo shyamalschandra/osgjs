@@ -144,8 +144,15 @@ vec3 evaluateDiffuseIBL( const in mat3 iblTransform, const in vec3 N, const in v
 
     for ( int i = 0; i < NB_SAMPLES; i++ ) {
 
+#ifdef REFERENCE
+        // generate a distribued grid
+        float y = i *  float(NB_SAMPLES_SQR_INV);
+        float x = frac(y) * float(NB_SAMPLES_SQR);
+        vec2 u = vec2 ( x, floor( y ) ) * NB_SAMPLES_SQR_INV;
+#else
         // get sample
         vec2 u = hammersley[i];
+#endif
 
         // compute L vector from importance sampling with cos
         float sinT = sqrt( 1.0-u.y );
