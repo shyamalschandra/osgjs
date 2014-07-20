@@ -575,10 +575,159 @@ float D_GGX( const in float NdotH, const in float roughness) {
     return tmp * tmp * INV_PI;
 }
 
+// inline version diffuse + specular
+vec3 evaluateIBL( const in mat3 iblTransform, const in vec3 N, const in vec3 V ) {
+
+    vec3 contrib = vec3(0.0);
+    // if dont simplify the math you can get a rougness of 0 and it will
+    // produce an error on D_GGX / 0.0
+    // float roughness = max( MaterialRoughness, 0.015);
+    float roughness = MaterialRoughness;
+
+    vec3 f0 = MaterialSpecular;
+
+
+    float NdotV = max( 0.0, dot(V, N));
+    float alpha = roughness*roughness;
+    float alpha2 = alpha*alpha;
+
+    float alpha2MinusOne = alpha2 - 1.0;
+
+    vec3 H, L, dir, texel;
+    float NdotL, pdf, lod;
+
+    bool diffusePart = true;
+
+    if ( MaterialAlbedo[0] == 0.0 &&
+         MaterialAlbedo[1] == 0.0 &&
+         MaterialAlbedo[2] == 0.0 )
+        diffusePart = false;
+
+    for ( int i = 0; i < NB_SAMPLES; i++ ) {
+
+        vec2 u = hammersley[i];
+
+        // diffuse part
+
+        // compute L vector from importance sampling with cos
+        if ( diffusePart ) {
+            float sinT = sqrt( 1.0-u.y );
+            float phi = PI_2*u.x;
+            L = (sinT*cos(phi)) * tangentX + (sinT*sin(phi)) * tangentY + sqrt( u.y ) * N;
+
+            NdotL = dot( L, N );
+
+            // compute pdf to get the good lod
+            pdf = max( 0.0, NdotL * INV_PI );
+
+            if ( NdotL > 0.0 && pdf > 0.0 ) {
+
+                lod = computeLOD(L, pdf);
+                dir = iblTransform * L;
+
+#ifdef RGBE
+                texel = texturePanoramicRGBELod(environment, environmentSize, dir, lod);
+#endif
+
+#ifdef RGBM
+                texel = texturePanoramicRGBMLod(environment, environmentSize, environmentRange, dir, lod);
+#endif
+
+                contrib += texel * MaterialAlbedo;
+            }
+        }
+
+        // ==================================================
+
+
+        // specular part
+        // GGX NDF sampling
+        float cosThetaH = sqrt( (1.0-u.y) / (1.0 + alpha2MinusOne * u.y) );
+        float sinThetaH = sqrt(1.0 - cosThetaH*cosThetaH );
+        float phiH = u.x * PI_2;
+
+        // Convert sample from half angle to incident angle
+        H = vec3( sinThetaH*cos(phiH), sinThetaH*sin(phiH), cosThetaH);
+        H = normalize(tangentX * H.x + tangentY * H.y + N * H.z);
+
+        L = normalize(2.0 * dot(V, H) * H - V);
+
+        float LdotH = max( 0.0, dot(H, L));
+        float NdotH = max( 0.0, dot(H, N));
+        NdotL = max( 0.0, dot(L, N));
+
+
+        // Importance sampling weight for each sample
+        //
+        //   weight = fr . (N.L)
+        //
+        // with:
+        //   fr  = D(H) . F(H) . G(V, L) / ( 4 (N.L) (N.V) )
+        //
+        // Since we integrate in the microfacet space, we include the
+        // jacobian of the transform
+        //
+        //   pdf = D(H) . (N.H) / ( 4 (L.H) )
+
+
+        // float D         = D_GGX(NdotH, roughness);
+        float tmp = alpha / ( NdotH * NdotH*( alpha2MinusOne ) + 1.0);
+        float D = tmp * tmp * INV_PI;
+
+        float pdfH      = D * NdotH;
+        pdf       = pdfH / (4.0 * LdotH);
+
+        // Implicit weight (N.L canceled out)
+        //float3 F	   = F_Schlick(f0, f90, LdotH); // form Sebastien Lagarde
+        vec3 F         = F_Schlick(f0, LdotH);
+
+
+        // Geometry  G(V, L )
+        // float G     = G_SmithGGX(NdotL, NdotV, roughness);
+        // cf http://blog.selfshadow.com/publications/s2013-shading-course/karis/s2013_pbs_epic_notes_v2.pdf p3
+        float k = alpha * 0.5;
+        // NdotL and NdotV can be simplifided later because of the weight / pdf
+        // float G = NdotL * NdotV * G1(NdotL,k) * G1(NdotV,k);
+        float Goptim = G1(NdotL,k) * G1(NdotV,k);
+
+        // original weight
+        // vec3 weight = F * G * D / (4.0 * NdotV);
+        // optimized weight because of the weight * 1.0/pdf
+        vec3 weight = F * ( Goptim * LdotH * NdotL / NdotH );
+
+        if ( NdotL > 0.0 && pdf > 0.0 )
+        {
+            //contrib += g_IBL.SampleLevel(sampler, L, 0).rgb * weight / pdf;
+
+            float lod = roughness < 0.01 ? 0.0: computeLOD( L, pdf );
+
+            // could we remove the transform ?
+            vec3 dir = iblTransform * L;
+
+#ifdef RGBE
+            texel = texturePanoramicRGBELod(environment, environmentSize, dir, lod);
+#endif
+#ifdef RGBM
+            texel = texturePanoramicRGBMLod(environment, environmentSize, environmentRange, dir, lod);
+#endif
+            //contrib += color * weight / pdf;
+            contrib += texel * weight;
+        }
+    }
+
+    contrib *= 1.0/float(NB_SAMPLES);
+    return contrib;
+}
+
+
 vec3 evaluateSpecularIBL( const in mat3 iblTransform, const in vec3 N, const in vec3 V ) {
 
     vec3 contrib = vec3(0.0);
-    float roughness = max( MaterialRoughness, 0.015);
+    // if dont simplify the math you can get a rougness of 0 and it will
+    // produce an error on D_GGX / 0.0
+    // float roughness = max( MaterialRoughness, 0.015);
+    float roughness = MaterialRoughness;
+
     vec3 f0 = MaterialSpecular;
 
 
@@ -827,9 +976,9 @@ vec3 solid2( const in mat3 iblTransform, const in vec3 normal, const in vec3 vie
     //                      0.0, 1.0, 0.0,
     //                      0.0, 0.0, 1.0);
     mat3 ibl = iblTransform;
-    color += evaluateDiffuseIBL(ibl, normal, view );
-    color += evaluateSpecularIBL(ibl, normal, view );
-    color *= hdrExposure;
+    //color += evaluateDiffuseIBL(ibl, normal, view );
+    //color += evaluateSpecularIBL(ibl, normal, view );
+    color = MaterialAO * evaluateIBL( ibl, normal, view ) * hdrExposure ;
     return linearTosRGB( color, DefaultGamma);
 }
 #endif
