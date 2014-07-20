@@ -45,6 +45,8 @@
         this._stateSetBackground = undefined;
         this._stateSetEnvironment = undefined;
 
+        this._shaderPath = config.shaderPath || '';
+
         this._configModel = [ {
             name: 'C3PO',
             root: 'C3PO_optim/',
@@ -326,8 +328,8 @@
 
             var defer = Q.defer();
 
-            var p0 = Q( $.get( 'vertex.glsl' ) );
-            var p1 = Q( $.get( 'fragment.glsl' ) );
+            var p0 = Q( $.get( this._shaderPath + 'vertex.glsl' ) );
+            var p1 = Q( $.get( this._shaderPath + 'fragment.glsl' ) );
 
             Q.all( [ p0, p1 ] ).then( function ( args ) {
 
