@@ -59,6 +59,10 @@ uniform mat4 CubemapTransform;
 
 #ifdef BRUT
 uniform vec2 hammersley[NB_SAMPLES];
+
+//vec3 diffuseSample[NB_SAMPLES];
+//vec4 specularSample[NB_SAMPLES];
+
 #endif
 
 
@@ -465,7 +469,6 @@ float probabilityGGX(float ndh, float vdh, float Roughness)
     return normal_distrib(ndh, Roughness) * ndh / (4.0*vdh);
 }
 
-
 vec3 solid( const in mat3 iblTransform, const in vec3 normal, const in vec3 view ) {
 
     MaxLOD = log ( environmentSize[0] ) * INV_LOG2 - 1.0;
@@ -575,108 +578,106 @@ float D_GGX( const in float NdotH, const in float roughness) {
     return tmp * tmp * INV_PI;
 }
 
-// inline version diffuse + specular
-vec3 evaluateIBL( const in mat3 iblTransform, const in vec3 N, const in vec3 V ) {
 
-    vec3 contrib = vec3(0.0);
-    // if dont simplify the math you can get a rougness of 0 and it will
-    // produce an error on D_GGX / 0.0
-    // float roughness = max( MaterialRoughness, 0.015);
-    float roughness = MaterialRoughness;
-
-    vec3 f0 = MaterialSpecular;
-
-
-    float NdotV = max( 0.0, dot(V, N));
-    float alpha = roughness*roughness;
-    float alpha2 = alpha*alpha;
-
-    float alpha2MinusOne = alpha2 - 1.0;
-
-    vec3 H, L, dir, texel;
-    float NdotL, pdf, lod;
-
-    bool diffusePart = true;
-
-    if ( MaterialAlbedo[0] == 0.0 &&
-         MaterialAlbedo[1] == 0.0 &&
-         MaterialAlbedo[2] == 0.0 )
-        diffusePart = false;
-
-    for ( int i = 0; i < NB_SAMPLES; i++ ) {
-
-        vec2 u = hammersley[i];
-        float phi = PI_2 * u.x;
-        float sinPhi = sin(phi);
-        float cosPhi = cos(phi);
-        // diffuse part
-
-        // compute L vector from importance sampling with cos
-        if ( diffusePart ) {
-            float cosT = sqrt( 1.0 - u.y );
-            float sinT = sqrt( 1.0 - cosT * cosT );
-            L = ( sinT* cosPhi ) * tangentX + ( sinT* sinPhi ) * tangentY + cosT * N;
-
-            NdotL = dot( L, N );
-
-            // compute pdf to get the good lod
-            pdf = max( 0.0, NdotL * INV_PI );
-
-            if ( NdotL > 0.0 && pdf > 0.0 ) {
-
-                lod = computeLOD(L, pdf);
-                dir = iblTransform * L;
+void texturePanoramicGenericLod( const in vec3 dir, const in float lod, out vec3 texel ) {
 
 #ifdef RGBE
-                texel = texturePanoramicRGBELod(environment, environmentSize, dir, lod);
+    texel = texturePanoramicRGBELod(environment, environmentSize, dir, lod);
 #endif
 
 #ifdef RGBM
-                texel = texturePanoramicRGBMLod(environment, environmentSize, environmentRange, dir, lod);
+    texel = texturePanoramicRGBMLod(environment, environmentSize, environmentRange, dir, lod);
 #endif
 
-                contrib += texel * MaterialAlbedo;
-            }
-        }
-
-        // ==================================================
+}
 
 
-        // specular part
-        // GGX NDF sampling
-        float cosThetaH = sqrt( (1.0-u.y) / (1.0 + alpha2MinusOne * u.y) );
-        float sinThetaH = sqrt(1.0 - cosThetaH*cosThetaH );
 
-        // Convert sample from half angle to incident angle
-        H = vec3( sinThetaH * cosPhi, sinThetaH * sinPhi, cosThetaH);
-        H = normalize(tangentX * H.x + tangentY * H.y + N * H.z);
+// inline version diffuse + specular
+//==================================
 
-        L = normalize(2.0 * dot(V, H) * H - V);
+// sample0 does not need H
+void evaluateIBLDiffuseOptimSample0( const in mat3 iblTransform, const in vec3 N, out vec3 color) {
+    float pdf = INV_PI;
+    vec3 dir = iblTransform * N;
+    float lod = computeLOD(N, pdf);
+    texturePanoramicGenericLod( dir, lod, color );
+}
 
-        float LdotH = max( 0.0, dot(H, L));
-        float NdotH = max( 0.0, dot(H, N));
-        NdotL = max( 0.0, dot(L, N));
+void evaluateIBLDiffuseOptim(const in mat3 iblTransform, const in vec3 N, out vec3 contrib ) {
+
+    evaluateIBLDiffuseOptimSample0( iblTransform, N, contrib);
+
+#if NB_SAMPLES > 1
+    vec3 dir, L, color;
+    float pdf, lod, NdotL;
+
+#ifndef UNROLL
+    vec2 u;
+    for ( int i = 1; i < NB_SAMPLES; i++ ) {
+        u = hammersley[i];
+
+        float phi = PI_2*u.x;
+        float cosT = sqrt( 1.0 - u.y );
+        float sinT = sqrt( 1.0 - cosT * cosT );
+        L = sinT* cos(phi ) * tangentX + ( sinT* sin(phi) ) * tangentY + cosT * N;
+
+        NdotL = dot( L, N );
+
+        // compute pdf to get the good lod
+        pdf = max( 0.0, NdotL * INV_PI );
+
+        lod = computeLOD(L, pdf);
+        dir = iblTransform * L;
+
+        texturePanoramicGenericLod( dir, lod, color );
+        contrib += color;
+    }
+
+#else
+
+UNROLL_LOOP_DIFFUSE
+
+#endif
+
+#endif
+
+}
+
+vec3 f0;
+float NdotV, roughness, alpha, alpha2, alpha2MinusOne;
 
 
-        // Importance sampling weight for each sample
-        //
-        //   weight = fr . (N.L)
-        //
-        // with:
-        //   fr  = D(H) . F(H) . G(V, L) / ( 4 (N.L) (N.V) )
-        //
-        // Since we integrate in the microfacet space, we include the
-        // jacobian of the transform
-        //
-        //   pdf = D(H) . (N.H) / ( 4 (L.H) )
+void evaluateIBLSpecularOptimSample0(const in mat3 iblTransform, const in vec3 N, const in vec3 V, out vec3 color ) {
+
+    // Convert sample from half angle to incident angle
+    vec3 H = N;
+
+    vec3 L = normalize(2.0 * NdotV * H - V);
+
+    float NdotL = max( 0.0, dot(L, N));
+
+    float LdotH = NdotL;
+
+    // Importance sampling weight for each sample
+    //
+    //   weight = fr . (N.L)
+    //
+    // with:
+    //   fr  = D(H) . F(H) . G(V, L) / ( 4 (N.L) (N.V) )
+    //
+    // Since we integrate in the microfacet space, we include the
+    // jacobian of the transform
+    //
+    //   pdf = D(H) . (N.H) / ( 4 (L.H) )
 
 
-        // float D         = D_GGX(NdotH, roughness);
-        float tmp = alpha / ( NdotH * NdotH*( alpha2MinusOne ) + 1.0);
-        float D = tmp * tmp * INV_PI;
+    // float D         = D_GGX(NdotH, roughness);
+    float D = INV_PI / alpha2;
 
-        float pdfH      = D * NdotH;
-        pdf       = pdfH / (4.0 * LdotH);
+    float pdf       = D / (4.0 * LdotH);
+
+    if ( NdotL > 0.0 && pdf > 0.0 ) {
 
         // Implicit weight (N.L canceled out)
         //float3 F	   = F_Schlick(f0, f90, LdotH); // form Sebastien Lagarde
@@ -694,29 +695,160 @@ vec3 evaluateIBL( const in mat3 iblTransform, const in vec3 N, const in vec3 V )
         // original weight
         // vec3 weight = F * G * D / (4.0 * NdotV);
         // optimized weight because of the weight * 1.0/pdf
+        vec3 weight = F * ( Goptim * LdotH * NdotL );
+
+
+        float lod = roughness < 0.01 ? 0.0: computeLOD( L, pdf );
+
+        // could we remove the transform ?
+        vec3 dir = iblTransform * L;
+
+        texturePanoramicGenericLod( dir, lod, color );
+
+        color *= weight;
+        //contrib += color * weight / pdf;
+    }
+}
+
+vec3 evaluateIBLSpecularOptimSampleX(const in vec3 H, const in mat3 iblTransform, const in vec3 N, const in vec3 V) {
+
+    vec3 L = normalize(2.0 * dot(V, H) * H - V);
+
+    float LdotH = max( 0.0, dot(H, L));
+    float NdotH = max( 0.0, dot(H, N));
+    float NdotL = max( 0.0, dot(L, N));
+
+    // Importance sampling weight for each sample
+    //
+    //   weight = fr . (N.L)
+    //
+    // with:
+    //   fr  = D(H) . F(H) . G(V, L) / ( 4 (N.L) (N.V) )
+    //
+    // Since we integrate in the microfacet space, we include the
+    // jacobian of the transform
+    //
+    //   pdf = D(H) . (N.H) / ( 4 (L.H) )
+
+
+    // float D         = D_GGX(NdotH, roughness);
+    float tmp = alpha / ( NdotH * NdotH*( alpha2MinusOne ) + 1.0);
+    float D = tmp * tmp * INV_PI;
+
+    float pdfH      = D * NdotH;
+    float pdf       = pdfH / (4.0 * LdotH);
+
+    if ( NdotL > 0.0 && pdf > 0.0 ) {
+
+        // Implicit weight (N.L canceled out)
+        //float3 F	   = F_Schlick(f0, f90, LdotH); // form Sebastien Lagarde
+        vec3 F         = F_Schlick(f0, LdotH);
+
+        // Geometry  G(V, L )
+        // float G     = G_SmithGGX(NdotL, NdotV, roughness);
+        // cf http://blog.selfshadow.com/publications/s2013-shading-course/karis/s2013_pbs_epic_notes_v2.pdf p3
+        float k = alpha * 0.5;
+        // NdotL and NdotV can be simplifided later because of the weight / pdf
+        // float G = NdotL * NdotV * G1(NdotL,k) * G1(NdotV,k);
+        float Goptim = G1(NdotL,k) * G1(NdotV,k);
+
+        // original weight
+        // vec3 weight = F * G * D / (4.0 * NdotV);
+        // optimized weight because of the weight * 1.0/pdf
         vec3 weight = F * ( Goptim * LdotH * NdotL / NdotH );
 
-        if ( NdotL > 0.0 && pdf > 0.0 )
-        {
-            //contrib += g_IBL.SampleLevel(sampler, L, 0).rgb * weight / pdf;
+        //contrib += g_IBL.SampleLevel(sampler, L, 0).rgb * weight / pdf;
 
-            float lod = roughness < 0.01 ? 0.0: computeLOD( L, pdf );
+        float lod = roughness < 0.01 ? 0.0: computeLOD( L, pdf );
 
-            // could we remove the transform ?
-            vec3 dir = iblTransform * L;
+        // could we remove the transform ?
+        vec3 dir = iblTransform * L;
 
-#ifdef RGBE
-            texel = texturePanoramicRGBELod(environment, environmentSize, dir, lod);
+        vec3 color;
+        texturePanoramicGenericLod( dir, lod, color );
+        return color * weight;
+
+    } else {
+        return vec3(0.0);
+    }
+}
+
+
+void evaluateIBLSpecularOptim(const in mat3 iblTransform, const in vec3 N, const in vec3 V, out vec3 contrib ) {
+
+    evaluateIBLSpecularOptimSample0(iblTransform, N, V, contrib );
+
+#if NB_SAMPLES > 1
+
+    float cosThetaH,sinThetaH;
+    vec3 H;
+#ifndef UNROLL
+    float phi;
+    vec2 u;
+    for ( int i = 1; i < NB_SAMPLES; i++ ) {
+
+        u = hammersley[i];
+
+        // specular part
+        // GGX NDF sampling
+        phi = PI_2*u.x;
+        cosThetaH = sqrt( (1.0-u.y) / (1.0 + alpha2MinusOne * u.y) );
+        sinThetaH = sqrt(1.0 - cosThetaH*cosThetaH );
+
+        // Convert sample from half angle to incident angle
+        H = vec3( sinThetaH * cos(phi), sinThetaH * sin(phi), cosThetaH);
+        H = normalize(tangentX * H.x + tangentY * H.y + N * H.z);
+
+        contrib += evaluateIBLSpecularOptimSampleX(H, iblTransform, N, V);
+    }
+#else
+UNROLL_LOOP_SPECULAR
+    // contrib += evaluateIBLSpecularOptimSampleX( H, iblTransform, N, V );
+
 #endif
-#ifdef RGBM
-            texel = texturePanoramicRGBMLod(environment, environmentSize, environmentRange, dir, lod);
 #endif
-            //contrib += color * weight / pdf;
-            contrib += texel * weight;
-        }
+
+}
+
+vec3 evaluateIBLOptim( const in mat3 iblTransform, const in vec3 N, const in vec3 V ) {
+
+    vec3 contrib = vec3(0.0);
+    // if dont simplify the math you can get a rougness of 0 and it will
+    // produce an error on D_GGX / 0.0
+    // float roughness = max( MaterialRoughness, 0.015);
+    roughness = MaterialRoughness;
+
+    f0 = MaterialSpecular;
+
+
+    NdotV = max( 0.0, dot(V, N));
+    alpha = roughness*roughness;
+    alpha2 = alpha*alpha;
+
+    alpha2MinusOne = alpha2 - 1.0;
+
+    vec3 H, L, dir, texel;
+    float NdotL, pdf, lod;
+    bool diffusePart = true;
+
+    if ( MaterialAlbedo[0] == 0.0 &&
+         MaterialAlbedo[1] == 0.0 &&
+         MaterialAlbedo[2] == 0.0 )
+        diffusePart = false;
+
+    vec3 diffuse = vec3(0.0);
+    vec3 specular = vec3(0.0);
+
+    if ( diffusePart ) {
+        evaluateIBLDiffuseOptim( iblTransform, N, diffuse);
+        diffuse *= MaterialAlbedo;
     }
 
-    contrib *= 1.0/float(NB_SAMPLES);
+    // ==================================================
+    evaluateIBLSpecularOptim( iblTransform, N, V, specular );
+
+    contrib = ( diffuse + specular ) * ( 1.0/float(NB_SAMPLES) );
+
     return contrib;
 }
 
@@ -750,7 +882,7 @@ vec3 evaluateSpecularIBL( const in mat3 iblTransform, const in vec3 N, const in 
         float phiH = u.x * PI_2;
 
         // Convert sample from half angle to incident angle
-        H = vec3( sinThetaH*cos(phiH), sinThetaH*sin(phiH), cosThetaH);
+        H = vec3( sinThetaH*cos(phiH), sinThetaH*sin(phiH), cosThetaH );
         H = normalize(tangentX * H.x + tangentY * H.y + N * H.z);
 
         L = normalize(2.0 * dot(V, H) * H - V);
@@ -807,12 +939,9 @@ vec3 evaluateSpecularIBL( const in mat3 iblTransform, const in vec3 N, const in 
             // could we remove the transform ?
             vec3 dir = iblTransform * L;
 
-#ifdef RGBE
-            vec3 color = texturePanoramicRGBELod(environment, environmentSize, dir, lod);
-#endif
-#ifdef RGBM
-            vec3 color = texturePanoramicRGBMLod(environment, environmentSize, environmentRange, dir, lod);
-#endif
+            vec3 color;
+            texturePanoramicGenericLod( dir, lod, color );
+
             //contrib += color * weight / pdf;
             contrib += color * weight;
         }
@@ -822,108 +951,6 @@ vec3 evaluateSpecularIBL( const in mat3 iblTransform, const in vec3 N, const in 
     return contrib;
 }
 
-vec3 evaluateSpecularIBL2( const in mat3 iblTransform, const in vec3 N, const in vec3 V ) {
-
-    vec3 contrib = vec3(0.0);
-    float roughness = max(0.015, MaterialRoughness);
-    vec3 f0 = MaterialSpecular;
-
-    for ( int i = 0; i < NB_SAMPLES; i++ ) {
-        vec2 u = hammersley[i];
-
-        // GGX NDF sampling
-        float alpha = roughness*roughness;
-        float cosThetaH = sqrt( (1.0-u.y) / (1.0 + (alpha*alpha-1.0)*u.y) );
-        float sinThetaH = sqrt(1.0 - cosThetaH*cosThetaH );
-        float phiH = 2.0 * u.x * PI;
-
-        // Convert sample from half angle to incident angle
-        vec3 H;
-        H = vec3( sinThetaH*cos(phiH), sinThetaH*sin(phiH), cosThetaH);
-        H = normalize(tangentX * H.x + tangentY * H.y + N * H.z);
-
-        float VdotH = dot(V, H);
-
-        vec3 L = normalize(2.0 * VdotH * H - V);
-
-        float LdotH = max( 0.0, dot(H, L));
-        float NdotH = max( 0.0, dot(H, N));
-        float NdotV = max( 0.0, dot(V, N));
-        float NdotL = max( 0.0, dot(L, N));
-        VdotH = max( 0.0, VdotH );
-
-
-        // Importance sampling weight for each sample
-        //
-        //   weight = fr . (N.L)
-        //
-        // with:
-        //   fr  = D(H) . F(H) . G(V, L) / ( 4 (N.L) (N.V) )
-        //
-        // Since we integrate in the microfacet space, we include the
-        // jacobian of the transform
-        //
-        //   pdf = D(H) . (N.H) / ( 4 (L.H) )
-        float D         = D_GGX(NdotH, roughness);
-        // float roughness2 = roughness * roughness;
-        // float tmp = roughness2 / (NdotH*NdotH*(roughness2*roughness2-1.0)+1.0);
-        // D = tmp * tmp * INV_PI;
-
-
-
-        float pdfH      = D * NdotH;
-        //float pdf 	= pdfH / (4.0f * LdotH); // from Sebastien Lagarde
-        float pdf 	= pdfH / (4.0 * VdotH);
-
-        // Implicit weight (N.L canceled out)
-        //float3 F	   = F_Schlick(f0, f90, LdotH); // form Sebastien Lagarde
-        vec3  F         = F_Schlick(f0, VdotH);
-
-        float G         = G_SmithGGX(NdotL, NdotV, roughness);
-
-        // N.V should be also canceled out if G is like the one in epic paper
-        // but actually it s simpler to divide by pdf later
-        vec3 weight = F * G * D / (4.0 * NdotV);
-        vec3 weight2 = F * G_SmithGGX2(NdotL, NdotV, roughness) * VdotH * NdotL /NdotH;
-
-#if 0
-        float probGGX = probabilityGGX( NdotH, VdotH, roughness);
-        if ( abs( probGGX - pdf ) > 1e-3 )
-            return vec3(1.0,0.0,1.0);
-
-        if ( length( fresnel( VdotH, f0 ) - F ) > 1e-3 )
-            return vec3(1.0,0.0,1.0);
-
-        if ( abs( G_SmithGGX2(NdotL, NdotV, roughness)*NdotL*NdotV - G ) > 1e-3 )
-            return vec3(1.0,0.0,1.0);
-
-        if ( length( weight2 - weight/pdf) > 1e3)
-            return vec3(1.0,0.0,1.0);
-#endif
-
-        if ( NdotL > 0.0 && pdf > 0.0 )
-        {
-            //contrib += g_IBL.SampleLevel(sampler, L, 0).rgb * weight / pdf;
-
-
-            float lod = roughness < 0.01 ? 0.0: computeLOD( L, pdf );
-
-            // could we remove the transform ?
-            vec3 dir = iblTransform * L;
-
-#ifdef RGBE
-            vec3 color = texturePanoramicRGBELod(environment, environmentSize, dir, lod);
-#endif
-#ifdef RGBM
-            vec3 color = texturePanoramicRGBMLod(environment, environmentSize, environmentRange, dir, lod);
-#endif
-            contrib += color * weight / pdf;
-        }
-    }
-
-    contrib *= 1.0/float(NB_SAMPLES);
-    return contrib;
-}
 
 vec3 evaluateDiffuseIBL( const in mat3 iblTransform, const in vec3 N, const in vec3 V ) {
 
@@ -935,9 +962,11 @@ vec3 evaluateDiffuseIBL( const in mat3 iblTransform, const in vec3 N, const in v
         vec2 u = hammersley[i];
 
         // compute L vector from importance sampling with cos
-        float sinT = sqrt( 1.0-u.y );
         float phi = PI_2*u.x;
-        vec3 L = (sinT*cos(phi)) * tangentX + (sinT*sin(phi)) * tangentY + sqrt( u.y ) * N;
+        float cosT = sqrt( 1.0 - u.y );
+        float sinT = sqrt( 1.0 - cosT * cosT );
+        vec3 L = sinT* cos(phi ) * tangentX + ( sinT* sin(phi) ) * tangentY + cosT * N;
+
 
         float NdotL = dot( L, N );
 
@@ -947,13 +976,8 @@ vec3 evaluateDiffuseIBL( const in mat3 iblTransform, const in vec3 N, const in v
         float lod = computeLOD(L, pdf);
         vec3 dir = iblTransform * L;
 
-#ifdef RGBE
-        vec3 texel = texturePanoramicRGBELod(environment, environmentSize, dir, lod);
-#endif
-
-#ifdef RGBM
-        vec3 texel = texturePanoramicRGBMLod(environment, environmentSize, environmentRange, dir, lod);
-#endif
+        vec3 texel;
+        texturePanoramicGenericLod( dir, lod, texel );
 
         contrib += texel;
     }
@@ -979,7 +1003,7 @@ vec3 solid2( const in mat3 iblTransform, const in vec3 normal, const in vec3 vie
     mat3 ibl = iblTransform;
     //color += evaluateDiffuseIBL(ibl, normal, view );
     //color += evaluateSpecularIBL(ibl, normal, view );
-    color = MaterialAO * evaluateIBL( ibl, normal, view ) * hdrExposure ;
+    color += MaterialAO * evaluateIBLOptim( ibl, normal, view ) * hdrExposure;
     return linearTosRGB( color, DefaultGamma);
 }
 #endif

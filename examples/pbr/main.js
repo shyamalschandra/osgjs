@@ -218,6 +218,7 @@
         } );
 
         this._configGUI = {
+            unroll: false,
             earlyZ: true,
             rendering: 'solid2',
             rangeExposure: 1.0,
@@ -494,6 +495,87 @@
             this.createHammersleyUniforms();
         },
 
+
+        getPrecomputedDiffuseSample: function( nb ) {
+            var sequence = this.computeHammersleySequence( nb );
+            var array = [];
+            for ( var i = 0; i < nb; i++ ) {
+                var cosT = Math.sqrt( 1.0 - sequence[i*2+1] );
+                var sinT = Math.sqrt( 1.0 - cosT * cosT );
+                var phi = 2.0*sequence[i*2];
+                var sinPhi = Math.sin(phi);
+                var cosPhi = Math.cos(phi);
+
+                var vec3 =  osg.Vec3.create();
+                osg.Vec3.copy([ sinT * cosPhi, sinT * sinPhi, cosT ], vec3);
+                osg.Vec3.normalize( vec3, vec3 );
+                array.push( vec3 );
+            }
+            return array;
+        },
+
+        getPrecomputedSpecularSample: function( nb ) {
+            var sequence = this.computeHammersleySequence( nb );
+            var array = [];
+            for ( var i = 0; i < nb; i++ ) {
+
+                var phi = 2.0*Math.PI * sequence[i*2];
+                var sinPhi = Math.sin(phi);
+                var cosPhi = Math.cos(phi);
+
+                var vec4 =  osg.Vec4.create();
+                osg.Vec4.copy([ sequence[i*2], sequence[i*2+1], cosPhi, sinPhi ], vec4);
+                array.push( vec4 );
+            }
+            return array;
+        },
+
+        unrollDiffuse: function( nb ) {
+            var samples = this.getPrecomputedDiffuseSample(nb);
+
+            var array = [];
+            for ( var i = 1 ; i < nb ; i++ ){
+
+                var template = [
+                    'L = ' + samples[i][0].toPrecision(10) + ' * tangentX + ' + samples[i][1].toPrecision(10) +' * tangentY + ' + samples[i][2].toPrecision(10) + ' * N;',
+                    'NdotL = dot( L, N );',
+
+                    'if ( NdotL > 0.0 ) {',
+
+                    '   pdf = NdotL * INV_PI;',
+                    '   lod = computeLOD(L, pdf);',
+                    '   dir = iblTransform * L;',
+
+                    '   texturePanoramicGenericLod( dir, lod, color );',
+                    '   contrib += color;',
+
+                    '}',
+                    ''].join('\n');
+                array.push( template );
+            }
+
+            return array.join('\n');
+        },
+
+
+        unrollSpecular: function( nb ) {
+            var samples = this.getPrecomputedSpecularSample(nb);
+
+            var array = [];
+            for ( var i = 1 ; i < nb ; i++ ){
+
+                var template = [
+                    'cosThetaH = sqrt( ( 1.0 - ' + samples[i][1].toPrecision(10) + ' ) / ( 1.0 + alpha2MinusOne * ' + samples[i][1].toPrecision(10) + ') );',
+                    'sinThetaH = sqrt( 1.0 - cosThetaH * cosThetaH );',
+                    'H = normalize( tangentX * sinThetaH * ' + samples[i][2].toPrecision(10) + ' + tangentY * sinThetaH *' + samples[i][3].toPrecision(10) + '+ N * cosThetaH );',
+                    'contrib += evaluateIBLSpecularOptimSampleX( H, iblTransform, N, V );',
+                    ''].join('\n');
+                array.push( template );
+            }
+
+            return array.join('\n');
+        },
+
         getShader: function ( config, shaderType ) {
             if ( !config ) config = {};
 
@@ -509,11 +591,19 @@
             var solid2 = rendering === 'solid2' ? '#define SOLID2 1' : '';
             var prefilter = rendering === 'prefilter' ? '#define PREFILTER 1' : '';
             var nbSamples = '#define NB_SAMPLES 1';
+            var unroll = config.unroll !== false ? '#define UNROLL 1' : '';
             var brute = '';
+            var unrollDiffuse = '';
+            var unrollSpecular = '';
 
             if ( solid !== ''  || solid2 !== '' ) {
                 nbSamples = '#define NB_SAMPLES ' + shaderType.samples.toString();
                 brute = '#define BRUT 1';
+
+                if ( shaderType.samples >  1 ) {
+                    unrollDiffuse = this.unrollDiffuse(shaderType.samples);
+                    unrollSpecular = this.unrollSpecular(shaderType.samples);
+                }
             }
 
             var ambientOcclusion = '';
@@ -534,6 +624,7 @@
 
 
             var defines = [
+                unroll,
                 textureRGBE,
                 textureRGBM,
                 brute,
@@ -560,7 +651,7 @@
 
             var fragmentshader = [
                 defines,
-                this._fragmentShader
+                this._fragmentShader.replace('UNROLL_LOOP_DIFFUSE', unrollDiffuse ).replace('UNROLL_LOOP_SPECULAR', unrollSpecular )
             ].join('\n');
 
             var program = new osg.Program(
@@ -1313,6 +1404,14 @@
                 controller.onChange( function ( value ) {
 
                     obj.nbSamples = value;
+                    setShaderModel();
+
+                }.bind( this ) );
+
+                controller = gui.add( obj, 'unroll' );
+                controller.onChange( function ( value ) {
+
+                    obj.unroll = value;
                     setShaderModel();
 
                 }.bind( this ) );
