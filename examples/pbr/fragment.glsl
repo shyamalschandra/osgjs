@@ -1,6 +1,8 @@
 
-#ifdef GL_ES
-precision highp float;
+#ifdef GL_FRAGMENT_PRECISION_HIGH
+    precision highp float;
+#else
+    precision mediump float;
 #endif
 
 #define PI 3.1415926535897932384626433832795
@@ -35,6 +37,7 @@ uniform vec2 environmentSize;
 
 uniform sampler2D envBackground;
 
+const vec3 nullVec3 = vec3(0.0);
 
 vec3 cubemapReflectionVector(const in mat4 transform, const in vec3 view, const in vec3 normal)
 {
@@ -74,7 +77,6 @@ varying vec3 osg_FragVertex;
 
 varying vec3 osg_FragEye;
 varying vec3 osg_FragNormal;
-varying vec3 osg_FragLightDirection;
 varying vec2 osg_FragTexCoord0;
 varying vec4 osg_FragTangent;
 
@@ -489,7 +491,7 @@ vec3 solid( const in mat3 iblTransform, const in vec3 normal, const in vec3 view
 
     float ndv = max( 0.0, dot(normal, view) );
 
-    vec3 contrib = vec3(0.0);
+    vec3 contrib = nullVec3;
 
     for ( int i = 0; i < NB_SAMPLES; i++ ) {
 
@@ -645,7 +647,7 @@ UNROLL_LOOP_DIFFUSE
 }
 
 vec3 f0;
-float NdotV, roughness, alpha, alpha2, alpha2MinusOne;
+float NdotV, roughness, alpha, alpha2, alpha2MinusOne, alpha05;
 
 
 void evaluateIBLSpecularOptimSample0(const in mat3 iblTransform, const in vec3 N, const in vec3 V, out vec3 color ) {
@@ -710,7 +712,7 @@ void evaluateIBLSpecularOptimSample0(const in mat3 iblTransform, const in vec3 N
     }
 }
 
-vec3 evaluateIBLSpecularOptimSampleX(const in vec3 H, const in mat3 iblTransform, const in vec3 N, const in vec3 V) {
+vec3 evaluateIBLSpecularOptimSampleX(const in vec3 H, const in float G1NdotV, const in mat3 iblTransform, const in vec3 N, const in vec3 V) {
 
     vec3 L = normalize(2.0 * dot(V, H) * H - V);
 
@@ -747,10 +749,10 @@ vec3 evaluateIBLSpecularOptimSampleX(const in vec3 H, const in mat3 iblTransform
         // Geometry  G(V, L )
         // float G     = G_SmithGGX(NdotL, NdotV, roughness);
         // cf http://blog.selfshadow.com/publications/s2013-shading-course/karis/s2013_pbs_epic_notes_v2.pdf p3
-        float k = alpha * 0.5;
+
         // NdotL and NdotV can be simplifided later because of the weight / pdf
         // float G = NdotL * NdotV * G1(NdotL,k) * G1(NdotV,k);
-        float Goptim = G1(NdotL,k) * G1(NdotV,k);
+        float Goptim = G1(NdotL, alpha05) * G1NdotV;
 
         // original weight
         // vec3 weight = F * G * D / (4.0 * NdotV);
@@ -769,7 +771,7 @@ vec3 evaluateIBLSpecularOptimSampleX(const in vec3 H, const in mat3 iblTransform
         return color * weight;
 
     } else {
-        return vec3(0.0);
+        return nullVec3;
     }
 }
 
@@ -782,6 +784,11 @@ void evaluateIBLSpecularOptim(const in mat3 iblTransform, const in vec3 N, const
 
     float cosThetaH,sinThetaH;
     vec3 H;
+    float G1NdotV = G1(NdotV, alpha05);
+
+    if ( G1NdotV < 1e-5 )
+        return;
+
 #ifndef UNROLL
     float phi;
     vec2 u;
@@ -799,7 +806,7 @@ void evaluateIBLSpecularOptim(const in mat3 iblTransform, const in vec3 N, const
         H = vec3( sinThetaH * cos(phi), sinThetaH * sin(phi), cosThetaH);
         H = normalize(tangentX * H.x + tangentY * H.y + N * H.z);
 
-        contrib += evaluateIBLSpecularOptimSampleX(H, iblTransform, N, V);
+        contrib += evaluateIBLSpecularOptimSampleX(H, G1NdotV, iblTransform, N, V);
     }
 #else
 UNROLL_LOOP_SPECULAR
@@ -812,7 +819,7 @@ UNROLL_LOOP_SPECULAR
 
 vec3 evaluateIBLOptim( const in mat3 iblTransform, const in vec3 N, const in vec3 V ) {
 
-    vec3 contrib = vec3(0.0);
+    vec3 contrib = nullVec3;
     // if dont simplify the math you can get a rougness of 0 and it will
     // produce an error on D_GGX / 0.0
     // float roughness = max( MaterialRoughness, 0.015);
@@ -824,6 +831,7 @@ vec3 evaluateIBLOptim( const in mat3 iblTransform, const in vec3 N, const in vec
     NdotV = max( 0.0, dot(V, N));
     alpha = roughness*roughness;
     alpha2 = alpha*alpha;
+    alpha05 = alpha*0.5;
 
     alpha2MinusOne = alpha2 - 1.0;
 
@@ -836,8 +844,8 @@ vec3 evaluateIBLOptim( const in mat3 iblTransform, const in vec3 N, const in vec
          MaterialAlbedo[2] == 0.0 )
         diffusePart = false;
 
-    vec3 diffuse = vec3(0.0);
-    vec3 specular = vec3(0.0);
+    vec3 diffuse = nullVec3;
+    vec3 specular = nullVec3;
 
     if ( diffusePart ) {
         evaluateIBLDiffuseOptim( iblTransform, N, diffuse);
@@ -989,7 +997,7 @@ vec3 evaluateDiffuseIBL( const in mat3 iblTransform, const in vec3 N, const in v
 vec3 solid2( const in mat3 iblTransform, const in vec3 normal, const in vec3 view) {
 
     MaxLOD = log ( environmentSize[0] ) * INV_LOG2 - 1.0;
-    vec3 color = vec3(0.0);
+    vec3 color = nullVec3;
 
     //vectors used for importance sampling
     vec3 tangent = normalize(osg_FragTangent.xyz);
@@ -1003,7 +1011,7 @@ vec3 solid2( const in mat3 iblTransform, const in vec3 normal, const in vec3 vie
     mat3 ibl = iblTransform;
     //color += evaluateDiffuseIBL(ibl, normal, view );
     //color += evaluateSpecularIBL(ibl, normal, view );
-    color += MaterialAO * evaluateIBLOptim( ibl, normal, view ) * hdrExposure;
+    color += evaluateIBLOptim( ibl, normal, view ) * (MaterialAO * hdrExposure);
     return linearTosRGB( color, DefaultGamma);
 }
 #endif
@@ -1069,9 +1077,7 @@ vec3 prefilteredAndLUT( const in mat3 iblTransform, const in vec3 E ) {
 
 void pbr(void) {
     vec3 N = normalize(osg_FragNormal);
-    vec3 L = normalize(osg_FragLightDirection);
     vec3 E = normalize(osg_FragEye);
-    vec3 R = cubemapReflectionVector(CubemapTransform, E, N);
 
     mat3 iblTransform = getIBLTransfrom( CubemapTransform );
 

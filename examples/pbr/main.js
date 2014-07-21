@@ -567,8 +567,8 @@
                 var template = [
                     'cosThetaH = sqrt( ( 1.0 - ' + samples[i][1].toPrecision(10) + ' ) / ( 1.0 + alpha2MinusOne * ' + samples[i][1].toPrecision(10) + ') );',
                     'sinThetaH = sqrt( 1.0 - cosThetaH * cosThetaH );',
-                    'H = normalize( tangentX * sinThetaH * ' + samples[i][2].toPrecision(10) + ' + tangentY * sinThetaH *' + samples[i][3].toPrecision(10) + '+ N * cosThetaH );',
-                    'contrib += evaluateIBLSpecularOptimSampleX( H, iblTransform, N, V );',
+                    'H = normalize( tangentX * (sinThetaH * ' + samples[i][2].toPrecision(10) + ') + tangentY * (sinThetaH *' + samples[i][3].toPrecision(10) + ') + N * cosThetaH );',
+                    'contrib += evaluateIBLSpecularOptimSampleX( H, G1NdotV, iblTransform, N, V );',
                     ''].join('\n');
                 array.push( template );
             }
