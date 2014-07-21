@@ -564,10 +564,36 @@
             var array = [];
             for ( var i = 1 ; i < nb ; i++ ){
 
+                var tx = 'tangentX * (sinThetaH * ' + samples[i][2].toPrecision(10) + ')';
+                if ( Math.abs(samples[i][2]) < 1e-5 )
+                    tx = '';
+
+                var ty = 'tangentY * (sinThetaH *' + samples[i][3].toPrecision(10) + ')';
+                if ( Math.abs(samples[i][3]) < 1e-5 )
+                    ty = '';
+
+                var needAdd = false;
+                var str = '';
+                if ( tx !== '' ) {
+                    needAdd = true;
+                    str += tx;
+                }
+
+                if ( ty !== '' ) {
+                    if ( needAdd )
+                        str += ' + ';
+                    str += ty;
+                    needAdd = true;
+                }
+
+                if ( needAdd )
+                    str += ' + ';
+
                 var template = [
                     'cosThetaH = sqrt( ( 1.0 - ' + samples[i][1].toPrecision(10) + ' ) / ( 1.0 + alpha2MinusOne * ' + samples[i][1].toPrecision(10) + ') );',
                     'sinThetaH = sqrt( 1.0 - cosThetaH * cosThetaH );',
-                    'H = normalize( tangentX * (sinThetaH * ' + samples[i][2].toPrecision(10) + ') + tangentY * (sinThetaH *' + samples[i][3].toPrecision(10) + ') + N * cosThetaH );',
+
+                    'H = normalize( ' + str + ' N * cosThetaH );',
                     'contrib += evaluateIBLSpecularOptimSampleX( H, G1NdotV, iblTransform, N, V );',
                     ''].join('\n');
                 array.push( template );

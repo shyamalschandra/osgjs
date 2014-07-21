@@ -361,7 +361,8 @@ vec3 fresnel( float vdh, vec3 F0 ) {
 float G1( float ndw, float k ) {
     // One generic factor of the geometry function divided by ndw
     // NB : We should have k > 0
-    return 1.0 / ( ndw*(1.0-k) + k );
+//    return 1.0 / ( ndw*(1.0-k) + k );
+    return 1.0 / mix( ndw, 1.0, k);
 }
 
 float visibility(float ndl,float ndv,float Roughness) {
@@ -560,7 +561,9 @@ vec3 F_Schlick( const in vec3 f0, const in float vdh ) {
     // Schlick with Spherical Gaussian approximation
     // cf http://blog.selfshadow.com/publications/s2013-shading-course/karis/s2013_pbs_epic_notes_v2.pdf p3
     float sphg = pow(2.0, (-5.55473*vdh - 6.98316) * vdh);
-    return f0 + (vec3(1.0 ) - f0) * sphg;
+//    return f0 + (vec3(1.0 ) - f0) * sphg;
+    return mix(vec3(sphg), vec3(1.0), f0);
+//    return f0 + (vec3(1.0 ) - f0) * sphg;
 }
 
 float G_SmithGGX(const in float NdotL, const in float NdotV, const in float roughness) {
