@@ -1,10 +1,4 @@
 
-#ifdef GL_FRAGMENT_PRECISION_HIGH
-    precision highp float;
-#else
-    precision mediump float;
-#endif
-
 #define PI 3.1415926535897932384626433832795
 #define PI_2 (2.0*3.1415926535897932384626433832795)
 #define INV_PI 1.0/PI

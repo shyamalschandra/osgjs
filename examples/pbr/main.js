@@ -30,10 +30,23 @@
 
     };
 
+    var linear2Srgb = function ( value, gamma ) {
+        if ( !gamma ) gamma = 2.2;
+        var result = 0.0;
+        if ( value < 0.0031308 ) {
+            if ( value > 0.0 )
+                result = value * 12.92;
+        } else {
+            result = 1.055 * Math.pow( value, 1.0 / gamma ) - 0.055;
+        }
+        return result;
+    };
 
-    var PBRExample = function ( config ) {
+
+    var PBRExample = function ( config, modelConfig ) {
         this._vertexShader = undefined;
         this._fragmentShader = undefined;
+        this._shadersHash = {};
 
         // cache shader/program
         this._shaderPBR = {};
@@ -48,6 +61,63 @@
         this._shaderPath = config.shaderPath || '';
 
         this._configModel = [ {
+            name: 'devastator',
+            root: 'devastator/',
+            func: this.loadDevastatorModel.bind( this ),
+            promise: undefined,
+            model: new osg.Node(),
+            thumbnail: 'thumbnail.jpg',
+            description: {
+                rank: 1,
+                title: 'Android Helper',
+                author: 'Allegorithmic',
+                link: ''
+            },
+            config: {
+                mapNormal: true,
+                mapSpecular: true,
+                mapAmbientOcclusion: false,
+                mapGlossiness: true
+            }
+        }, {
+            name: 'Android',
+            root: 'Android_Helper/',
+            func: this.loadAndroidModel.bind( this ),
+            promise: undefined,
+            model: new osg.Node(),
+            thumbnail: 'thumbnail.jpg',
+            description: {
+                rank: 1,
+                title: 'Android Helper',
+                author: 'Allegorithmic',
+                link: ''
+            },
+            config: {
+                mapNormal: true,
+                mapSpecular: false,
+                mapAmbientOcclusion: true,
+                mapGlossiness: false
+            }
+        }, {
+            name: 'Alien',
+            root: 'ChrisNarchi/',
+            func: this.loadAlienModel.bind( this ),
+            promise: undefined,
+            model: new osg.Node(),
+            thumbnail: 'thumbnail.jpg',
+            description: {
+                rank: 1,
+                title: 'Johann Krauss',
+                author: 'Chris Narchi',
+                link: ''
+            },
+            config: {
+                mapNormal: true,
+                mapSpecular: false,
+                mapAmbientOcclusion: false,
+                mapGlossiness: false
+            }
+        }, {
             name: 'C3PO',
             root: 'C3PO_optim/',
             func: this.loadC3POModel.bind( this ),
@@ -57,10 +127,9 @@
             description: {
                 rank: 1,
                 title: 'C3PO',
-                author:'Christian Hecht',
+                author: 'Christian Hecht',
                 link: ''
             },
-            title: 'C3PO',
             config: {
                 mapNormal: true,
                 mapSpecular: false,
@@ -77,7 +146,7 @@
             description: {
                 rank: 1,
                 title: 'C3PO',
-                author:'Christian Hecht',
+                author: 'Christian Hecht',
                 link: ''
             },
             config: {
@@ -97,7 +166,7 @@
                 title: 'Cerberus',
                 link: 'http://artisaverb.info/Cerberus.html',
                 rank: 1,
-                author:'Andrew Maximov'
+                author: 'Andrew Maximov'
             },
             config: {
                 mapNormal: true
@@ -113,7 +182,7 @@
                 title: 'Mire test',
                 rank: 1,
                 link: 'http://www.allegorithmic.com/',
-                author:'Allegorithmic'
+                author: 'Allegorithmic'
             },
             config: {
                 mapSpecular: false,
@@ -132,7 +201,7 @@
                 title: 'Sphere test',
                 rank: 1,
                 link: '',
-                author:'The matrix'
+                author: 'The matrix'
             },
             config: {
                 mapNormal: false,
@@ -150,7 +219,7 @@
             description: {
                 title: 'Junkbot',
                 rank: 1,
-                author:'Paweł Łyczkowski (design + model) + Nicolas Wirrmann (texturing)',
+                author: 'Paweł Łyczkowski (design + model) + Nicolas Wirrmann (texturing)',
                 link: ''
             },
             config: {
@@ -245,7 +314,7 @@
         this.textureEnvs.reference = {
             'Alexs_Apartment': 'Alexs_Apt_2k.png',
             'Allego': 'panorama_map.png',
-            'GCanyon_C_YumaPoint': 'GCanyon_C_YumaPoint_3k.png',
+            'GrandCanyon_C_YumaPoint': 'GCanyon_C_YumaPoint_3k.png',
             'Walk_Of_Fame': 'Mans_Outside_2k.png',
             'HDR_Free_City_Night_Lights': 'HDR_Free_City_Night_Lights_Ref.png'
         };
@@ -254,7 +323,7 @@
             rgbe: {
                 'Alexs_Apartment': 'Alexs_Apt_2k_mip.png',
                 'Allego': 'panorama_map_mip.png',
-                'GCanyon_C_YumaPoint': 'GCanyon_C_YumaPoint_3k_mip.png',
+                'GrandCanyon_C_YumaPoint': 'GCanyon_C_YumaPoint_3k_mip.png',
                 'Walk_Of_Fame': 'Mans_Outside_2k_mip.png',
                 'HDR_Free_City_Night_Lights': 'HDR_Free_City_Night_Lights_Ref_mip.png'
             },
@@ -329,13 +398,32 @@
 
             var defer = Q.defer();
 
-            var p0 = Q( $.get( this._shaderPath + 'vertex.glsl' ) );
-            var p1 = Q( $.get( this._shaderPath + 'fragment.glsl' ) );
+            var shaders = [
+                this._shaderPath + 'vertex.glsl',
+                this._shaderPath + 'fragment.glsl' ];
 
-            Q.all( [ p0, p1 ] ).then( function ( args ) {
+            var promises = [];
 
+            shaders.forEach( function( shader ) {
+                promises.push( Q( $.get( shader ) ) );
+            }.bind( this ) );
+
+
+            var hashs = [
+//                '490007376',
+//                '736465299'
+            ];
+            hashs.forEach( function( hsh ) {
+                promises.push( Q( $.get( this._shaderPath + hsh + '.glsl' ) ) );
+            }.bind( this ) );
+
+            Q.all( promises ).then( function ( args ) {
                 this._vertexShader = args[ 0 ];
                 this._fragmentShader = args[ 1 ];
+                for (var i = 2; i < args.length; i++) {
+                    var h = hashs[i - 2];
+                    this._shadersHash [ h ] = args[i];
+                }
                 defer.resolve();
 
             }.bind( this ) );
@@ -602,6 +690,18 @@
             return array.join('\n');
         },
 
+        hashConfig: function ( s ) {
+            var hash = 0,
+                i, char,l;
+            if ( s.length === 0 ) return hash;
+            for ( i = 0, l = s.length; i < l; i++ ) {
+                char = s.charCodeAt( i );
+                hash = ( ( hash << 5 ) - hash ) + char;
+                hash |= 0; // Convert to 32bit integer
+            }
+            return hash;
+        },
+
         getShader: function ( config, shaderType ) {
             if ( !config ) config = {};
 
@@ -617,7 +717,7 @@
             var solid2 = rendering === 'solid2' ? '#define SOLID2 1' : '';
             var prefilter = rendering === 'prefilter' ? '#define PREFILTER 1' : '';
             var nbSamples = '#define NB_SAMPLES 1';
-            var unroll = config.unroll !== false ? '#define UNROLL 1' : '';
+            var unroll = config.unroll === true ? '#define UNROLL 1' : '';
             var brute = '';
             var unrollDiffuse = '';
             var unrollSpecular = '';
@@ -669,15 +769,34 @@
                 return this._shaderPBR[ defines ];
             }
 
+            var hash = Math.abs(this.hashConfig( defines ));
+            console.log('hash ' + this.hashConfig( defines ) + ' ' + defines );
+
+
+
 
             var vertexshader = [
                 defines,
                 this._vertexShader
             ].join('\n');
 
+
+            var fragment;
+            if ( this._shadersHash[hash] )
+                fragment = this._shadersHash[hash];
+            else
+                fragment = this._fragmentShader.replace('UNROLL_LOOP_DIFFUSE', unrollDiffuse ).replace('UNROLL_LOOP_SPECULAR', unrollSpecular );
+
             var fragmentshader = [
+                '#ifdef GL_FRAGMENT_PRECISION_HIGH',
+                'precision highp float;',
+                '#else',
+                'precision mediump float;',
+                '#endif',
                 defines,
-                this._fragmentShader.replace('UNROLL_LOOP_DIFFUSE', unrollDiffuse ).replace('UNROLL_LOOP_SPECULAR', unrollSpecular )
+
+                fragment
+
             ].join('\n');
 
             var program = new osg.Program(
@@ -690,6 +809,30 @@
         },
 
 
+        clearStateSetFromGraph: function( node ) {
+
+            if ( !this._clearStateSetVisitor ) {
+
+                var NodeVisitor = function() {
+                    osg.NodeVisitor.call( this, osg.NodeVisitor.TRAVERSE_ALL_CHILDREN );
+                };
+
+                NodeVisitor.prototype = osg.objectInherit( osg.NodeVisitor.prototype, {
+
+                    apply: function ( node ) {
+
+                        if ( node.getStateSet() )
+                            node.setStateSet( undefined );
+
+                        this.traverse( node );
+                    }
+
+                } );
+                this._clearStateSetVisitor = new NodeVisitor();
+            }
+
+            node.accept( this._clearStateSetVisitor );
+        },
 
 
         getShaderEarlyZ: function () {
@@ -887,6 +1030,312 @@
             return this.getModel( root + 'hotrod2.osgjs.gz', callbackModel );
         },
 
+        loadDevastatorModel: function( config ) {
+            var self = this;
+
+            var rootNode = new osg.MatrixTransform();
+
+            var defer = Q.defer();
+            var root = config.root;
+            var callbackModel = function ( model ) {
+                rootNode.addChild( model );
+
+                model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 0, 'albedoMap' ) );
+                model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 1, 'roughnessMap' ) );
+                model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 2, 'normalMap' ) );
+                model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 3, 'specularMap' ) );
+                model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 4, 'aoMap' ) );
+
+                var promises = [];
+                var base = root;
+                promises.push( self.readImageURL( base + 'Devastator_diffuse.tga.png' ) );
+                promises.push( self.readImageURL( base + 'Devastator_glossiness.tga.png' ) );
+
+                promises.push( self.readImageURL( base + 'Devastator_normal.tga.png' ) );
+                promises.push( self.readImageURL( base + 'Devastator_specular.tga.png' ) );
+
+                var createTexture = function ( image ) {
+                    var texture = new osg.Texture();
+                    texture.setWrapS( 'REPEAT' );
+                    texture.setWrapT( 'REPEAT' );
+
+                    texture.setMinFilter( 'LINEAR_MIPMAP_LINEAR' );
+                    texture.setMagFilter( 'LINEAR' );
+                    texture.setImage( image );
+                    return texture;
+                };
+
+                Q.all( promises ).then( function ( args ) {
+                    args.forEach( function ( image, index ) {
+                        var texture = createTexture( args[ index ] );
+                        texture.setWrapS( 'REPEAT' );
+                        texture.setWrapT( 'REPEAT' );
+                        model.getOrCreateStateSet().setTextureAttributeAndMode( index, texture );
+                    } );
+
+                    defer.resolve( rootNode );
+                }.bind( this ) );
+
+                return defer.promise;
+            };
+
+            this.getModel( root + 'devastator.osgjs.gz', callbackModel );
+            return defer.promise;
+        },
+
+        loadAndroidModel: function ( config ) {
+            var self = this;
+
+            var root = config.root;
+            var model = new osg.MatrixTransform();
+            //osg.Matrix.makeRotate( Math.PI * 0.5, 1,0,0, model.getMatrix());
+
+            model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 0, 'albedoMap' ) );
+            model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 1, 'roughnessMap' ) );
+            model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 2, 'normalMap' ) );
+            model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 3, 'specularMap' ) );
+            model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 4, 'aoMap' ) );
+
+            var arms = [
+                root + 'outputs/arms/arms_diffuse.png',
+                root + 'outputs/arms/arms_roughness.png',
+                root + 'outputs/arms/arms_normal.png',
+                root + 'outputs/arms/arms_metallic.png',
+                root + 'outputs/arms/arms_ambient_occlusion.png'
+            ];
+
+            var body = [
+                root + 'outputs/body/body_diffuse.png',
+                root + 'outputs/body/body_roughness.png',
+                root + 'outputs/body/body_normal.png',
+                root + 'outputs/body/body_metallic.png',
+                root + 'outputs/body/body_ambient_occlusion.png',
+//                root + 'outputs/body/body_emissive.png'
+            ];
+
+            var bodyMetal = [
+                root + 'outputs/bodymetal/bodymetal_diffuse.png',
+                root + 'outputs/bodymetal/bodymetal_roughness.png',
+                root + 'outputs/bodymetal/bodymetal_normal.png',
+                root + 'outputs/bodymetal/bodymetal_metallic.png',
+                root + 'outputs/bodymetal/bodymetal_ambient_occlusion.png',
+//                root + 'outputs/bodymetal/bodymetal_emissive.png'
+            ];
+
+            var face = [
+                root + 'outputs/face/face_diffuse.png',
+                root + 'outputs/face/face_roughness.png',
+                root + 'outputs/face/face_normal.png',
+                root + 'outputs/face/face_metallic.png',
+                root + 'outputs/face/face_AO.png',
+//                root + 'outputs/face/face_emissive.png'
+            ];
+
+            var FindNodeVisitor = function( name ) {
+                osg.NodeVisitor.call( this, osg.NodeVisitor.TRAVERSE_ALL_CHILDREN );
+                this._name = name;
+                this._node = undefined;
+            };
+
+            // reference all light in the scene
+            FindNodeVisitor.prototype = osg.objectInherit( osg.NodeVisitor.prototype, {
+                init: function( name ) {
+                    this._name = name;
+                    this._node = undefined;
+                },
+                apply: function ( node ) {
+                    if ( node.getName() === this._name ) {
+                        this._node = node;
+                        return;
+                    }
+                    if ( this._node )
+                        return;
+
+                    this.traverse( node );
+                }
+            } );
+
+
+            var callbackModel = function ( model, textures ) {
+
+                var promises = [];
+
+                // iter on each part to assign textures
+                var names = Object.keys( textures );
+                var finder = new FindNodeVisitor();
+
+                var createTexture = function ( image ) {
+                    var texture = new osg.Texture();
+                    texture.setWrapS( 'REPEAT' );
+                    texture.setWrapT( 'REPEAT' );
+
+                    texture.setMinFilter( 'LINEAR_MIPMAP_LINEAR' );
+                    texture.setMagFilter( 'LINEAR' );
+                    texture.setImage( image );
+                    return texture;
+                };
+
+                names.forEach( function( name ) {
+
+                    // find the node to assign textures
+                    finder.init( name );
+                    model.accept( finder );
+
+                    var node = finder._node;
+                    if ( !node )
+                        console.error( 'can\'t find node ' + name );
+
+                    var stateSet = node.getOrCreateStateSet();
+
+
+                    textures[name].forEach( function( element, index ) {
+
+                        var promise = this.readImageURL( element );
+                        promises.push( promise );
+
+                        promise.then(function( texture ) {
+                            stateSet.setTextureAttributeAndModes( index, createTexture(texture) );
+                        }.bind( this ));
+
+                    }.bind( this ) );
+
+                }.bind( this ) );
+
+                return Q.all( promises );
+            };
+
+            var createCallback = function( textures ) {
+                return function( model ) {
+                    return callbackModel.call( this, model, textures );
+                };
+            };
+
+
+            var defer = Q.defer();
+
+            Q.all( [
+
+                this.getModel( root + 'android.osgjs.gz', createCallback( {
+                    'Object001': arms,
+                    'Robot_Lady_Body': body,
+                    'Robot_Lady_Pose_v06': bodyMetal,
+                    'Face': face
+                } ) )
+
+            ] ).then( function ( args ) {
+
+                model.addChild( args[ 0 ] );
+
+                defer.resolve( model );
+
+            }.bind( this ) );
+
+            return defer.promise;
+        },
+
+
+        loadAlienModel: function ( config ) {
+            var self = this;
+
+            var root = config.root;
+            var model = new osg.MatrixTransform();
+            osg.Matrix.makeRotate( Math.PI * 0.5, 1,0,0, model.getMatrix());
+
+            model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 0, 'albedoMap' ) );
+            model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 1, 'roughnessMap' ) );
+            model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 2, 'normalMap' ) );
+            model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 3, 'specularMap' ) );
+            model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 4, 'aoMap' ) );
+
+            var set1 = [
+                root + 'SET_1_diffuse.tga.png',
+                root + 'SET_1_roughness.tga.png',
+                root + 'SET_1_normal.tga.png',
+                root + 'SET_1_metallic.tga.png'
+            ];
+
+            var set2 = [
+                root + 'SET_2_diffuse.tga.png',
+                root + 'SET_2_roughness.tga.png',
+                root + 'SET_2_normal.tga.png',
+                root + 'SET_2_metallic.tga.png'
+            ];
+
+            var glass = [
+                root + 'glass_smoke_diffuse.tga.png',
+                root + 'glass_smoke_reflection.tga.png',
+            ];
+
+            var callbackModel = function ( model, textures, transparency ) {
+
+                this.clearStateSetFromGraph(model);
+
+                if ( transparency ) {
+                    model.getOrCreateStateSet().setRenderingHint('TRANSPARENT_BIN');
+                    model.getOrCreateStateSet().setTextureAttributeAndModes();
+                    model.getOrCreateStateSet().setTextureAttributeAndModes();
+                    model.getOrCreateStateSet().setTextureAttributeAndModes();
+                }
+
+                var defer = Q.defer();
+
+                var promises = [];
+
+                textures.forEach( function(element ) {
+                    promises.push( this.readImageURL( element ) );
+                }.bind( this ) );
+
+                var createTexture = function ( image ) {
+                    var texture = new osg.Texture();
+                    texture.setWrapS( 'REPEAT' );
+                    texture.setWrapT( 'REPEAT' );
+
+                    texture.setMinFilter( 'LINEAR_MIPMAP_LINEAR' );
+                    texture.setMagFilter( 'LINEAR' );
+                    texture.setImage( image );
+                    return texture;
+                };
+
+                Q.all( promises ).then( function ( args ) {
+                    args.forEach( function ( image, index ) {
+                        var texture = createTexture( args[ index ] );
+                        texture.setWrapS( 'REPEAT' );
+                        texture.setWrapT( 'REPEAT' );
+                        model.getOrCreateStateSet().setTextureAttributeAndMode( index, texture );
+                    } );
+
+                    defer.resolve( model );
+                }.bind( this ) );
+
+                return defer.promise;
+            };
+
+            var createCallback = function( textures, transparency ) {
+                return function( model ) {
+                    return callbackModel.call( this, model, textures, transparency);
+                };
+            };
+
+
+            var defer = Q.defer();
+
+            Q.all( [
+
+                this.getModel( root + 'set_1.osgjs.gz', createCallback( set1 ) ),
+                this.getModel( root + 'set_2.osgjs.gz', createCallback( set2 ) ),
+//                this.getModel( root + 'glass.osgjs.gz', createCallback( glass, true ) ),
+
+            ] ).then( function ( args ) {
+
+                model.addChild( args[ 0 ] );
+                model.addChild( args[ 1 ] );
+
+                defer.resolve( model );
+
+            }.bind( this ) );
+
+            return defer.promise;
+        },
 
 
         loadCarModelMetallic: function ( config ) {
@@ -1045,6 +1494,23 @@
             return this.getModel( config.root + 'c3po.osgjs.gz', callbackModel );
         },
 
+        createTextureFromColor: function ( color, srgb ) {
+            var albedo = new osg.Uint8Array( 4 );
+
+            color.forEach( function ( value, index ) {
+                if ( srgb )
+                    albedo[ index ] = Math.floor( 255 * linear2Srgb( value ) );
+                else
+                    albedo[ index ] = Math.floor( 255 * value );
+            } );
+
+            var texture = new osg.Texture();
+            texture.setTextureSize( 1, 1 );
+            texture.setImage( albedo );
+            return texture;
+        },
+
+
         loadTemplateScene: function () {
 
             var self = this;
@@ -1065,34 +1531,7 @@
                 return config;
             };
 
-            var linear2Srgb = function ( value, gamma ) {
-                if ( !gamma ) gamma = 2.2;
-                var result = 0.0;
-                if ( value < 0.0031308 ) {
-                    if ( value > 0.0 )
-                        result = value * 12.92;
-                } else {
-                    result = 1.055 * Math.pow( value, 1.0 / gamma ) - 0.055;
-                }
-                return result;
-            };
 
-
-            var createTexture = function ( color, srgb ) {
-                var albedo = new osg.Uint8Array( 4 );
-
-                color.forEach( function ( value, index ) {
-                    if ( srgb )
-                        albedo[ index ] = Math.floor( 255 * linear2Srgb( value ) );
-                    else
-                        albedo[ index ] = Math.floor( 255 * value );
-                } );
-
-                var texture = new osg.Texture();
-                texture.setTextureSize( 1, 1 );
-                texture.setImage( albedo );
-                return texture;
-            };
 
             var materialsConfig = [ {
                     specular: [ 0.5, 0.5, 0.5 ], // plastic
@@ -1142,15 +1581,15 @@
 
                     var color = config.albedo.slice( 0 );
                     color[ 3 ] = 1.0;
-                    var albedo = createTexture( color, true );
+                    var albedo = this.createTextureFromColor( color, true );
                     sphere.getOrCreateStateSet().setTextureAttributeAndModes( 0, albedo );
 
-                    var roughness = createTexture( [ config.roughness, config.roughness, config.roughness, 1.0 ], false );
+                    var roughness = this.createTextureFromColor( [ config.roughness, config.roughness, config.roughness, 1.0 ], false );
                     sphere.getOrCreateStateSet().setTextureAttributeAndModes( 1, roughness );
 
                     color = config.specular.slice( 0 );
                     color[ 3 ] = 1.0;
-                    var specular = createTexture( color, true );
+                    var specular = this.createTextureFromColor( color, true );
                     sphere.getOrCreateStateSet().setTextureAttributeAndModes( 3, specular );
 
                     var transform = new osg.MatrixTransform();
@@ -1596,6 +2035,11 @@
             ].join('\n');
 
             var fragmentshader = [
+                '#ifdef GL_FRAGMENT_PRECISION_HIGH',
+                'precision highp float;',
+                '#else',
+                'precision mediump float;',
+                '#endif',
                 '#define BACKGROUND 1',
                 this._fragmentShader
             ].join('\n');
