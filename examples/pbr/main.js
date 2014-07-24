@@ -184,7 +184,18 @@
     };
 
     PBRExample.prototype = {
+        setModelConfig: function( array ) {
+            if ( array.length ) {
+                this._configModel = array;
+                this._modelList = this._configModel.map( function ( element ) {
+                    return element.name;
+                } );
 
+                if ( this._modelList.indexOf ( this._configGUI.model ) === -1 ) {
+                    this._configGUI.model = this._configModel[0].name;
+                }
+            }
+        },
         readShaders: function () {
 
             var defer = Q.defer();
@@ -899,7 +910,7 @@
                 controller.onChange( setShaderModel );
             }
 
-            this.setEnvironment( 'Alexs_Apartment' );
+            this.setEnvironment( this._configGUI.environment );
 
             return group;
         },
@@ -932,13 +943,7 @@
                 var array = this._configModel.filter( function ( element ) {
                     return ( element.name.toLowerCase() === options.model.toLowerCase() );
                 } );
-
-                if ( array.length ) {
-                    this._configModel = array;
-                    this._modelList = this._configModel.map( function ( element ) {
-                        return element.name;
-                    } );
-                }
+                this.setModelConfig( array );
             }
 
             if ( options.mobile ) {
