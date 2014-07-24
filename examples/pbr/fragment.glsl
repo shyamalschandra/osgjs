@@ -594,14 +594,14 @@ void texturePanoramicGenericLod( const in vec3 dir, const in float lod, out vec3
 // using this and thus avoiding a temp color varying
 // we avoid the cryptic message 'sampler parameter must come from a literal expression'
 // when shader program links
-void texturePanoramicGenericLodAdd( const in vec3 dir, const in float lod, out vec3 texel ) {
+vec3 texturePanoramicGenericLodAdd( const in vec3 dir, const in float lod ) {
 
 #ifdef RGBE
-    texel += texturePanoramicRGBELod(environment, environmentSize, dir, lod);
+    return texturePanoramicRGBELod(environment, environmentSize, dir, lod);
 #endif
 
 #ifdef RGBM
-    texel += texturePanoramicRGBMLod(environment, environmentSize, environmentRange, dir, lod);
+    return texturePanoramicRGBMLod(environment, environmentSize, environmentRange, dir, lod);
 #endif
 
 }
@@ -646,7 +646,7 @@ void evaluateIBLDiffuseOptim(const in mat3 iblTransform, const in vec3 N, out ve
         lod = computeLOD(L, pdf);
         dir = iblTransform * L;
 
-        texturePanoramicGenericLodAdd( dir, lod, contrib );
+        contrib += texturePanoramicGenericLodAdd( dir, lod );
     }
 
 #else
