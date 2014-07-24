@@ -425,7 +425,7 @@
                     '   lod = computeLOD(L, pdf);',
                     '   dir = iblTransform * L;',
 
-                    '   texturePanoramicGenericLod( dir, lod, color );',
+                    '   texturePanoramicGenericLodAdd( dir, lod, color );',
                     '   contrib += color;',
 
                     '}',
@@ -1070,7 +1070,8 @@
             geom.getOrCreateStateSet().setAttributeAndModes( new osg.CullFace( 'DISABLE' ) );
 
             // display the environment only for pixel on depth == 1 meaning the background
-            geom.getOrCreateStateSet().setAttributeAndModes( new osg.Depth( 'EQUAL', 1, 1.1, false ) );
+			// unfortunately win dx9 chrome and firefox doesn't get that and doesn't draw any pixel
+            //geom.getOrCreateStateSet().setAttributeAndModes( new osg.Depth( 'EQUAL', 1, 1.1, false ) );
             geom.getOrCreateStateSet().setAttributeAndModes( this.getShaderBackground() );
             this._stateSetBackground.setRenderBinDetails( 10, 'RenderBin' );
 

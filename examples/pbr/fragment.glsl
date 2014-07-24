@@ -590,6 +590,23 @@ void texturePanoramicGenericLod( const in vec3 dir, const in float lod, out vec3
 
 }
 
+// in the case of dx11 chrome, using the above just make the compiler glitch
+// using this and thus avoiding a temp color varying
+// we avoid the cryptic message 'sampler parameter must come from a literal expression'
+// when shader program links
+void texturePanoramicGenericLodAdd( const in vec3 dir, const in float lod, out vec3 texel ) {
+
+#ifdef RGBE
+    texel += texturePanoramicRGBELod(environment, environmentSize, dir, lod);
+#endif
+
+#ifdef RGBM
+    texel += texturePanoramicRGBMLod(environment, environmentSize, environmentRange, dir, lod);
+#endif
+
+}
+
+
 
 
 // inline version diffuse + specular
@@ -608,7 +625,7 @@ void evaluateIBLDiffuseOptim(const in mat3 iblTransform, const in vec3 N, out ve
     evaluateIBLDiffuseOptimSample0( iblTransform, N, contrib);
 
 #if NB_SAMPLES > 1
-    vec3 dir, L, color;
+    vec3 dir, L;
     float pdf, lod, NdotL;
 
 #ifndef UNROLL
@@ -629,8 +646,7 @@ void evaluateIBLDiffuseOptim(const in mat3 iblTransform, const in vec3 N, out ve
         lod = computeLOD(L, pdf);
         dir = iblTransform * L;
 
-        texturePanoramicGenericLod( dir, lod, color );
-        contrib += color;
+        texturePanoramicGenericLodAdd( dir, lod, contrib );
     }
 
 #else
