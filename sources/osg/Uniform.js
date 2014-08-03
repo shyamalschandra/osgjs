@@ -13,7 +13,7 @@ define( [
     };
 
     Uniform.isUniform = function ( obj ) {
-        if ( typeof obj === 'object' && Object.getPrototypeOf(obj) === Uniform.prototype ) {
+        if ( typeof obj === 'object' && Object.getPrototypeOf( obj ) === Uniform.prototype ) {
             return true;
         }
         return false;

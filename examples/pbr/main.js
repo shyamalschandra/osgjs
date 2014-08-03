@@ -436,8 +436,7 @@
                     '   lod = computeLOD(L, pdf);',
                     '   dir = iblTransform * L;',
 
-                    '   texturePanoramicGenericLodAdd( dir, lod, color );',
-                    '   contrib += color;',
+                    '   diffuseOptimContrib += texturePanoramicGenericLodAdd( dir, lod);',
 
                     '}',
                     ''].join('\n');
@@ -674,6 +673,11 @@
             return program;
         },
 
+        getTexture1111: function() {
+            if ( !this._texture1111 )
+                this._texture1111 = this.createTextureFromColor([1,1,1,1]);
+            return this._texture1111;
+        },
 
         createTextureFromColor: function ( color, srgb ) {
             var albedo = new osg.Uint8Array( 4 );
@@ -699,6 +703,17 @@
             this._stateSetScene.addUniform( uniformHammersley );
         },
 
+        setStateSetTransparent: function( ss ) {
+
+            var useDiffuseAlpha = osg.Uniform.createInt1( 1, 'useDiffuseAlpha' );
+            ss.addUniform( useDiffuseAlpha );
+
+            ss.setRenderingHint( 'TRANSPARENT_BIN' );
+            ss.setAttributeAndModes( new osg.Depth( 'LEQUAL', 0.0, 1.0, false ) );
+            ss.setAttributeAndModes( new osg.BlendFunc('SRC_ALPHA', 'ONE_MINUS_SRC_ALPHA') );
+            ss.setAttributeAndModes( new osg.CullFace('DISABLE'));
+        },
+
         createScene: function () {
             var self = this;
             var group = new osg.Node();
@@ -712,6 +727,11 @@
             this._stateSetScene = group.getOrCreateStateSet();
 
             group.getOrCreateStateSet().addUniform( uniformExposure );
+
+            var useDiffuseAlpha = osg.Uniform.createInt1( 0, 'useDiffuseAlpha' );
+            var flipNormalY = osg.Uniform.createInt1( 1, 'flipNormalY' ); // default DX
+            group.getOrCreateStateSet().addUniform( flipNormalY );
+            group.getOrCreateStateSet().addUniform( useDiffuseAlpha );
 
             this.createHammersleyUniforms();
 
@@ -1024,7 +1044,7 @@
                 viewer.getCamera().setClearColor( [ 0.0, 0.0, 0.0, 0.0 ] );
 
                 // only clear depth because we have a background
-                viewer.getCamera().setClearMask( osg.Camera.DEPTH_BUFFER_BIT );
+                //viewer.getCamera().setClearMask( osg.Camera.DEPTH_BUFFER_BIT );
 
                 viewer.setSceneData( this._rootNode );
                 viewer.setupManipulator();
@@ -1102,7 +1122,7 @@
             cam.setReferenceFrame( osg.Transform.ABSOLUTE_RF );
             cam.addChild( mt );
             cam.setCullCallback(new CullCallback());
-            cam.setRenderOrder( osg.Camera.POST_RENDER, 0 );
+//            cam.setRenderOrder( osg.Camera.PRE_RENDER, 0 );
 
             // the update callback get exactly the same view of the camera
             // but configure the projection matrix to always be in a short znear/zfar range to not vary depend on the scene size
@@ -1216,11 +1236,14 @@
         },
 
         readImageURL: function ( url, options ) {
+            var opts = options || {};
+            //opts.imageCrossOrigin = 'anonymous';
+            opts.imageLoadingUsePromise = true;
             var ext = url.split( '.' ).pop();
             if ( ext === 'hdr' )
-                return osgDB.readImageHDR( url, options );
+                return osgDB.readImageHDR( url, opts );
 
-            return osgDB.readImageURL.call( this, url, options );
+            return osgDB.readImageURL.call( this, url, opts );
         }
 
 

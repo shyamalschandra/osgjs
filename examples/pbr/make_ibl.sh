@@ -1,5 +1,5 @@
 dir="$(pwd)"
-input="$(readlink -f $1)"
+input="$(readlink -f ${1})"
 size="$2"
 
 filename=$(basename "$input")
@@ -94,7 +94,7 @@ cd ~/dev/envtools/ && ./envremap -o cube -n $size "/tmp/input.tif" "${generic}"
 destdir="${dirname}"
 
 
-create_prefiltered_specular "${generic}" "${destdir}"
-create_prefiltered_diffuse "${generic}" "${destdir}"
+#create_prefiltered_specular "${generic}" "${destdir}"
+#create_prefiltered_diffuse "${generic}" "${destdir}"
 create_background "${input}" "${destdir}"
 create_mipmap "${input}" "${destdir}"

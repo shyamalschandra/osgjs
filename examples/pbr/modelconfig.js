@@ -4,6 +4,63 @@ window.modelConfig = ( function () {
     var osg = window.OSG.osg;
     var Q = window.Q;
 
+
+    var createTexture = function ( image ) {
+        var texture = new osg.Texture();
+        texture.setWrapS( 'REPEAT' );
+        texture.setWrapT( 'REPEAT' );
+
+        texture.setMinFilter( 'LINEAR_MIPMAP_LINEAR' );
+        texture.setMagFilter( 'LINEAR' );
+        texture.setImage( image );
+        return texture;
+    };
+
+
+    var FindNodeVisitor = function ( name ) {
+        osg.NodeVisitor.call( this, osg.NodeVisitor.TRAVERSE_ALL_CHILDREN );
+        this._name = name;
+        this._node = undefined;
+    };
+
+    FindNodeVisitor.prototype = osg.objectInherit( osg.NodeVisitor.prototype, {
+        init: function ( name ) {
+            this._name = name;
+            this._node = undefined;
+        },
+        apply: function ( node ) {
+            if ( node.getName() === this._name ) {
+                this._node = node;
+                return;
+            }
+            if ( this._node )
+                return;
+
+            this.traverse( node );
+        }
+    } );
+
+    var applyTexture = function( textures, stateSet, promises, nocache) {
+
+        textures.forEach( function ( element, index ) {
+
+            // inline texture ?
+            if ( typeof element !== 'string' ) {
+                stateSet.setTextureAttributeAndModes( index, element );
+                return;
+            }
+
+            var promise = this.readImageURL( element );
+            promises.push( promise );
+
+            promise.then( function ( texture ) {
+                stateSet.setTextureAttributeAndModes( index, createTexture( texture, nocache ) );
+            }.bind( this ) );
+
+        }.bind( this ) );
+    };
+
+
     var config = [ {
         name: 'devastator',
         root: 'devastator/',
@@ -45,17 +102,6 @@ window.modelConfig = ( function () {
 
                 promises.push( self.readImageURL( base + 'Devastator_normal.tga.png' ) );
                 promises.push( self.readImageURL( base + 'Devastator_specular.tga.png' ) );
-
-                var createTexture = function ( image ) {
-                    var texture = new osg.Texture();
-                    texture.setWrapS( 'REPEAT' );
-                    texture.setWrapT( 'REPEAT' );
-
-                    texture.setMinFilter( 'LINEAR_MIPMAP_LINEAR' );
-                    texture.setMagFilter( 'LINEAR' );
-                    texture.setImage( image );
-                    return texture;
-                };
 
                 Q.all( promises ).then( function ( args ) {
                     args.forEach( function ( image, index ) {
@@ -138,49 +184,28 @@ window.modelConfig = ( function () {
                 //                root + 'outputs/face/face_emissive.png'
             ];
 
-            var FindNodeVisitor = function ( name ) {
-                osg.NodeVisitor.call( this, osg.NodeVisitor.TRAVERSE_ALL_CHILDREN );
-                this._name = name;
-                this._node = undefined;
+            var submaterials = {
+                'Object001': arms,
+                'Robot_Lady_Body': body,
+                'Robot_Lady_Pose_v06': bodyMetal,
+                'Face': face
             };
 
-            // reference all light in the scene
-            FindNodeVisitor.prototype = osg.objectInherit( osg.NodeVisitor.prototype, {
-                init: function ( name ) {
-                    this._name = name;
-                    this._node = undefined;
-                },
-                apply: function ( node ) {
-                    if ( node.getName() === this._name ) {
-                        this._node = node;
-                        return;
-                    }
-                    if ( this._node )
-                        return;
+            var alphas = {
+            };
 
-                    this.traverse( node );
-                }
-            } );
-
+            var promises = [];
 
             var callbackModel = function ( model, textures ) {
 
-                var promises = [];
+                this.clearStateSetFromGraph( model );
+
+                // var flipNormalY = osg.Uniform.createInt1( 0, 'flipNormalY' ); // GL
+                // model.getOrCreateStateSet().addUniform( flipNormalY );
 
                 // iter on each part to assign textures
                 var names = Object.keys( textures );
                 var finder = new FindNodeVisitor();
-
-                var createTexture = function ( image ) {
-                    var texture = new osg.Texture();
-                    texture.setWrapS( 'REPEAT' );
-                    texture.setWrapT( 'REPEAT' );
-
-                    texture.setMinFilter( 'LINEAR_MIPMAP_LINEAR' );
-                    texture.setMagFilter( 'LINEAR' );
-                    texture.setImage( image );
-                    return texture;
-                };
 
                 names.forEach( function ( name ) {
 
@@ -194,17 +219,21 @@ window.modelConfig = ( function () {
 
                     var stateSet = node.getOrCreateStateSet();
 
+                    applyTexture.call( this, textures[ name ], stateSet, promises );
 
-                    textures[ name ].forEach( function ( element, index ) {
+                }.bind( this ) );
 
-                        var promise = this.readImageURL( element );
-                        promises.push( promise );
+                // alphas
+                Object.keys( alphas ).forEach( function( key ) {
 
-                        promise.then( function ( texture ) {
-                            stateSet.setTextureAttributeAndModes( index, createTexture( texture ) );
-                        }.bind( this ) );
+                    var textures = alphas[ key ];
+                    finder.init( key );
+                    model.accept( finder );
 
-                    }.bind( this ) );
+                    var ss = finder._node.getOrCreateStateSet();
+                    applyTexture.call( this, textures, ss, promises );
+
+                    this.setStateSetTransparent( ss );
 
                 }.bind( this ) );
 
@@ -222,12 +251,7 @@ window.modelConfig = ( function () {
 
             Q.all( [
 
-                this.getModel( root + 'android.osgjs.gz', createCallback( {
-                    'Object001': arms,
-                    'Robot_Lady_Body': body,
-                    'Robot_Lady_Pose_v06': bodyMetal,
-                    'Face': face
-                } ) )
+                this.getModel( root + 'android.osgjs.gz', createCallback( submaterials ) )
 
             ] ).then( function ( args ) {
 
@@ -284,52 +308,67 @@ window.modelConfig = ( function () {
             ];
 
             var glass = [
-                root + 'glass_smoke_diffuse.tga.png',
-                root + 'glass_smoke_reflection.tga.png',
+                this.createTextureFromColor( [1,1,1,0.4] ),
+                this.createTextureFromColor( [0,0,0,1] ),
+//                root + 'glass_smoke_diffuse.tga.png',
+//                root + 'glass_smoke_reflection.tga.png',
+                this.createTextureFromColor( [0.0,0.0,0.0,1] ),
+                this.createTextureFromColor( [1,1,1,1] )
             ];
 
-            var callbackModel = function ( model, textures, transparency ) {
+            var submaterials = {
+                'set_1.OBJ': set1,
+                'set_2.OBJ': set2
+            };
+
+            var alphas = {
+                'glass_simple.OBJ': glass
+            };
+
+            var promises = [];
+
+            var callbackModel = function ( model, textures ) {
 
                 this.clearStateSetFromGraph( model );
 
-                if ( transparency ) {
-                    model.getOrCreateStateSet().setRenderingHint( 'TRANSPARENT_BIN' );
-                    model.getOrCreateStateSet().setTextureAttributeAndModes();
-                    model.getOrCreateStateSet().setTextureAttributeAndModes();
-                    model.getOrCreateStateSet().setTextureAttributeAndModes();
-                }
+                //var flipNormalY = osg.Uniform.createInt1( 0, 'flipNormalY' ); // GL
+                //model.getOrCreateStateSet().addUniform( flipNormalY );
 
-                var defer = Q.defer();
+                // iter on each part to assign textures
+                var names = Object.keys( textures );
+                var finder = new FindNodeVisitor();
 
-                var promises = [];
+                names.forEach( function ( name ) {
 
-                textures.forEach( function ( element ) {
-                    promises.push( this.readImageURL( element ) );
+                    // find the node to assign textures
+                    finder.init( name );
+                    model.accept( finder );
+
+                    var node = finder._node;
+                    if ( !node )
+                        console.error( 'can\'t find node ' + name );
+
+                    var stateSet = node.getOrCreateStateSet();
+
+                    applyTexture.call( this, textures[ name ], stateSet, promises );
+
                 }.bind( this ) );
 
-                var createTexture = function ( image ) {
-                    var texture = new osg.Texture();
-                    texture.setWrapS( 'REPEAT' );
-                    texture.setWrapT( 'REPEAT' );
+                // alphas
+                Object.keys( alphas ).forEach( function( key ) {
 
-                    texture.setMinFilter( 'LINEAR_MIPMAP_LINEAR' );
-                    texture.setMagFilter( 'LINEAR' );
-                    texture.setImage( image );
-                    return texture;
-                };
+                    var textures = alphas[ key ];
+                    finder.init( key );
+                    model.accept( finder );
 
-                Q.all( promises ).then( function ( args ) {
-                    args.forEach( function ( image, index ) {
-                        var texture = createTexture( args[ index ] );
-                        texture.setWrapS( 'REPEAT' );
-                        texture.setWrapT( 'REPEAT' );
-                        model.getOrCreateStateSet().setTextureAttributeAndMode( index, texture );
-                    } );
+                    var ss = finder._node.getOrCreateStateSet();
+                    applyTexture.call( this, textures, ss, promises );
 
-                    defer.resolve( model );
+                    this.setStateSetTransparent( ss );
+
                 }.bind( this ) );
 
-                return defer.promise;
+                return Q.all( promises );
             };
 
             var createCallback = function ( textures, transparency ) {
@@ -343,14 +382,11 @@ window.modelConfig = ( function () {
 
             Q.all( [
 
-                this.getModel( root + 'set_1.osgjs.gz', createCallback( set1 ) ),
-                this.getModel( root + 'set_2.osgjs.gz', createCallback( set2 ) ),
-                //                this.getModel( root + 'glass.osgjs.gz', createCallback( glass, true ) ),
+                this.getModel( root + 'file2.osgjs.gz', createCallback( submaterials  ) ),
 
             ] ).then( function ( args ) {
 
                 model.addChild( args[ 0 ] );
-                model.addChild( args[ 1 ] );
 
                 defer.resolve( model );
 
@@ -399,17 +435,6 @@ window.modelConfig = ( function () {
 
                 promises.push( self.readImageURL( base + 'c3po_N.tga.png' ) );
                 promises.push( self.readImageURL( base + 'c3po_M.tga.png' ) );
-
-                var createTexture = function ( image ) {
-                    var texture = new osg.Texture();
-                    texture.setWrapS( 'REPEAT' );
-                    texture.setWrapT( 'REPEAT' );
-
-                    texture.setMinFilter( 'LINEAR_MIPMAP_LINEAR' );
-                    texture.setMagFilter( 'LINEAR' );
-                    texture.setImage( image );
-                    return texture;
-                };
 
                 Q.all( promises ).then( function ( args ) {
                     args.forEach( function ( image, index ) {
@@ -460,17 +485,6 @@ window.modelConfig = ( function () {
 
                 promises.push( self.readImageURL( root + '/Cerberus_by_Andrew_Maximov/Textures/Cerberus_N.tga.png' ) );
                 promises.push( self.readImageURL( root + '/Cerberus_by_Andrew_Maximov/Textures/Cerberus_M.tga.png' ) );
-
-                var createTexture = function ( image ) {
-                    var texture = new osg.Texture();
-                    texture.setImage( image );
-                    texture.setWrapS( 'REPEAT' );
-                    texture.setWrapT( 'REPEAT' );
-
-                    texture.setMinFilter( 'LINEAR_MIPMAP_LINEAR' );
-                    texture.setMagFilter( 'LINEAR' );
-                    return texture;
-                };
 
                 Q.all( promises ).then( function ( args ) {
                     args.forEach( function ( image, index ) {
@@ -523,17 +537,6 @@ window.modelConfig = ( function () {
 
                 promises.push( self.readImageURL( base + 'normal.png' ) );
                 promises.push( self.readImageURL( base + 'metallic.png' ) );
-
-                var createTexture = function ( image ) {
-                    var texture = new osg.Texture();
-                    texture.setWrapS( 'REPEAT' );
-                    texture.setWrapT( 'REPEAT' );
-
-                    texture.setMinFilter( 'LINEAR_MIPMAP_LINEAR' );
-                    texture.setMagFilter( 'LINEAR' );
-                    texture.setImage( image );
-                    return texture;
-                };
 
                 Q.all( promises ).then( function ( args ) {
                     args.forEach( function ( image, index ) {
@@ -727,18 +730,6 @@ window.modelConfig = ( function () {
                 promises.push( self.readImageURL( root + 'Textures/map_S' + prefix + '.jpg' ) );
                 promises.push( self.readImageURL( root + 'Textures/map_AO' + prefix + '.jpg' ) );
 
-                var createTexture = function ( image ) {
-                    var texture = new osg.Texture();
-                    texture.setWrapS( 'REPEAT' );
-                    texture.setWrapT( 'REPEAT' );
-
-                    texture.setMinFilter( 'LINEAR_MIPMAP_LINEAR' );
-                    texture.setMagFilter( 'LINEAR' );
-
-                    texture.setImage( image );
-                    return texture;
-                };
-
                 Q.all( promises ).then( function ( args ) {
                     args.forEach( function ( image, index ) {
                         model.getOrCreateStateSet().setTextureAttributeAndMode( index, createTexture( args[ index ] ) );
@@ -798,17 +789,6 @@ window.modelConfig = ( function () {
                 promises.push( self.readImageURL( base + 'hotrod_normal.png' ) );
                 promises.push( self.readImageURL( base + 'hotrod_specular.png' ) );
                 promises.push( self.readImageURL( base + 'hotrod_ao.png' ) );
-
-                var createTexture = function ( image ) {
-                    var texture = new osg.Texture();
-                    texture.setWrapS( 'REPEAT' );
-                    texture.setWrapT( 'REPEAT' );
-
-                    texture.setMinFilter( 'LINEAR_MIPMAP_LINEAR' );
-                    texture.setMagFilter( 'LINEAR' );
-                    texture.setImage( image );
-                    return texture;
-                };
 
                 Q.all( promises ).then( function ( args ) {
                     args.forEach( function ( image, index ) {

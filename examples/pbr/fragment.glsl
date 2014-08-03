@@ -1,4 +1,4 @@
-
+/** c++-mode **/
 #define PI 3.1415926535897932384626433832795
 #define PI_2 (2.0*3.1415926535897932384626433832795)
 #define INV_PI 1.0/PI
@@ -24,12 +24,16 @@ uniform sampler2D envDiffuse;
 uniform float envDiffuseRange;
 uniform vec2 envDiffuseSize;
 
+uniform int flipNormalY;
 
 uniform sampler2D environment;
 uniform float environmentRange;
 uniform vec2 environmentSize;
 
 uniform sampler2D envBackground;
+
+uniform int useDiffuseAlpha;
+
 
 const vec3 nullVec3 = vec3(0.0);
 
@@ -83,7 +87,7 @@ vec3 MaterialSpecular = vec3(0.04);
 vec3 MaterialAlbedo;
 vec3 MaterialNormal;
 float MaterialAO;
-
+vec3 FragNormal;
 
 
 float TextureLevel = 0.0;
@@ -224,15 +228,16 @@ void mtex_nspace_tangent(const in vec4 tangent, const in vec3 normal, const in v
     if (length(tangent.xyz) != 0.0) {
         tang = normalize(tangent.xyz);
     }
-    vec3 B = tangent.w * cross(normal, tang);
+    vec3 B = -tangent.w * cross(normal, tang);
     outnormal = texnormal.x*tang + texnormal.y*B + texnormal.z*normal;
     outnormal = normalize(outnormal);
 }
 
 
-vec3 textureNormal(in sampler2D texture, const in vec2 uv) {
-    vec3 rgb = texture2D(texture, uv).rgb;
-    return normalize((2.0*rgb-vec3(1.0)));
+vec3 textureNormal(const in vec3 rgb) {
+    vec3 n = normalize((rgb-vec3(0.5)));
+    n[1] = (flipNormalY == 1) ? -n[1] : n[1];
+    return n;
 }
 
 vec3 textureRGBMLinear(const in sampler2D texture, const in vec2 size, const in vec2 uv ) {
@@ -613,22 +618,24 @@ vec3 texturePanoramicGenericLodAdd( const in vec3 dir, const in float lod ) {
 //==================================
 
 // sample0 does not need H
-void evaluateIBLDiffuseOptimSample0( const in mat3 iblTransform, const in vec3 N, out vec3 color) {
+vec3 evaluateIBLDiffuseOptimSample0( const in mat3 iblTransform, const in vec3 N) {
     float pdf = INV_PI;
     vec3 dir = iblTransform * N;
     float lod = computeLOD(N, pdf);
-    texturePanoramicGenericLod( dir, lod, color );
+    return texturePanoramicGenericLodAdd( dir, lod );
 }
 
-void evaluateIBLDiffuseOptim(const in mat3 iblTransform, const in vec3 N, out vec3 contrib ) {
+vec3 evaluateIBLDiffuseOptim(const in mat3 iblTransform, const in vec3 N ) {
 
-    evaluateIBLDiffuseOptimSample0( iblTransform, N, contrib);
+	vec3 diffuseOptimContrib = vec3(0.0);
+
+    diffuseOptimContrib += evaluateIBLDiffuseOptimSample0( iblTransform, N);
 
 #if NB_SAMPLES > 1
     vec3 dir, L;
     float pdf, lod, NdotL;
 
-#ifndef UNROLL
+#ifdef UNROLL
     vec2 u;
     for ( int i = 1; i < NB_SAMPLES; i++ ) {
         u = hammersley[i];
@@ -646,7 +653,7 @@ void evaluateIBLDiffuseOptim(const in mat3 iblTransform, const in vec3 N, out ve
         lod = computeLOD(L, pdf);
         dir = iblTransform * L;
 
-        contrib += texturePanoramicGenericLodAdd( dir, lod );
+        diffuseOptimContrib += texturePanoramicGenericLodAdd( dir, lod );
     }
 
 #else
@@ -656,7 +663,7 @@ UNROLL_LOOP_DIFFUSE
 #endif
 
 #endif
-
+	return diffuseOptimContrib;
 }
 
 vec3 f0;
@@ -725,9 +732,7 @@ void evaluateIBLSpecularOptimSample0(const in mat3 iblTransform, const in vec3 N
     }
 }
 
-vec3 evaluateIBLSpecularOptimSampleX(const in vec3 H, const in float G1NdotV, const in mat3 iblTransform, const in vec3 N, const in vec3 V) {
-
-    vec3 L = normalize(2.0 * dot(V, H) * H - V);
+vec3 evaluateIBLSpecularOptimSampleX(const in vec3 L, const in vec3 H, const in float G1NdotV, const in mat3 iblTransform, const in vec3 N, const in vec3 V) {
 
     float LdotH = max( 0.0, dot(H, L));
     float NdotH = max( 0.0, dot(H, N));
@@ -805,6 +810,7 @@ void evaluateIBLSpecularOptim(const in mat3 iblTransform, const in vec3 N, const
 #ifndef UNROLL
     float phi;
     vec2 u;
+    const float horizonFade = 1.3;
     for ( int i = 1; i < NB_SAMPLES; i++ ) {
 
         u = hammersley[i];
@@ -819,7 +825,13 @@ void evaluateIBLSpecularOptim(const in mat3 iblTransform, const in vec3 N, const
         H = vec3( sinThetaH * cos(phi), sinThetaH * sin(phi), cosThetaH);
         H = normalize(tangentX * H.x + tangentY * H.y + N * H.z);
 
-        contrib += evaluateIBLSpecularOptimSampleX(H, G1NdotV, iblTransform, N, V);
+        vec3 L = normalize(2.0 * dot(V, H) * H - V);
+
+        // attenuate the contribution http://marmosetco.tumblr.com/post/81245981087
+        float factor = clamp( 1.0 + horizonFade * dot( L, FragNormal ), 0.0, 1.0 );
+        factor *= factor;
+//        factor = 1.0;
+        contrib += evaluateIBLSpecularOptimSampleX(L, H, G1NdotV, iblTransform, N, V) * factor;
     }
 #else
 UNROLL_LOOP_SPECULAR
@@ -861,14 +873,14 @@ vec3 evaluateIBLOptim( const in mat3 iblTransform, const in vec3 N, const in vec
     vec3 specular = nullVec3;
 
     if ( diffusePart ) {
-        evaluateIBLDiffuseOptim( iblTransform, N, diffuse);
+        diffuse = evaluateIBLDiffuseOptim( iblTransform, N);
         diffuse *= MaterialAlbedo;
     }
 
     // ==================================================
     evaluateIBLSpecularOptim( iblTransform, N, V, specular );
 
-    contrib = ( diffuse + specular ) * ( 1.0/float(NB_SAMPLES) );
+    contrib = ( diffuse + specular ) * ( MaterialAO * 1.0/float(NB_SAMPLES) );
 
     return contrib;
 }
@@ -1024,7 +1036,7 @@ vec3 solid2( const in mat3 iblTransform, const in vec3 normal, const in vec3 vie
     mat3 ibl = iblTransform;
     //color += evaluateDiffuseIBL(ibl, normal, view );
     //color += evaluateSpecularIBL(ibl, normal, view );
-    color += evaluateIBLOptim( ibl, normal, view ) * (MaterialAO * hdrExposure);
+    color += evaluateIBLOptim( ibl, normal, view ) * hdrExposure;
     return linearTosRGB( color, DefaultGamma);
 }
 #endif
@@ -1089,7 +1101,8 @@ vec3 prefilteredAndLUT( const in mat3 iblTransform, const in vec3 E ) {
 
 
 void pbr(void) {
-    vec3 N = normalize(osg_FragNormal);
+    FragNormal = normalize(osg_FragNormal);
+    vec3 N = FragNormal;
     vec3 E = normalize(osg_FragEye);
 
     mat3 iblTransform = getIBLTransfrom( CubemapTransform );
@@ -1097,14 +1110,19 @@ void pbr(void) {
     const vec3 dielectricColor = vec3(0.04);
     float minRoughness = 1.e-4;
 
+    vec4 albedoSource = texture2D( albedoMap, osg_FragTexCoord0 ).rgba;
+    vec3 albedo = sRGBToLinear( albedoSource.rgb, DefaultGamma );
 
-    vec3 albedo = sRGBToLinear( texture2D( albedoMap, osg_FragTexCoord0 ).rgb, DefaultGamma );
-
-    vec3 normal = N;
+    vec3 normal;
 #ifdef NORMAL
-    mtex_nspace_tangent( osg_FragTangent, N, textureNormal( normalMap, osg_FragTexCoord0 ), normal );
+    vec3 normalTexel = texture2D( normalMap, osg_FragTexCoord0 ).rgb;
+    if ( length(normalTexel) < 0.0001 )
+       normal = N;
+    else
+       mtex_nspace_tangent( osg_FragTangent, N, textureNormal(normalTexel), normal );
+#else
+    normal = N;
 #endif
-
 
     float roughnessValue = texture2D( roughnessMap, osg_FragTexCoord0 ).r;
 #ifdef GLOSSINESS
@@ -1138,6 +1156,20 @@ void pbr(void) {
 #ifdef SOLID2
     result = vec4( solid2( iblTransform, MaterialNormal, -E ), 1.0);
 #endif
+
+        if ( useDiffuseAlpha > 0 && albedoSource[3] != 1.0 ) {
+           if ( albedoSource[3] == 0.0 ) {
+              discard;
+              return;
+
+            } else {
+
+          result[0] *= albedoSource[3];
+          result[1] *= albedoSource[3];
+          result[2] *= albedoSource[3];
+          result[3] = albedoSource[3];
+          }
+        }
 
     gl_FragColor = result;
 }
