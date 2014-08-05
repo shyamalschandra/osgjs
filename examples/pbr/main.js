@@ -93,63 +93,81 @@
         this.textureEnvs = {};
 
         this.textureEnvs.bg = {
+            'abandoned_sanatorium_staircase' : 'abandoned_sanatorium_staircase_bg.jpg',
+            'airport' : 'airport_bg.jpg',
             'Alexs_Apartment': 'Alexs_Apt_2k_bg.jpg',
-            'Allego': 'panorama_map_bg.jpg',
+            'Arches_E_PineTree': 'Arches_E_PineTree_3k_bg.jpg',
+            'bus_garage': 'bus_garage_bg.jpg',
+            'cave_entry_in_the_forest': 'cave_entry_in_the_forest_bg.jpg',
+            'elevator_corridor': 'elevator_corridor_bg.jpg',
+            'Gdansk_shipyard_buildings': 'Gdansk_shipyard_buildings_bg.jpg',
+            'glazed_patio': 'glazed_patio_bg.jpg',
             'GrandCanyon_C_YumaPoint': 'GCanyon_C_YumaPoint_3k_bg.jpg',
-            'Walk_Of_Fame': 'Mans_Outside_2k_bg.jpg',
-            'HDR_Free_City_Night_Lights': 'HDR_Free_City_Night_Lights_Ref_bg.jpg'
+            'HDR_Free_City_Night_Lights': 'HDR_Free_City_Night_Lights_Ref_bg.jpg',
+            'industrial_room': 'industrial_room_bg.jpg',
+            'mestaty': 'test-mestaty_bg.jpg',
+            'panorama_map': 'panorama_map_bg.jpg',
+            'road_in_tenerife_mountain': 'road_in_tenerife_mountain_bg.jpg',
+            'small_apartment': 'small_apartment_bg.jpg',
+            'studio': 'studio_bg.jpg',
+            'studio_02': 'studio_02_bg.jpg',
+            'terrace_near_the_granaries': 'terrace_near_the_granaries_bg.jpg',
+            'urban_exploring_interior': 'urban_exploring_interior_bg.jpg',
+            'Walk_Of_Fame': 'Mans_Outside_2k_bg.jpg'
         };
 
         this._environmentList = Object.keys( this.textureEnvs.bg );
 
         this.textureEnvs.reference = {
+            'abandoned_sanatorium_staircase' : 'abandoned_sanatorium_staircase.png',
+            'airport' : 'airport.png',
             'Alexs_Apartment': 'Alexs_Apt_2k.png',
-            'Allego': 'panorama_map.png',
+            'Arches_E_PineTree': 'Arches_E_PineTree_3k.png',
+            'bus_garage': 'bus_garage.png',
+            'cave_entry_in_the_forest': 'cave_entry_in_the_forest.png',
+            'elevator_corridor': 'elevator_corridor.png',
+            'Gdansk_shipyard_buildings': 'Gdansk_shipyard_buildings.png',
+            'glazed_patio': 'glazed_patio.png',
             'GrandCanyon_C_YumaPoint': 'GCanyon_C_YumaPoint_3k.png',
-            'Walk_Of_Fame': 'Mans_Outside_2k.png',
-            'HDR_Free_City_Night_Lights': 'HDR_Free_City_Night_Lights_Ref.png'
+            'HDR_Free_City_Night_Lights': 'HDR_Free_City_Night_Lights_Ref.png',
+            'industrial_room': 'industrial_room.png',
+            'mestaty': 'test-mestaty.png',
+            'panorama_map': 'panorama_map.png',
+            'road_in_tenerife_mountain': 'road_in_tenerife_mountain.png',
+            'small_apartment': 'small_apartment.png',
+            'studio': 'studio.png',
+            'studio_02': 'studio_02.png',
+            'terrace_near_the_granaries': 'terrace_near_the_granaries.png',
+            'urban_exploring_interior': 'urban_exploring_interior.png',
+            'Walk_Of_Fame': 'Mans_Outside_2k.png'
         };
 
         this.textureEnvs.solid = {
             rgbe: {
                 'Alexs_Apartment': 'Alexs_Apt_2k_mip.png',
-                'Allego': 'panorama_map_mip.png',
+                'Arches_E_PineTree': 'Arches_E_PineTree_3k_mip.png',
+                'bus_garage': 'bus_garage_mip.png',
+                'cave_entry_in_the_forest': 'cave_entry_in_the_forest_mip.png',
+                'elevator_corridor': 'elevator_corridor_mip.png',
+                'Gdansk_shipyard_buildings': 'Gdansk_shipyard_buildings_mip.png',
+                'glazed_patio': 'glazed_patio_mip.png',
                 'GrandCanyon_C_YumaPoint': 'GCanyon_C_YumaPoint_3k_mip.png',
-                'Walk_Of_Fame': 'Mans_Outside_2k_mip.png',
-                'HDR_Free_City_Night_Lights': 'HDR_Free_City_Night_Lights_Ref_mip.png'
-            },
-            rgbm: {
-                'Alexs_Apartment': 'Alexs_Apt_2k_mip_17.375849.png',
-                'Allego': 'panorama_map_mip_963.479187.png',
-                'GrandCanyon_C_YumaPoint': 'GCanyon_C_YumaPoint_3k_mip_18.460438.png',
-                'Walk_Of_Fame': 'Mans_Outside_2k_mip_34.611233.png',
-                'HDR_Free_City_Night_Lights': 'HDR_Free_City_Night_Lights_Ref_mip_839.186951.png'
+                'HDR_Free_City_Night_Lights': 'HDR_Free_City_Night_Lights_Ref_mip.png',
+                'industrial_room': 'industrial_room_mip.png',
+                'mestaty': 'test-mestaty_mip.png',
+                'panorama_map': 'panorama_map_mip.png',
+                'road_in_tenerife_mountain': 'road_in_tenerife_mountain_mip.png',
+                'small_apartment': 'small_apartment_mip.png',
+                'studio': 'studio_mip.png',
+                'studio_02': 'studio_02_mip.png',
+                'terrace_near_the_granaries': 'terrace_near_the_granaries_mip.png',
+                'urban_exploring_interior': 'urban_exploring_interior_mip.png',
+                'Walk_Of_Fame': 'Mans_Outside_2k_mip.png'
+
             }
         };
 
         this.textureEnvs.prefiltered = {
-            rgbm: {
-                'Alexs_Apartment': {
-                    'diff': 'Alexs_Apt_2k_diff_0.098734.png',
-                    'spec': 'Alexs_Apt_2k_spec_7.076629.png'
-                },
-                'Allego': {
-                    'diff': 'panorama_map_diff_0.328576.png',
-                    'spec': 'panorama_map_spec_1.561654.png'
-                },
-                'GrandCanyon_C_YumaPoint': {
-                    'diff': 'GCanyon_C_YumaPoint_3k_diff_0.136487.png',
-                    'spec': 'GCanyon_C_YumaPoint_3k_spec_17.478539.png'
-                },
-                'Walk_Of_Fame': {
-                    'diff': 'Mans_Outside_2k_diff_0.136116.png',
-                    'spec': 'Mans_Outside_2k_spec_31.384483.png'
-                },
-                'HDR_Free_City_Night_Lights': {
-                    'diff': 'HDR_Free_City_Night_Lights_Ref_diff_0.108381.png',
-                    'spec': 'HDR_Free_City_Night_Lights_Ref_spec_957.209351.png'
-                }
-            },
             rgbe: {
                 'Alexs_Apartment': {
                     'diff': 'Alexs_Apt_2k_diff.png',
@@ -297,7 +315,14 @@
             ];
 
             Q.all( textures ).then( function ( images ) {
-                this.createEnvironmnentTexture( 'environment', images[ 0 ], stateSet, 5 );
+                var texture = this.createEnvironmnentTexture( 'environment', images[ 0 ], stateSet, 5 );
+                var textureNode = new TransformRGBE2FloatTexture( texture );
+                this._rootNode.addChild( textureNode );
+                var geom = osg.createTexturedQuadGeometry();
+                geom.getOrCreateStateSet().setTextureAttributeAndModes(0, textureNode._finalTexture );
+                this._rootNode.addChild( geom );
+
+
             }.bind( this ) );
         },
 
@@ -333,8 +358,23 @@
             ];
 
             Q.all( texture ).then( function ( images ) {
-                this.createEnvironmnentTexture( 'environment', images[ 0 ], stateSet, 5 );
+                var texture = this.createEnvironmnentTexture( 'environment', images[ 0 ], stateSet, 5 );
+
+                if ( false ) {
+                    var textureNode = new TransformRGBE2FloatTexture( texture );
+                    textureNode.init();
+                    this._rootNode.addChild( textureNode );
+                    var geom = osg.createTexturedQuadGeometry( -10, -10, 0,
+                                                               20, 0, 0,
+                                                               0, 20, 0 );
+                    geom.getOrCreateStateSet().setAttributeAndModes( new osg.CullFace('DISABLE'));
+                    geom.getOrCreateStateSet().setTextureAttributeAndModes( 0, textureNode._finalTexture );
+
+                    this._rootNode.addChild( geom );
+                }
+
             }.bind( this ) );
+
         },
 
 
@@ -359,8 +399,11 @@
 
             if ( rendering === 'prefilter' )
                 this.setEnvironmentPrefiltered( method, name, stateSet );
-            else
+            else if ( rendering === 'solid' || rendering === 'solid2' )
                 this.setEnvironmentSolid( method, name, stateSet );
+            else if ( rendering === 'reference' ) {
+                this.setEnvironmentReference( method, name, stateSet );
+            }
         },
 
         setEnvironment: function ( name ) {
