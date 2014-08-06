@@ -773,6 +773,12 @@
 
             group.getOrCreateStateSet().addUniform( uniformExposure );
 
+            group.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 0, 'albedoMap' ) );
+            group.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 1, 'roughnessMap' ) );
+            group.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 2, 'normalMap' ) );
+            group.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 3, 'specularMap' ) );
+            group.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 4, 'aoMap' ) );
+
             var useDiffuseAlpha = osg.Uniform.createInt1( 0, 'useDiffuseAlpha' );
             var flipNormalY = osg.Uniform.createInt1( 1, 'flipNormalY' ); // default DX
             group.getOrCreateStateSet().addUniform( flipNormalY );

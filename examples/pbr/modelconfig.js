@@ -62,6 +62,132 @@ window.modelConfig = ( function () {
 
 
     var config = [ {
+        name: 'podracer',
+        root: 'podracer/',
+        promise: undefined,
+        model: new osg.Node(),
+        thumbnail: 'thumbnail.jpg',
+        description: {
+            rank: 1,
+            title: 'pod racer',
+            author: 'Ben Keeling',
+            link: ''
+        },
+        config: {
+            mapNormal: true,
+            mapSpecular: false,
+            mapAmbientOcclusion: false,
+            mapGlossiness: false
+        },
+        init: function ( config ) {
+
+            var root = config.root;
+            var model = new osg.MatrixTransform();
+            osg.Matrix.makeRotate( Math.PI/2, 1,0,0, model.getMatrix());
+//            model.dirty();
+
+            var cab = [
+                root + 'FinalCabMaterial_Diffuse.tga.png',
+                root + 'FinalCabMaterial_Roughness.tga.png',
+                root + 'FinalCabMaterial_Normal.tga.png',
+                root + 'FinalCabMaterial_Metallic.tga.png'
+            ];
+
+
+
+            var engine = [
+                root + 'FinalEngineMaterial_Diffuse.tga.png',
+                root + 'FinalEngineMaterial_Roughness.tga.png',
+                root + 'FinalEngineMaterial_Normal.tga.png',
+                root + 'FinalEngineMaterial_Metalness.tga.png',
+            ];
+
+            var pipe = [
+                root + 'FinalPipeMaterial_diffuse.tga.png',
+                root + 'FinalPipeMaterial_Roughness.tga.png',
+                root + 'FinalPipeMaterial_Normal.tga.png',
+                root + 'FinalPipeMaterial_Metalness.tga.png',
+            ];
+
+            var submaterials = {
+                'Sebulba_podracer.FBX_Engines_0:Sebulba_podracer.FBX_Engines_Engines_Engines_0': engine,
+                'Sebulba_podracer.FBX_Pipes_0:Sebulba_podracer.FBX_Pipes_Pipes_Pipes_0': pipe,
+                'Sebulba_podracer.FBX_LowpolyCab_0:Sebulba_podracer.FBX_LowpolyCab_LowpolyCab_LowpolyCab_0': cab
+            };
+
+            var alphas = {
+            };
+
+            var promises = [];
+
+            var callbackModel = function ( model, textures ) {
+
+                this.clearStateSetFromGraph( model );
+
+//                var flipNormalY = osg.Uniform.createInt1( 0, 'flipNormalY' ); // GL
+//                model.getOrCreateStateSet().addUniform( flipNormalY );
+
+                // iter on each part to assign textures
+                var names = Object.keys( textures );
+                var finder = new FindNodeVisitor();
+
+                names.forEach( function ( name ) {
+
+                    // find the node to assign textures
+                    finder.init( name );
+                    model.accept( finder );
+
+                    var node = finder._node;
+                    if ( !node )
+                        console.error( 'can\'t find node ' + name );
+
+                    var stateSet = node.getOrCreateStateSet();
+
+                    applyTexture.call( this, textures[ name ], stateSet, promises );
+
+                }.bind( this ) );
+
+                // alphas
+                Object.keys( alphas ).forEach( function( key ) {
+
+                    var textures = alphas[ key ];
+                    finder.init( key );
+                    model.accept( finder );
+
+                    var ss = finder._node.getOrCreateStateSet();
+                    applyTexture.call( this, textures, ss, promises );
+
+                    this.setStateSetTransparent( ss );
+
+                }.bind( this ) );
+
+                return Q.all( promises );
+            };
+
+            var createCallback = function ( textures ) {
+                return function ( model ) {
+                    return callbackModel.call( this, model, textures );
+                };
+            };
+
+
+            var defer = Q.defer();
+
+            Q.all( [
+
+                this.getModel( root + 'file.osgjs.gz', createCallback( submaterials ) )
+
+            ] ).then( function ( args ) {
+
+                model.addChild( args[ 0 ] );
+
+                defer.resolve( model );
+
+            }.bind( this ) );
+
+            return defer.promise;
+        }
+    }, {
         name: 'devastator',
         root: 'devastator/',
         promise: undefined,
@@ -89,11 +215,6 @@ window.modelConfig = ( function () {
             var callbackModel = function ( model ) {
                 rootNode.addChild( model );
 
-                model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 0, 'albedoMap' ) );
-                model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 1, 'roughnessMap' ) );
-                model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 2, 'normalMap' ) );
-                model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 3, 'specularMap' ) );
-                model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 4, 'aoMap' ) );
 
                 var promises = [];
                 var base = root;
@@ -142,12 +263,6 @@ window.modelConfig = ( function () {
 
             var root = config.root;
             var model = new osg.MatrixTransform();
-
-            model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 0, 'albedoMap' ) );
-            model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 1, 'roughnessMap' ) );
-            model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 2, 'normalMap' ) );
-            model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 3, 'specularMap' ) );
-            model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 4, 'aoMap' ) );
 
             var arms = [
                 root + 'outputs/arms/arms_diffuse.png',
@@ -287,12 +402,6 @@ window.modelConfig = ( function () {
             var model = new osg.MatrixTransform();
             osg.Matrix.makeRotate( Math.PI * 0.5, 1, 0, 0, model.getMatrix() );
 
-            model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 0, 'albedoMap' ) );
-            model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 1, 'roughnessMap' ) );
-            model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 2, 'normalMap' ) );
-            model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 3, 'specularMap' ) );
-            model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 4, 'aoMap' ) );
-
             var set1 = [
                 root + 'SET_1_diffuse.tga.png',
                 root + 'SET_1_roughness.tga.png',
@@ -419,11 +528,6 @@ window.modelConfig = ( function () {
 
                 var defer = Q.defer();
 
-                model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 0, 'albedoMap' ) );
-                model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 1, 'roughnessMap' ) );
-                model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 2, 'normalMap' ) );
-                model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 3, 'specularMap' ) );
-
                 var promises = [];
                 var vers = '2k';
                 if ( this._textureHighres )
@@ -474,11 +578,6 @@ window.modelConfig = ( function () {
 
                 var defer = Q.defer();
 
-                model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 0, 'albedoMap' ) );
-                model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 1, 'roughnessMap' ) );
-                model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 2, 'normalMap' ) );
-                model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 3, 'specularMap' ) );
-
                 var promises = [];
                 promises.push( self.readImageURL( root + '/Cerberus_by_Andrew_Maximov/Textures/Cerberus_A.tga.png' ) );
                 promises.push( self.readImageURL( root + '/Cerberus_by_Andrew_Maximov/Textures/Cerberus_R.tga.png' ) );
@@ -524,11 +623,6 @@ window.modelConfig = ( function () {
             var callbackModel = function ( model ) {
 
                 var defer = Q.defer();
-
-                model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 0, 'albedoMap' ) );
-                model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 1, 'roughnessMap' ) );
-                model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 2, 'normalMap' ) );
-                model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 3, 'specularMap' ) );
 
                 var promises = [];
                 var base = root;
@@ -675,12 +769,6 @@ window.modelConfig = ( function () {
 
             }.bind( this )  );
 
-            group.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 0, 'albedoMap' ) );
-            group.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 1, 'roughnessMap' ) );
-            group.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 2, 'normalMap' ) );
-            group.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 3, 'specularMap' ) );
-            group.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 4, 'aoMap' ) );
-
             var rootModel = new osg.Node();
             rootModel.addChild( group );
             return Q( rootModel );
@@ -710,12 +798,6 @@ window.modelConfig = ( function () {
             var callbackModel = function ( model ) {
 
                 var defer = Q.defer();
-
-                model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 0, 'albedoMap' ) );
-                model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 1, 'roughnessMap' ) );
-                model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 2, 'normalMap' ) );
-                model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 3, 'specularMap' ) );
-                model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 4, 'aoMap' ) );
 
 
                 var prefix = '_2';
@@ -774,12 +856,6 @@ window.modelConfig = ( function () {
             var callbackModel = function ( model ) {
 
                 var defer = Q.defer();
-
-                model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 0, 'albedoMap' ) );
-                model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 1, 'roughnessMap' ) );
-                model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 2, 'normalMap' ) );
-                model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 3, 'specularMap' ) );
-                model.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 4, 'aoMap' ) );
 
                 var promises = [];
                 var base = root;
