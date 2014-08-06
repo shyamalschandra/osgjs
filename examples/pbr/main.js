@@ -144,6 +144,8 @@
 
         this.textureEnvs.solid = {
             rgbe: {
+                'abandoned_sanatorium_staircase' : 'abandoned_sanatorium_staircase_mip.png',
+                'airport' : 'airport_mip.png',
                 'Alexs_Apartment': 'Alexs_Apt_2k_mip.png',
                 'Arches_E_PineTree': 'Arches_E_PineTree_3k_mip.png',
                 'bus_garage': 'bus_garage_mip.png',
