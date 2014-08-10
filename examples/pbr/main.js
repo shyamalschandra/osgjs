@@ -80,9 +80,9 @@
         this._configGUI = {
             unroll: false,
             earlyZ: true,
-            rendering: 'solid2',
+            rendering: 'reference',
             rangeExposure: 1.0,
-            environment: 'Alexs_Apartment',
+            environment: 'abandoned_sanatorium_staircase',
             model: this._modelList[ 0 ],
             rotation: 0.0,
             textureMethod: 'RGBE',
@@ -313,17 +313,26 @@
             var config = this.textureEnvs.reference[ name ];
 
             var textures = [
-                this.readImageURL( base + 'textures/' + name + '/reference/' + config )
+                this.readImageURL( base + 'textures/' + name + '/reference/' + method + '/' + config )
             ];
 
             Q.all( textures ).then( function ( images ) {
                 var texture = this.createEnvironmnentTexture( 'environment', images[ 0 ], stateSet, 5 );
                 var textureNode = new TransformRGBE2FloatTexture( texture );
+                textureNode.init();
                 this._rootNode.addChild( textureNode );
-                var geom = osg.createTexturedQuadGeometry();
-                geom.getOrCreateStateSet().setTextureAttributeAndModes(0, textureNode._finalTexture );
-                this._rootNode.addChild( geom );
+                var geom = osg.createTexturedQuadGeometry( -10, -10, 0,
+                                                           20, 0, 0,
+                                                           0, 10, 0 );
+                geom.getOrCreateStateSet().setAttributeAndModes( new osg.CullFace('DISABLE'));
+                textureNode.getPromise().then( function( texture )  {
+                    geom.getOrCreateStateSet().setTextureAttributeAndModes( 0, texture );
+                    this._rootNode.removeChild( textureNode );
+                }.bind( this ) );
 
+                this._groupModel.setNodeMask(0);
+
+                this._rootNode.addChild( geom );
 
             }.bind( this ) );
         },
@@ -360,20 +369,7 @@
             ];
 
             Q.all( texture ).then( function ( images ) {
-                var texture = this.createEnvironmnentTexture( 'environment', images[ 0 ], stateSet, 5 );
-
-                if ( false ) {
-                    var textureNode = new TransformRGBE2FloatTexture( texture );
-                    textureNode.init();
-                    this._rootNode.addChild( textureNode );
-                    var geom = osg.createTexturedQuadGeometry( -10, -10, 0,
-                                                               20, 0, 0,
-                                                               0, 20, 0 );
-                    geom.getOrCreateStateSet().setAttributeAndModes( new osg.CullFace('DISABLE'));
-                    geom.getOrCreateStateSet().setTextureAttributeAndModes( 0, textureNode._finalTexture );
-
-                    this._rootNode.addChild( geom );
-                }
+                this.createEnvironmnentTexture( 'environment', images[ 0 ], stateSet, 5 );
 
             }.bind( this ) );
 
@@ -561,6 +557,7 @@
             var textureRGBM = textureMethod === 'RGBM' ? '#define RGBM 1' : '';
             var solid = rendering === 'solid' ? '#define SOLID 1' : '';
             var solid2 = rendering === 'solid2' ? '#define SOLID2 1' : '';
+            var reference = rendering === 'reference' ? '#define REFERENCE 1' : '';
             var prefilter = rendering === 'prefilter' ? '#define PREFILTER 1' : '';
             var nbSamples = '#define NB_SAMPLES 1';
             var unroll = config.unroll === true ? '#define UNROLL 1' : '';
@@ -568,7 +565,7 @@
             var unrollDiffuse = '';
             var unrollSpecular = '';
 
-            if ( solid !== ''  || solid2 !== '' ) {
+            if ( solid !== ''  || solid2 !== '' || reference !== '' ) {
                 nbSamples = '#define NB_SAMPLES ' + shaderType.samples.toString();
                 brute = '#define BRUT 1';
 
@@ -791,6 +788,8 @@
             var groupModel = new osg.MatrixTransform();
             this._stateSetEnvironment = groupModel.getOrCreateStateSet();
 
+            this._groupModel = groupModel;
+
             var earlyZ = new osg.Node();
             earlyZ.addChild( groupModel );
             earlyZ.getOrCreateStateSet().setAttributeAndModes( this.getShaderEarlyZ(), osg.StateAttribute.OVERRIDE | osg.StateAttribute.ON );
@@ -977,7 +976,7 @@
                 }.bind( this ) );
 
 
-                controller = gui.add( obj, 'rendering', [ 'prefilter', 'solid', 'solid2' ] );
+                controller = gui.add( obj, 'rendering', [ 'reference', 'prefilter', 'solid', 'solid2' ] );
                 controller.onChange( setShaderModel );
             }
 
@@ -1443,17 +1442,22 @@
     var TransformRGBE2FloatTexture = function ( texture ) {
         osg.Node.call( this );
         this._texture = texture;
+        this._finalTexture = undefined;
+        this._defer = Q.defer();
 
 
+        var self = this;
         var UpdateCallback = function () {
             this._done = false;
             this.update = function ( node, nodeVisitor ) {
 
                 if ( nodeVisitor.getVisitorType() === osg.NodeVisitor.UPDATE_VISITOR ) {
-                    if ( this._done )
+                    if ( this._done ) {
+                        self._defer.resolve( self._finalTexture );
                         node.setNodeMask( 0 );
-                    else
-                        this.done = true;
+                    } else {
+                        this._done = true;
+                    }
                 }
             };
         };
@@ -1462,6 +1466,10 @@
     };
 
     TransformRGBE2FloatTexture.prototype = osg.objectInherit( osg.Node.prototype, {
+
+        getPromise: function() {
+            return this._defer.promise;
+        },
 
         createSubGraph: function ( sourceTexture, destinationTexture, color ) {
             var composer = new osgUtil.Composer();
@@ -1504,10 +1512,10 @@
             var finalTexture = new osg.Texture();
             finalTexture.setTextureSize( sourceTexture.getImage().getWidth(), sourceTexture.getImage().getHeight() );
             finalTexture.setType( 'FLOAT' );
-            finalTexture.setMinFilter( 'LINEAR' );
+            //finalTexture.setMinFilter( 'LINEAR' );
+            //finalTexture.setMagFilter( 'LINEAR' );
+            finalTexture.setMinFilter( 'LINEAR_MIPMAP_LINEAR' );
             finalTexture.setMagFilter( 'LINEAR' );
-            // finalTexture.setMinFilter( 'LINEAR' );
-            // finalTexture.setMagFilter( 'LINEAR' );
 
             this._finalTexture = finalTexture;
             var composer = this.createSubGraph( sourceTexture, finalTexture, [ 5, 0, 5 ] );
