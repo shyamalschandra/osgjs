@@ -1,4 +1,4 @@
-(function() {
+( function () {
     'use strict';
 
     window.OSG.globalify();
@@ -21,8 +21,8 @@
         // we will render a textured quad on the rtt target with a fixed texture without
         // motion
         var textureQuad = osg.createTexturedQuadGeometry( 0, 0, 0,
-                                                  rttSize[ 0 ], 0, 0,
-                                                  0, rttSize[ 1 ], 0 );
+            rttSize[ 0 ], 0, 0,
+            0, rttSize[ 1 ], 0 );
         textureQuad.getOrCreateStateSet().setTextureAttributeAndMode( 0, osg.Texture.createFromURL( 'textures/sol_trauma_periph.png' ) );
         rttCamera.addChild( textureQuad );
 
@@ -31,7 +31,7 @@
         rttTargetTexture.setTextureSize( rttSize[ 0 ], rttSize[ 1 ] );
         rttTargetTexture.setMinFilter( 'LINEAR' );
         rttTargetTexture.setMagFilter( 'LINEAR' );
-        rttCamera.attachTexture( osg.FrameBufferObject.COLOR_ATTACHMENT0, rttTargetTexture, 0 );
+        rttCamera.attachTexture( osg.FrameBufferObject.COLOR_ATTACHMENT0, rttTargetTexture );
 
 
 
@@ -39,8 +39,8 @@
         // for this we will create a textured quad that will use the rtt
         // target texture
         var texturedQuadUsingTargetTexture = osg.createTexturedQuadGeometry( -25, -25, 0,
-                                                                     50, 0, 0,
-                                                                     0, 50, 0 );
+            50, 0, 0,
+            0, 50, 0 );
         texturedQuadUsingTargetTexture.getOrCreateStateSet().setTextureAttributeAndMode( 0, rttTargetTexture );
 
         var root = new osg.Node();
@@ -111,4 +111,4 @@
     //   appendScript ('../../builds/active/OSG.js');
     //   window.addEventListener('load', main, true);
     // }
-})();
+} )();

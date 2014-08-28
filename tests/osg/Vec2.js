@@ -21,6 +21,10 @@ define( [
             } )();
 
             ( function () {
+                deepEqual( Vec2.set( 2, 4, [] ), [ 2, 4 ], 'test set' );
+            } )();
+
+            ( function () {
                 deepEqual( Vec2.mult( [ 2, 4 ], 2.0, [] ), [ 4, 8 ], 'test mult' );
             } )();
 

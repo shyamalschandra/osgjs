@@ -3,8 +3,12 @@ define( [
     'osg/Transform',
     'osg/CullSettings',
     'osg/Matrix',
+    'osg/Texture',
     'osg/TransformEnums'
-], function ( MACROUTILS, Transform, CullSettings, Matrix, TransformEnums ) {
+
+], function ( MACROUTILS, Transform, CullSettings, Matrix, Texture, TransformEnums ) {
+
+    'use strict';
 
     /**
      * Camera - is a subclass of Transform which represents encapsulates the settings of a Camera.
@@ -28,6 +32,8 @@ define( [
         this.setProjectionMatrix( Matrix.create() );
         this.renderOrder = Camera.NESTED_RENDER;
         this.renderOrderNum = 0;
+
+        this._attachments = {};
     };
 
     Camera.PRE_RENDER = 0;
@@ -42,6 +48,10 @@ define( [
     Camera.prototype = MACROUTILS.objectLibraryClass( MACROUTILS.objectInehrit(
         CullSettings.prototype,
         MACROUTILS.objectInehrit( Transform.prototype, {
+
+            getAttachments: function () {
+                return this._attachments;
+            },
 
             setGraphicContext: function ( gc ) {
                 this._graphicContext = gc;
@@ -108,19 +118,20 @@ define( [
                 this.renderOrderNum = orderNum;
             },
 
-            attachTexture: function ( bufferComponent, texture, level ) {
+            attachTexture: function ( bufferComponent, texture, textureTarget ) {
                 if ( this.frameBufferObject ) {
                     this.frameBufferObject.dirty();
                 }
-                if ( level === undefined ) {
-                    level = 0;
+
+                // because before the argument was level and the spec says
+                // it must always be 0 ! is valid for 0 or undefined
+                if ( !textureTarget ) {
+                    textureTarget = Texture.TEXTURE_2D;
                 }
-                if ( this.attachments === undefined ) {
-                    this.attachments = {};
-                }
-                this.attachments[ bufferComponent ] = {
+
+                this._attachments[ bufferComponent ] = {
                     'texture': texture,
-                    'level': level
+                    'textureTarget': textureTarget
                 };
             },
 
@@ -128,10 +139,7 @@ define( [
                 if ( this.frameBufferObject ) {
                     this.frameBufferObject.dirty();
                 }
-                if ( this.attachments === undefined ) {
-                    this.attachments = {};
-                }
-                this.attachments[ bufferComponent ] = {
+                this._attachments[ bufferComponent ] = {
                     'format': internalFormat
                 };
             },

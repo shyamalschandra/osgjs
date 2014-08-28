@@ -36,6 +36,7 @@ define( [
     var Texture = function () {
         StateAttribute.call( this );
         this.setDefaultParameters();
+        this._dirtyMipmap = true;
         this._applyTexImage2DCallbacks = [];
     };
 
@@ -363,7 +364,7 @@ define( [
                 this._minFilter === gl.NEAREST_MIPMAP_LINEAR ||
                 this._minFilter === gl.LINEAR_MIPMAP_LINEAR ) {
                 gl.generateMipmap( target );
-                this._mipmapDirty = false;
+                this._dirtyMipmap = false;
             }
         },
         applyTexImage2D: function ( gl ) {
@@ -392,6 +393,9 @@ define( [
                 this._imageFormat = this._internalFormat;
             }
 
+        },
+        dirtyMipmap: function () {
+            this._dirtyMipmap = true;
         },
         apply: function ( state ) {
             var gl = state.getGraphicContext();

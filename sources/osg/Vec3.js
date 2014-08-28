@@ -14,6 +14,13 @@ define( [], function () {
             return a;
         },
 
+        set: function ( a, b, c, r ) {
+            r[ 0 ] = a;
+            r[ 1 ] = b;
+            r[ 2 ] = c;
+            return r;
+        },
+
         copy: function ( a, r ) {
             r[ 0 ] = a[ 0 ];
             r[ 1 ] = a[ 1 ];

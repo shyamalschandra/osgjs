@@ -12,6 +12,12 @@ define( [], function () {
             return r;
         },
 
+        set: function ( a, b, r ) {
+            r[ 0 ] = a;
+            r[ 1 ] = b;
+            return r;
+        },
+
         valid: function ( a ) {
             if ( isNaN( a[ 0 ] ) ) {
                 return false;

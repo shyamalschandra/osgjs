@@ -1,27 +1,33 @@
 define( [
     'osgUtil/Composer',
-    'osgUtil/ParameterVisitor',
-    'osgUtil/Oculus',
-    'osgUtil/WebVR',
-    'osgUtil/IntersectionVisitor',
-    'osgUtil/LineSegmentIntersector',
-    'osgUtil/PolytopeIntersector',
     'osgUtil/DisplayNormalVisitor',
-    'osgUtil/DisplayGeometryVisitor'
-], function ( Composer, ParameterVisitor, Oculus, WebVR, IntersectionVisitor, LineSegmentIntersector, PolytopeIntersector, DisplayNormalVisitor, DisplayGeometryVisitor ) {
+    'osgUtil/DisplayGeometryVisitor',
+    'osgUtil/LineSegmentIntersector',
+    'osgUtil/IntersectionVisitor',
+    'osgUtil/Oculus',
+    'osgUtil/ParameterVisitor',
+    'osgUtil/PolytopeIntersector',
+    'osgUtil/TangentSpaceGenerator',
+    'osgUtil/TriangleIntersect',
+    'osgUtil/WebVR',
+
+], function ( Composer, DisplayNormalVisitor, DisplayGeometryVisitor, LineSegmentIntersector, IntersectionVisitor, Oculus, ParameterVisitor, PolytopeIntersector, TangentSpaceGenerator, TriangleIntersect, WebVR ) {
 
     'use strict';
 
     var osgUtil = {};
 
     osgUtil.Composer = Composer;
-    osgUtil.ParameterVisitor = ParameterVisitor;
-    osgUtil.Oculus = Oculus;
-    osgUtil.WebVR = WebVR;
-    osgUtil.IntersectionVisitor = IntersectionVisitor;
-    osgUtil.PolytopeIntersector = PolytopeIntersector;
-    osgUtil.LineSegmentIntersector = LineSegmentIntersector;
     osgUtil.DisplayNormalVisitor = DisplayNormalVisitor;
     osgUtil.DisplayGeometryVisitor = DisplayGeometryVisitor;
+    osgUtil.LineSegmentIntersector = LineSegmentIntersector;
+    osgUtil.IntersectionVisitor = IntersectionVisitor;
+    osgUtil.Oculus = Oculus;
+    osgUtil.ParameterVisitor = ParameterVisitor;
+    osgUtil.PolytopeIntersector = PolytopeIntersector;
+    osgUtil.TangentSpaceGenerator = TangentSpaceGenerator;
+    osgUtil.TriangleIntersect = TriangleIntersect;
+    osgUtil.WebVR = WebVR;
     return osgUtil;
+
 } );

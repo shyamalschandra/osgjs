@@ -15,6 +15,14 @@ define( [], function () {
             return a;
         },
 
+        set: function ( a, b, c, d, r ) {
+            r[ 0 ] = a;
+            r[ 1 ] = b;
+            r[ 2 ] = c;
+            r[ 3 ] = d;
+            return r;
+        },
+
         dot: function ( a, b ) {
             return a[ 0 ] * b[ 0 ] + a[ 1 ] * b[ 1 ] + a[ 2 ] * b[ 2 ] + a[ 3 ] * b[ 3 ];
         },

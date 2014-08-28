@@ -59,48 +59,78 @@ define( [
             return this._images[ face ].image;
         },
 
-        applyTexImage2DLoad: function ( gl, target, level, internalFormat, format, type, image ) {
-            if ( !image ) {
-                return false;
-            }
+        initCubemapContent: function ( gl ) {
 
-            if ( !image.isReady() ) {
-                return false;
-            }
+            var internalFormat = this._internalFormat;
 
+            this.applyTexImage2D( gl, gl.TEXTURE_CUBE_MAP_POSITIVE_X, 0, internalFormat, this._textureWidth, this._textureHeight, 0, internalFormat, gl.UNSIGNED_BYTE, null );
 
-            this.setTextureSize( image.getWidth(), image.getHeight() );
+            this.applyTexImage2D( gl, gl.TEXTURE_CUBE_MAP_NEGATIVE_X, 0, internalFormat, this._textureWidth, this._textureHeight, 0, internalFormat, gl.UNSIGNED_BYTE, null );
 
-            MACROUTILS.timeStamp( 'osgjs.metrics:texImage2d' );
-            gl.texImage2D( target, 0, internalFormat, internalFormat, type, image.getImage() );
+            this.applyTexImage2D( gl, gl.TEXTURE_CUBE_MAP_POSITIVE_Y, 0, internalFormat, this._textureWidth, this._textureHeight, 0, internalFormat, gl.UNSIGNED_BYTE, null );
+
+            this.applyTexImage2D( gl, gl.TEXTURE_CUBE_MAP_NEGATIVE_Y, 0, internalFormat, this._textureWidth, this._textureHeight, 0, internalFormat, gl.UNSIGNED_BYTE, null );
+
+            this.applyTexImage2D( gl, gl.TEXTURE_CUBE_MAP_POSITIVE_Z, 0, internalFormat, this._textureWidth, this._textureHeight, 0, internalFormat, gl.UNSIGNED_BYTE, null );
+
+            this.applyTexImage2D( gl, gl.TEXTURE_CUBE_MAP_NEGATIVE_Z, 0, internalFormat, this._textureWidth, this._textureHeight, 0, internalFormat, gl.UNSIGNED_BYTE, null );
+
             return true;
         },
 
-        _applyImageTarget: function ( gl, internalFormat, target ) {
+        applyImageTarget: function ( gl, internalFormat, target ) {
+
             var imgObject = this._images[ target ];
-            if ( !imgObject ) {
+
+            if ( !imgObject )
+                return 0;
+
+            if ( !imgObject.image.isReady() ) {
                 return 0;
             }
 
-            if ( !imgObject.dirty ) {
+            if ( !imgObject.dirty )
                 return 1;
-            }
 
-            if ( this.applyTexImage2DLoad( gl,
+            var image = imgObject.image;
+            this.setTextureSize( image.getWidth(), image.getHeight() );
+
+            this.applyTexImage2D( gl,
                 target,
                 0,
                 internalFormat,
                 internalFormat,
                 gl.UNSIGNED_BYTE,
-                imgObject.image ) ) {
-                imgObject.dirty = false;
-                if ( this._unrefImageDataAfterApply ) {
-                    delete this._images[ target ];
-                }
-                return 1;
-            }
-            return 0;
+                image.getImage() );
+
+            imgObject.dirty = false;
+
+            if ( this._unrefImageDataAfterApply )
+                delete this._images[ target ];
+
+            return 1;
         },
+
+
+        initCubemapContentImage: function ( gl ) {
+            var internalFormat = this._internalFormat;
+            var valid = 0;
+            valid += this.applyImageTarget( gl, internalFormat, gl.TEXTURE_CUBE_MAP_POSITIVE_X );
+            valid += this.applyImageTarget( gl, internalFormat, gl.TEXTURE_CUBE_MAP_NEGATIVE_X );
+
+            valid += this.applyImageTarget( gl, internalFormat, gl.TEXTURE_CUBE_MAP_POSITIVE_Y );
+            valid += this.applyImageTarget( gl, internalFormat, gl.TEXTURE_CUBE_MAP_NEGATIVE_Y );
+
+            valid += this.applyImageTarget( gl, internalFormat, gl.TEXTURE_CUBE_MAP_POSITIVE_Z );
+            valid += this.applyImageTarget( gl, internalFormat, gl.TEXTURE_CUBE_MAP_NEGATIVE_Z );
+
+            if ( valid === 6 )
+                return true;
+
+            return false;
+        },
+
+
 
         apply: function ( state ) {
             var gl = state.getGraphicContext();
@@ -112,6 +142,7 @@ define( [
                 gl.bindTexture( this._textureTarget, null );
 
             } else {
+
                 if ( !this._textureObject ) {
 
                     // must be called before init
@@ -121,18 +152,21 @@ define( [
                 }
                 this._textureObject.bind( gl );
 
-                var internalFormat = this._internalFormat;
+                var valid;
+                var keys = Object.keys( this._images );
 
-                var valid = 0;
-                valid += this._applyImageTarget( gl, internalFormat, gl.TEXTURE_CUBE_MAP_POSITIVE_X );
-                valid += this._applyImageTarget( gl, internalFormat, gl.TEXTURE_CUBE_MAP_NEGATIVE_X );
+                // no images it's must be a cubemap filled from rtt
+                if ( !keys.length ) {
 
-                valid += this._applyImageTarget( gl, internalFormat, gl.TEXTURE_CUBE_MAP_POSITIVE_Y );
-                valid += this._applyImageTarget( gl, internalFormat, gl.TEXTURE_CUBE_MAP_NEGATIVE_Y );
+                    valid = this.initCubemapContent( gl );
 
-                valid += this._applyImageTarget( gl, internalFormat, gl.TEXTURE_CUBE_MAP_POSITIVE_Z );
-                valid += this._applyImageTarget( gl, internalFormat, gl.TEXTURE_CUBE_MAP_NEGATIVE_Z );
-                if ( valid === 6 ) {
+                } else {
+
+                    valid = this.initCubemapContentImage( gl );
+
+                }
+
+                if ( valid ) {
                     this.setDirty( false );
                     this.applyFilterParameter( gl, this._textureTarget );
                     this.generateMipmap( gl, this._textureTarget );
