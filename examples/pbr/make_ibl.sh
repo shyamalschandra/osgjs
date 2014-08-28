@@ -23,9 +23,9 @@ function encodeTexture()
     local filename=$(basename "$input")
     local filename_without_extension="${filename%.*}"
 
-    mkdir -p "${outputdir}/rgbm"
-    output="${outputdir}/rgbm/${filename_without_extension}_${file_range}.png"
-    cd ~/dev/rgbx/build && ./rgbx -m rgbm -r ${file_range} "${input}" "${output}"
+#    mkdir -p "${outputdir}/rgbm"
+#    output="${outputdir}/rgbm/${filename_without_extension}_${file_range}.png"
+#    cd ~/dev/rgbx/build && ./rgbx -m rgbm -r ${file_range} "${input}" "${output}"
 
     mkdir -p "${outputdir}/rgbe"
     output="${outputdir}/rgbe/${filename_without_extension}.png"
@@ -88,6 +88,33 @@ function create_mipmap()
 }
 
 
+function convert_cubemap_face()
+{
+    local input="${1}"
+    dirdest="${2}"
+    num="${3}"
+
+    out="${dirdest}/${filename_without_extension}_${num}.tif"
+    oiiotool "${input}" --subimage "${num}" -o "${out}"
+    encodeTexture "${out}" "${dirdest}/reference"
+}
+
+function create_cubemap()
+{
+    local input="${1}"
+    dirdest="${2}"
+
+
+    convert_cubemap_face "${input}" "${dirdest}" 0
+    convert_cubemap_face "${input}" "${dirdest}" 1
+    convert_cubemap_face "${input}" "${dirdest}" 2
+    convert_cubemap_face "${input}" "${dirdest}" 3
+    convert_cubemap_face "${input}" "${dirdest}" 4
+    convert_cubemap_face "${input}" "${dirdest}" 5
+    echo "generated cubemap ${filename}"
+}
+
+
 iconvert "${input}" "/tmp/input.tif"
 generic="/tmp/input_cubemap.tif"
 cd ~/dev/envtools/ && ./envremap -o cube -n $size "/tmp/input.tif" "${generic}"
@@ -96,5 +123,6 @@ destdir="${dirname}"
 
 #create_prefiltered_specular "${generic}" "${destdir}"
 #create_prefiltered_diffuse "${generic}" "${destdir}"
-create_background "${input}" "${destdir}"
-create_mipmap "${input}" "${destdir}"
+#create_background "${input}" "${destdir}"
+#create_mipmap "${input}" "${destdir}"
+create_cubemap "${generic}" "${destdir}"

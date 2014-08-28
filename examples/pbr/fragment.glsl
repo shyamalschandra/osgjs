@@ -13,6 +13,10 @@ float MaxLOD = 0.0;
 float seed = 0.;
 float rand() { return fract(sin(seed++)*43758.5453123); }
 
+float rand2(const in vec2 co){
+    return fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453);
+}
+
 uniform sampler2D integrateBRDF;
 uniform sampler2D integrateBRDFSize;
 
@@ -26,7 +30,11 @@ uniform vec2 envDiffuseSize;
 
 uniform int flipNormalY;
 
+#ifdef REFERENCE
+uniform samplerCube environment;
+#else
 uniform sampler2D environment;
+#endif
 uniform float environmentRange;
 uniform vec2 environmentSize;
 
@@ -57,15 +65,17 @@ uniform sampler2D aoMap;
 uniform float hdrExposure;
 uniform mat4 CubemapTransform;
 
-
 #ifdef BRUT
-uniform vec2 hammersley[NB_SAMPLES];
 
-//vec3 diffuseSample[NB_SAMPLES];
-//vec4 specularSample[NB_SAMPLES];
+uniform vec2 hammersley[NB_SAMPLES];
 
 #endif
 
+
+#ifdef REFERENCE
+//uniform vec2 hammersley[NB_SAMPLES];
+#extension GL_EXT_shader_texture_lod : enable
+#endif
 
 #ifdef BACKGROUND
 
@@ -346,6 +356,13 @@ vec3 textureSpheremapRGBM(const in sampler2D texture, const in vec2 size, const 
 #ifndef BACKGROUND
 
 
+// w is either Ln or Vn
+float G1( float ndw, float k ) {
+    // One generic factor of the geometry function divided by ndw
+    // NB : We should have k > 0
+//    return 1.0 / ( ndw*(1.0-k) + k );
+    return 1.0 / mix( ndw, 1.0, k);
+}
 
 #ifdef BRUT
 
@@ -356,13 +373,6 @@ vec3 fresnel( float vdh, vec3 F0 ) {
     return F0 + (vec3(1.0 ) - F0) * sphg;
 }
 
-// w is either Ln or Vn
-float G1( float ndw, float k ) {
-    // One generic factor of the geometry function divided by ndw
-    // NB : We should have k > 0
-//    return 1.0 / ( ndw*(1.0-k) + k );
-    return 1.0 / mix( ndw, 1.0, k);
-}
 
 float visibility(float ndl,float ndv,float Roughness) {
     // Schlick with Smith-like choice of k
@@ -470,6 +480,11 @@ float probabilityGGX(float ndh, float vdh, float Roughness)
 {
     return normal_distrib(ndh, Roughness) * ndh / (4.0*vdh);
 }
+#ifndef REFERENCE
+vec3 tangentX;
+vec3 tangentY;
+vec3 f0;
+float NdotV, roughness, alpha, alpha2, alpha2MinusOne, alpha05;
 
 vec3 solid( const in mat3 iblTransform, const in vec3 normal, const in vec3 view ) {
 
@@ -547,14 +562,9 @@ vec3 solid( const in mat3 iblTransform, const in vec3 normal, const in vec3 view
     vec3 gammaCorrected = linearTosRGB( contrib, DefaultGamma);
     return gammaCorrected;
 }
-
+#endif
 #endif
 
-
-#ifdef SOLID2
-
-vec3 tangentX;
-vec3 tangentY;
 
 vec3 F_Schlick( const in vec3 f0, const in float vdh ) {
     // Schlick with Spherical Gaussian approximation
@@ -565,21 +575,28 @@ vec3 F_Schlick( const in vec3 f0, const in float vdh ) {
 //    return f0 + (vec3(1.0 ) - f0) * sphg;
 }
 
+
 float G_SmithGGX(const in float NdotL, const in float NdotV, const in float roughness) {
     // cf http://blog.selfshadow.com/publications/s2013-shading-course/karis/s2013_pbs_epic_notes_v2.pdf p3
     // visibility is a Cook-Torrance geometry function divided by (n.l)*(n.v)
     float k = roughness * roughness * 0.5;
     return NdotL * NdotV * G1(NdotL,k) * G1(NdotV,k);
 }
-float G_SmithGGX2(const in float NdotL, const in float NdotV, const in float roughness) {
-    float k = roughness * roughness * 0.5;
-    return G1(NdotL,k) * G1(NdotV,k);
-}
 
 float D_GGX( const in float NdotH, const in float roughness) {
     float alpha = roughness * roughness;
     float tmp = alpha / (NdotH*NdotH*(alpha*alpha-1.0)+1.0);
     return tmp * tmp * INV_PI;
+}
+
+
+#ifdef SOLID2
+
+
+
+float G_SmithGGX2(const in float NdotL, const in float NdotV, const in float roughness) {
+    float k = roughness * roughness * 0.5;
+    return G1(NdotL,k) * G1(NdotV,k);
 }
 
 
@@ -635,7 +652,6 @@ vec3 evaluateIBLDiffuseOptim(const in mat3 iblTransform, const in vec3 N ) {
     vec3 dir, L;
     float pdf, lod, NdotL;
 
-#ifdef UNROLL
     vec2 u;
     for ( int i = 1; i < NB_SAMPLES; i++ ) {
         u = hammersley[i];
@@ -655,19 +671,10 @@ vec3 evaluateIBLDiffuseOptim(const in mat3 iblTransform, const in vec3 N ) {
 
         diffuseOptimContrib += texturePanoramicGenericLodAdd( dir, lod );
     }
-
-#else
-
-UNROLL_LOOP_DIFFUSE
-
-#endif
-
 #endif
 	return diffuseOptimContrib;
 }
 
-vec3 f0;
-float NdotV, roughness, alpha, alpha2, alpha2MinusOne, alpha05;
 
 
 void evaluateIBLSpecularOptimSample0(const in mat3 iblTransform, const in vec3 N, const in vec3 V, out vec3 color ) {
@@ -807,7 +814,6 @@ void evaluateIBLSpecularOptim(const in mat3 iblTransform, const in vec3 N, const
     if ( G1NdotV < 1e-5 )
         return;
 
-#ifndef UNROLL
     float phi;
     vec2 u;
     const float horizonFade = 1.3;
@@ -833,11 +839,6 @@ void evaluateIBLSpecularOptim(const in mat3 iblTransform, const in vec3 N, const
 //        factor = 1.0;
         contrib += evaluateIBLSpecularOptimSampleX(L, H, G1NdotV, iblTransform, N, V) * factor;
     }
-#else
-UNROLL_LOOP_SPECULAR
-    // contrib += evaluateIBLSpecularOptimSampleX( H, iblTransform, N, V );
-
-#endif
 #endif
 
 }
@@ -886,15 +887,94 @@ vec3 evaluateIBLOptim( const in mat3 iblTransform, const in vec3 N, const in vec
 }
 
 
-vec3 evaluateSpecularIBL( const in mat3 iblTransform, const in vec3 N, const in vec3 V ) {
+
+vec3 solid2( const in mat3 iblTransform, const in vec3 normal, const in vec3 view) {
+
+    MaxLOD = log ( environmentSize[0] ) * INV_LOG2 - 1.0;
+    vec3 color = nullVec3;
+
+    //vectors used for importance sampling
+    vec3 tangent = normalize(osg_FragTangent.xyz);
+    vec3 binormal = osg_FragTangent.w * cross(normal, tangent);
+    tangentX = normalize(tangent - normal*dot(tangent, normal)); // local tangent
+    tangentY = normalize(binormal  - normal*dot(binormal, normal)  - tangentX*dot(binormal, tangentX)); // local bitange
+
+    //     mat3 ibl = mat3( 1.0, 0.0, 0.0,
+    //                      0.0, 1.0, 0.0,
+    //                      0.0, 0.0, 1.0);
+    mat3 ibl = iblTransform;
+    //color += evaluateDiffuseIBL(ibl, normal, view );
+    //color += evaluateSpecularIBL(ibl, normal, view );
+    color += evaluateIBLOptim( ibl, normal, view ) * hdrExposure;
+    return linearTosRGB( color, DefaultGamma);
+}
+#endif
+
+#ifdef REFERENCE
+
+
+vec2 getSample(const in int i ) {
+    vec2 u;
+    u[0] = rand2(vec2( float(i) * 1.0 ) );
+    u[1] = rand2(vec2( float(i) * 3.5 ) );
+    return u;
+}
+
+vec3 evaluateDiffuseIBL( const in mat3 iblTransform, const in vec3 N, const in vec3 V,
+                         const in vec3 tangentX,
+                         const in vec3 tangentY
+    ) {
+
+    vec3 contrib = vec3(0.0);
+    vec2 u;
+    for ( int i = 0; i < NB_SAMPLES; i++ ) {
+
+        // get sample
+        vec2 u = getSample( i );
+        //vec2 u = hammersley[i];
+
+        // compute L vector from importance sampling with cos
+        float phi = PI_2*u.x;
+        float cosT = sqrt( 1.0 - u.y );
+        float sinT = sqrt( 1.0 - cosT * cosT );
+        vec3 L = sinT* cos(phi ) * tangentX + ( sinT* sin(phi) ) * tangentY + cosT * N;
+
+        float NdotL = dot( L, N );
+
+        if ( NdotL > 0.0 ) {
+
+            // compute pdf
+            float pdf = NdotL * INV_PI;
+
+            vec3 dir = iblTransform * L;
+            vec3 texel = textureCubeLodEXT(environment, dir, 0.0 ).rgb;
+
+            contrib += texel * NdotL / pdf;
+        }
+    }
+
+    contrib *= 1.0 / float(NB_SAMPLES);
+    return contrib;
+}
+
+vec3 evaluateSpecularIBL( const in mat3 iblTransform,
+                          const in vec3 N,
+                          const in vec3 V,
+                          const in vec3 tangentX,
+                          const in vec3 tangentY,
+
+                          const in float roughness_,
+                          const in vec3 specular
+    ) {
 
     vec3 contrib = vec3(0.0);
     // if dont simplify the math you can get a rougness of 0 and it will
     // produce an error on D_GGX / 0.0
-    float roughness = max( MaterialRoughness, 0.015);
-    //float roughness = MaterialRoughness;
+    float roughness = max( roughness_, 0.015);
+    // float roughness = MaterialRoughness;
 
-    vec3 f0 = MaterialSpecular;
+    //vec3 f0 = MaterialSpecular;
+    vec3 f0 = specular;
 
 
     float NdotV = max( 0.0, dot(V, N));
@@ -907,7 +987,8 @@ vec3 evaluateSpecularIBL( const in mat3 iblTransform, const in vec3 N, const in 
 
     for ( int i = 0; i < NB_SAMPLES; i++ ) {
 
-        vec2 u = hammersley[i];
+        // get sample
+        vec2 u = getSample( i );
 
         // GGX NDF sampling
         float cosThetaH = sqrt( (1.0-u.y) / (1.0 + alpha2MinusOne * u.y) );
@@ -938,9 +1019,7 @@ vec3 evaluateSpecularIBL( const in mat3 iblTransform, const in vec3 N, const in 
         //   pdf = D(H) . (N.H) / ( 4 (L.H) )
 
 
-        // float D         = D_GGX(NdotH, roughness);
-        float tmp = alpha / ( NdotH * NdotH*( alpha2MinusOne ) + 1.0);
-        float D = tmp * tmp * INV_PI;
+        float D         = D_GGX(NdotH, roughness);
 
         float pdfH      = D * NdotH;
         float pdf       = pdfH / (4.0 * LdotH);
@@ -951,32 +1030,19 @@ vec3 evaluateSpecularIBL( const in mat3 iblTransform, const in vec3 N, const in 
 
 
         // Geometry  G(V, L )
-        // float G     = G_SmithGGX(NdotL, NdotV, roughness);
+        float G     = G_SmithGGX(NdotL, NdotV, roughness);
         // cf http://blog.selfshadow.com/publications/s2013-shading-course/karis/s2013_pbs_epic_notes_v2.pdf p3
-        float k = alpha * 0.5;
-        // NdotL and NdotV can be simplifided later because of the weight / pdf
-        // float G = NdotL * NdotV * G1(NdotL,k) * G1(NdotV,k);
-        float Goptim = G1(NdotL,k) * G1(NdotV,k);
 
         // original weight
-        // vec3 weight = F * G * D / (4.0 * NdotV);
-        // optimized weight because of the weight * 1.0/pdf
-        vec3 weight = F * ( Goptim * LdotH * NdotL / NdotH );
+        vec3 weight = F * G * D / (4.0 * NdotV);
 
         if ( NdotL > 0.0 && pdf > 0.0 )
         {
-            //contrib += g_IBL.SampleLevel(sampler, L, 0).rgb * weight / pdf;
-
-            float lod = roughness < 0.01 ? 0.0: computeLOD( L, pdf );
-
             // could we remove the transform ?
             vec3 dir = iblTransform * L;
+            vec3 color = textureCubeLodEXT(environment, dir, 0.0 ).rgb;
 
-            vec3 color;
-            texturePanoramicGenericLod( dir, lod, color );
-
-            //contrib += color * weight / pdf;
-            contrib += color * weight;
+            contrib += (color * weight) * (1.0 / pdf);
         }
     }
 
@@ -985,41 +1051,50 @@ vec3 evaluateSpecularIBL( const in mat3 iblTransform, const in vec3 N, const in 
 }
 
 
-vec3 evaluateDiffuseIBL( const in mat3 iblTransform, const in vec3 N, const in vec3 V ) {
+void computeTangentFrame( const in vec4 tangent, const in vec3 normal,
+                          out vec3 tangentx,
+                          out vec3 tangenty
+    ) {
 
-    vec3 contrib = vec3(0.0);
+    // Build local referential
+#ifdef NO_TANGENT
+    vec3 upVector = abs(normal.z) < 0.999 ? vec3(0.0,1.0,0.0) : vec3(1.0,0.0,0.0);
+    tangentX = normalize( cross( upVector, normal ) );
+    tangentY = cross( normal, tangentX );
 
-    for ( int i = 0; i < NB_SAMPLES; i++ ) {
+#else
 
-        // get sample
-        vec2 u = hammersley[i];
+    vec3 tang = normalize(tangent.xyz);
+    vec3 binormal = tangent.w * cross(normal, tang);
+    tangentx = normalize(tang - normal*dot(tang, normal)); // local tangent
+    tangenty = normalize(binormal  - normal*dot(binormal, normal)  - tang*dot(binormal, tangentx)); // local bitange
+#endif
 
-        // compute L vector from importance sampling with cos
-        float phi = PI_2*u.x;
-        float cosT = sqrt( 1.0 - u.y );
-        float sinT = sqrt( 1.0 - cosT * cosT );
-        vec3 L = sinT* cos(phi ) * tangentX + ( sinT* sin(phi) ) * tangentY + cosT * N;
-
-
-        float NdotL = dot( L, N );
-
-        // compute pdf to get the good lod
-        float pdf = max( 0.0, NdotL * INV_PI );
-
-        float lod = computeLOD(L, pdf);
-        vec3 dir = iblTransform * L;
-
-        vec3 texel;
-        texturePanoramicGenericLod( dir, lod, texel );
-
-        contrib += texel;
-    }
-
-    contrib *= MaterialAlbedo * MaterialAO / float(NB_SAMPLES);
-    return contrib;
 }
 
-vec3 solid2( const in mat3 iblTransform, const in vec3 normal, const in vec3 view) {
+vec3 referenceIBL( const in mat3 iblTransform, const in vec3 normal, const in vec3 view) {
+
+    vec3 color = nullVec3;
+
+    //vectors used for importance sampling
+    vec3 tangentX, tangentY;
+    computeTangentFrame(osg_FragTangent, normal, tangentX, tangentY );
+
+    mat3 ibl = iblTransform;
+    color += MaterialAlbedo * evaluateDiffuseIBL(ibl, normal, view,
+                                                 tangentX,
+                                                 tangentY);
+    color += evaluateSpecularIBL(ibl, normal, view,
+                                 tangentX,
+                                 tangentY,
+                                 MaterialRoughness,
+                                 MaterialSpecular);
+    //color += evaluateIBLOptim( ibl, normal, view ) * hdrExposure;
+    return linearTosRGB(  ( MaterialAO * color ) * hdrExposure, DefaultGamma);
+}
+
+#if 0
+vec3 referenceIBL( const in mat3 iblTransform, const in vec3 normal, const in vec3 view) {
 
     MaxLOD = log ( environmentSize[0] ) * INV_LOG2 - 1.0;
     vec3 color = nullVec3;
@@ -1034,13 +1109,14 @@ vec3 solid2( const in mat3 iblTransform, const in vec3 normal, const in vec3 vie
     //                      0.0, 1.0, 0.0,
     //                      0.0, 0.0, 1.0);
     mat3 ibl = iblTransform;
-    //color += evaluateDiffuseIBL(ibl, normal, view );
-    //color += evaluateSpecularIBL(ibl, normal, view );
-    color += evaluateIBLOptim( ibl, normal, view ) * hdrExposure;
-    return linearTosRGB( color, DefaultGamma);
+    color += evaluateDiffuseIBL(ibl, normal, view );
+    color += evaluateSpecularIBL(ibl, normal, view );
+    //color += evaluateIBLOptim( ibl, normal, view ) * hdrExposure;
+    return linearTosRGB(  ( MaterialAO * color ) * hdrExposure, DefaultGamma);
 }
 #endif
 
+#endif
 
 
 
@@ -1147,6 +1223,9 @@ void pbr(void) {
 #endif
 
     vec4 result;
+#ifdef REFERENCE
+    result = vec4( referenceIBL( iblTransform, MaterialNormal, -E ), 1.0);
+#endif
 #ifdef SOLID
     result = vec4( solid( iblTransform, MaterialNormal, -E ), 1.0);
 #endif

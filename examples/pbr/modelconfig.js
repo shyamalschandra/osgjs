@@ -2,6 +2,7 @@ window.modelConfig = ( function () {
     'use strict';
 
     var osg = window.OSG.osg;
+    var osgUtil = window.OSG.osgUtil;
     var Q = window.Q;
 
 
@@ -679,11 +680,13 @@ window.modelConfig = ( function () {
             mapNormal: false,
             mapSpecular: true,
             mapAmbientOcclusion: false,
-            mapGlossiness: false
+            mapGlossiness: false,
+            noTangent: true
         },
         init: function () {
 
             var nbMaterials = 8;
+            nbMaterials = 1;
 
             var createConfig = function ( albedo, specular ) {
 
@@ -700,7 +703,10 @@ window.modelConfig = ( function () {
             };
 
 
-
+            var materialsConfig2 = [ {
+                specular: [ 0.5, 0.5, 0.5 ], // plastic
+                albedo: [ 0.6, 0.0, 0.0 ]
+            }];
             var materialsConfig = [ {
                     specular: [ 0.5, 0.5, 0.5 ], // plastic
                     albedo: [ 0.6, 0.0, 0.0 ]
@@ -735,7 +741,8 @@ window.modelConfig = ( function () {
             var group = new osg.Node();
 
 
-            materialsConfig.forEach( function ( material, index ) {
+            //materialsConfig.forEach( function ( material, index ) {
+            materialsConfig2.forEach( function ( material, index ) {
                 var radius = 10.0;
                 var offset = 5;
 
@@ -746,6 +753,8 @@ window.modelConfig = ( function () {
 
                     var segment = 80;
                     var sphere = osg.createTexturedSphere( radius, segment, segment / 2 );
+                    var tg = new osgUtil.TangentSpaceGenerator();
+                    tg.generate( sphere, 0 );
 
                     var color = config.albedo.slice( 0 );
                     color[ 3 ] = 1.0;
@@ -764,6 +773,7 @@ window.modelConfig = ( function () {
                     transform.setMatrix( osg.Matrix.makeTranslate( index * ( 2 * radius + offset ), 0, 0, osg.Matrix.create() ) );
                     transform.addChild( sphere );
                     subgroup.addChild( transform );
+
                 }.bind( this ) );
                 group.addChild( subgroup );
 
