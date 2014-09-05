@@ -340,7 +340,7 @@
                     }.bind( this ) );
 
 
-                    var geom = new PanoramaRGBEToCubemapFloat( textures );
+                    var geom = new TextureListRGBEToCubemapFloat( textures );
                     var w = geom._width;
                     var h = geom._height;
                     var camera = new osg.Camera();
@@ -359,23 +359,6 @@
                         this._referenceTextureFloat[name] = textureCubemap;
 
                     }.bind( this ));
-
-
-                    if ( false ) {
-                        // convert all texture to a cubemap float mipmapped
-                        var textureNode = new TransformTextureListToFloatCubemap( textures );
-                        textureNode.init();
-                        this._rootNode.addChild( textureNode );
-
-                        textureNode.getPromise().then( function( textureCubemap )  {
-
-                            stateSet.setTextureAttributeAndModes( unit, textureCubemap );
-                            this._rootNode.removeChild( textureNode );
-
-                            this._referenceTextureFloat[name] = textureCubemap;
-
-                        }.bind( this ));
-                    }
 
                 }.bind ( this ) );
 
@@ -1497,13 +1480,12 @@
 
 
     // convert rgbe image to float texture
-    var TransformRGBE2FloatTexture = function ( texture, dest, textureTarget ) {
+    var TextureRGBEToFloatTexture = function ( texture, dest, textureTarget ) {
         osg.Node.call( this );
         this._texture = texture;
         this._finalTexture = dest;
         this._textureTarget = textureTarget;
         this._defer = Q.defer();
-
 
         var self = this;
         var UpdateCallback = function () {
@@ -1525,7 +1507,7 @@
 
     };
 
-    TransformRGBE2FloatTexture.prototype = osg.objectInherit( osg.Node.prototype, {
+    TextureRGBEToFloatTexture.prototype = osg.objectInherit( osg.Node.prototype, {
 
         getPromise: function() {
             return this._defer.promise;
@@ -1585,71 +1567,127 @@
 
 
 
-
-
-    // convert rgbe image to float texture
-    var TransformTextureListToFloatCubemap = function ( textureList ) {
-
+    var PanoramanToPanoramaInlineMipmap = function ( texture, dest, textureTarget ) {
         osg.Node.call( this );
-        this._textureList = textureList;
-        this._finalTexture = undefined;
+        this._texture = texture;
+        this._finalTexture = dest;
+        this._textureTarget = textureTarget;
         this._defer = Q.defer();
+
+        var self = this;
+        var UpdateCallback = function () {
+            this._done = false;
+            this.update = function ( node, nodeVisitor ) {
+
+                if ( nodeVisitor.getVisitorType() === osg.NodeVisitor.UPDATE_VISITOR ) {
+                    if ( this._done ) {
+                        self._defer.resolve( self._finalTexture );
+                        node.setNodeMask( 0 );
+                    } else {
+                        this._done = true;
+                    }
+                }
+            };
+        };
+        this.setUpdateCallback( new UpdateCallback() );
     };
 
-    TransformTextureListToFloatCubemap.prototype = osg.objectInherit( osg.Node.prototype, {
+
+    PanoramanToPanoramaInlineMipmap.prototype = osg.objectInherit( osg.Node.prototype, {
 
         getPromise: function() {
             return this._defer.promise;
         },
 
+        createSubGraph: function ( sourceTexture, destinationTexture, textureTarget ) {
+            var composer = new osgUtil.Composer();
+            var reduce = new osgUtil.Composer.Filter.Custom( [
+                '#ifdef GL_ES',
+                'precision highp float;',
+                '#endif',
+
+                'uniform sampler2D source;',
+                'varying vec2 FragTexCoord0;',
+
+
+                'vec4 decodeRGBE(const in vec4 rgbe) {',
+                '    float f = pow(2.0, rgbe.w * 255.0 - (128.0 + 8.0));',
+                '    return vec4(rgbe.rgb * 255.0 * f, 1.0);',
+                '}',
+
+                'vec4 encodeRGBE(const in vec3 rgb) {',
+                '  vec4 encoded;',
+                '  float maxComponent = max(max(rgb.r, rgb.g), rgb.b );',
+                '  float fExp = ceil( log2(maxComponent) );',
+                '  encoded.rgb = rgb / exp2(fExp);',
+                '  encoded.a = (fExp + 128) / 255;',
+                '  return encoded;',
+                '}',
+
+                'void main() {',
+                '  vec4 rgbe = texture2D(texture, uv );',
+                '  vec3 decode = decodeRGBE(rgbe).rgb;',
+                '  gl_FragColor = vec4(encodeRGBE( decode ));',
+                '}',
+                ''
+            ].join( '\n' ), {
+                'source': sourceTexture
+            } );
+
+            composer.addPass( reduce, destinationTexture, textureTarget );
+            composer.build();
+            return composer;
+        },
+
+        drawImplementation: function( state ) {
+
+            var gl = state.getGraphicContext();
+
+            // will be applied by stateSet
+            //state.applyAttribute( this._fbo );
+
+            var textureID = this._textureCubemap.getTextureObject().id();
+
+            for( var i = 0; i < 6; i++ ) {
+                gl.framebufferTexture2D( gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, this._textureTarget[i] , textureID, 0 );
+                var status = gl.checkFramebufferStatus( gl.FRAMEBUFFER );
+                if ( status !== 0x8CD5 ) {
+                    this._fbo._reportFrameBufferError( status );
+                }
+
+                state.applyTextureAttribute(0, this._textureSources[i]);
+
+                this.draw( state );
+            }
+
+        },
+
         init: function () {
 
+            var sourceTexture = this._texture;
+            if ( !this._finalTexture ) {
+                var finalTexture = new osg.Texture();
+                finalTexture.setTextureSize( sourceTexture.getImage().getWidth(), sourceTexture.getImage().getHeight() * 2 );
 
-            var finalTexture = new osg.TextureCubeMap();
-            finalTexture.setTextureSize( this._textureList[0].getImage().getWidth(), this._textureList[0].getImage().getHeight() );
-            finalTexture.setType( 'FLOAT' );
-            //finalTexture.setMinFilter( 'LINEAR' );
-            //finalTexture.setMagFilter( 'LINEAR' );
-            finalTexture.setMinFilter( 'LINEAR_MIPMAP_LINEAR' );
-            finalTexture.setMagFilter( 'LINEAR' );
+                // we have float linear we should prefer half float
+                finalTexture.setMinFilter( 'NEAREST' );
+                finalTexture.setMagFilter( 'NEAREST' );
 
-            this._finalTexture = finalTexture;
-
-            var textureTarget = [
-                osg.Texture.TEXTURE_CUBE_MAP_POSITIVE_X,
-                osg.Texture.TEXTURE_CUBE_MAP_NEGATIVE_X,
-                osg.Texture.TEXTURE_CUBE_MAP_POSITIVE_Y,
-                osg.Texture.TEXTURE_CUBE_MAP_NEGATIVE_Y,
-                osg.Texture.TEXTURE_CUBE_MAP_POSITIVE_Z,
-                osg.Texture.TEXTURE_CUBE_MAP_NEGATIVE_Z
-            ];
-
-
-            var promises = [];
-
-            // iter for each texture
-            var idx = 0;
-            this._textureList.forEach( function( sourceTexture ) {
-                var target = textureTarget [ idx ];
-                idx += 1;
-                var transform = new TransformRGBE2FloatTexture( sourceTexture, finalTexture, target );
-                transform.init();
-                this.addChild(transform);
-                promises.push( transform.getPromise() );
-
-            }.bind( this ) );
-
-            Q.all( promises ).then( function() {
-                this._defer.resolve( this._finalTexture );
-            }.bind( this ) );
-
+                this._finalTexture = finalTexture;
+            }
+            var composer = this.createSubGraph( sourceTexture, this._finalTexture, this._textureTarget );
+            this.addChild( composer );
         }
 
 
     } );
 
 
-    var PanoramaRGBEToCubemapFloat = function( textureSources ) {
+
+    // convert rgbe texture list into a cubemap float
+    // we could make it more generic by giving parameter
+    // like input format ( rgbe / float ) and cubemap output
+    var TextureListRGBEToCubemapFloat = function( textureSources ) {
         osg.Geometry.call( this );
 
         this._defer = Q.defer();
@@ -1711,7 +1749,7 @@
         this.initStateSet();
     };
 
-    PanoramaRGBEToCubemapFloat.prototype = osg.objectInherit( osg.Geometry.prototype, {
+    TextureListRGBEToCubemapFloat.prototype = osg.objectInherit( osg.Geometry.prototype, {
         getPromise: function() { return this._defer.promise; },
         initStateSet: function() {
             var ss = this.getOrCreateStateSet();
@@ -1754,7 +1792,6 @@
 
                 'void main() {',
                 '  vec3 decode = textureRGBE(source, FragTexCoord0).rgb;',
-                '  //gl_FragColor = vec4(vec3(1.0,0.0,1.0), 1.0);',
                 '  gl_FragColor = vec4(decode, 1.0);',
                 '}',
                 ''
