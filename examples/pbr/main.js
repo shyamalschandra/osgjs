@@ -1634,7 +1634,23 @@
                 'source': sourceTexture
             } );
 
-            composer.addPass( reduce, destinationTexture, textureTarget );
+
+            var createTexture = function( w, h ) {
+                var texture = new osg.Texture();
+                texture.setMinFilter( 'LINEAR' );
+                texture.setMagFilter( 'LINEAR' );
+                texture.setTextureWidth( w );
+                texture.setTextureHeight( h );
+                return texture;
+            };
+
+            // compute each mipmap level
+            var nbMipmapLevel = Math.log(sourceTexture.getWidth())/Math.LN2;
+            for (var i = 0; i < nbMipmapLevel; i++ ) {
+                var w = Math.pow(2, nbMipmapLevel-i);
+                var targetTexture = createTexture( w, Math.max(1, w/2) );
+                composer.addPass( reduce, targetTexture );
+            }
             composer.build();
             return composer;
         },
