@@ -1635,6 +1635,8 @@
             } );
 
 
+            // we will need to add a pixel format depending on the target plateform
+            // ideally should be float/halffloat but if not possible rgbe
             var createTexture = function( w, h ) {
                 var texture = new osg.Texture();
                 texture.setMinFilter( 'LINEAR' );
@@ -1646,36 +1648,50 @@
 
             // compute each mipmap level
             var nbMipmapLevel = Math.log(sourceTexture.getWidth())/Math.LN2;
+            var textureList = [];
+
             for (var i = 0; i < nbMipmapLevel; i++ ) {
-                var w = Math.pow(2, nbMipmapLevel-i);
-                var targetTexture = createTexture( w, Math.max(1, w/2) );
+                var w = Math.pow(2, nbMipmapLevel-i );
+                var h = Math.max(1, w/2);
+                var targetTexture = createTexture( w, h );
+                textureList.push( targetTexture );
                 composer.addPass( reduce, targetTexture );
             }
             composer.build();
-            return composer;
-        },
 
-        drawImplementation: function( state ) {
+            // now we need to mix all mipmap level into one big texture
+            // need a camera ortho
+            // place all miplevel under each other
+            var textureSize = sourceTexture.getWidth();
+            //var finalTexture = createTexture( textureSize, textureSize );
+            var camera = new osg.Camera();
+            var vp = new osg.Viewport( 0, 0, textureSize, textureSize );
+            camera.setReferenceFrame( osg.Transform.ABSOLUTE_RF );
+            camera.setViewport( vp );
+            osg.Matrix.makeOrtho( 0, textureSize, 0, textureSize, -5, 5, camera.getProjectionMatrix() );
+            camera.attachTexture( osg.FrameBufferObject.COLOR_ATTACHMENT0, destinationTexture );
 
-            var gl = state.getGraphicContext();
+            // add here each quad with good offset / size
+            var grp = new osg.Node();
+            var offsety = 0.0;
 
-            // will be applied by stateSet
-            //state.applyAttribute( this._fbo );
+            textureList.forEach( function ( texture ) {
+                var w = texture.getWidth();
+                var h = texture.getHeight(); // should w/2
+                var geom = osg.createTexturedQuadGeometry( 0, offsety, 0, w-1, 0, 0, 0, h-1, 0, 0, 0, 1, 1 );
+                geom.getOrCreateStateSet().setTextureAttributeAndModes( 0, texture );
+                geom.getOrCreateStateSet().addUniform( osg.Uniform.createVec2f( 'uSize', [ w, h ] ) );
+                offsety += h;
 
-            var textureID = this._textureCubemap.getTextureObject().id();
+                grp.addChild( geom );
+            } );
 
-            for( var i = 0; i < 6; i++ ) {
-                gl.framebufferTexture2D( gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, this._textureTarget[i] , textureID, 0 );
-                var status = gl.checkFramebufferStatus( gl.FRAMEBUFFER );
-                if ( status !== 0x8CD5 ) {
-                    this._fbo._reportFrameBufferError( status );
-                }
+            camera.addChild( grp );
 
-                state.applyTextureAttribute(0, this._textureSources[i]);
-
-                this.draw( state );
-            }
-
+            var full = new osg.Node();
+            full.addChild( composer );
+            full.addChild( camera );
+            return full;
         },
 
         init: function () {
