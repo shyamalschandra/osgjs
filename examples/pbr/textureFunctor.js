@@ -48,11 +48,14 @@ PanoramanToPanoramaInlineMipmap.prototype = osg.objectInherit( osg.Node.prototyp
             '#ifdef GL_ES',
             'precision highp float;',
             '#endif',
+            'uniform mat4 ModelViewMatrix;',
+            'uniform mat4 ProjectionMatrix;',
+
             'attribute vec3 Vertex;',
             'attribute vec2 TexCoord0;',
             'varying vec2 FragTexCoord0;',
             'void main(void) {',
-            '  gl_Position = vec4(Vertex,1.0);',
+            '  gl_Position = ProjectionMatrix * vec4(Vertex,1.0);',
             '  FragTexCoord0 = TexCoord0;',
             '}',
         ].join('\n');
@@ -79,14 +82,14 @@ PanoramanToPanoramaInlineMipmap.prototype = osg.objectInherit( osg.Node.prototyp
         return this._shader;
     },
 
-    createSubGraph: function ( sourceTexture, destinationTexture, textureTarget ) {
-        var composer = new osgUtil.Composer();
+    getOrCreateFilter: function() {
+
         var reduce = new osgUtil.Composer.Filter.Custom( [
             '#ifdef GL_ES',
             'precision highp float;',
             '#endif',
 
-            'uniform sampler2D source;',
+            'uniform sampler2D Texture0;',
             'varying vec2 FragTexCoord0;',
 
 
@@ -105,15 +108,17 @@ PanoramanToPanoramaInlineMipmap.prototype = osg.objectInherit( osg.Node.prototyp
             '}',
 
             'void main() {',
-            '  vec4 rgbe = texture2D(source, FragTexCoord0 );',
+            '  vec4 rgbe = texture2D(Texture0, FragTexCoord0 );',
             '  vec3 decode = decodeRGBE(rgbe).rgb;',
             '  gl_FragColor = vec4(encodeRGBE( decode ));',
             '}',
             ''
-        ].join( '\n' ), {
-            'source': sourceTexture
-        } );
+        ].join( '\n' ) );
+        return reduce;
+    },
 
+    createSubGraph: function ( sourceTexture, destinationTexture, textureTarget ) {
+        var composer = new osgUtil.Composer();
 
         // we will need to add a pixel format depending on the target plateform
         // ideally should be float/halffloat but if not possible rgbe
@@ -129,18 +134,29 @@ PanoramanToPanoramaInlineMipmap.prototype = osg.objectInherit( osg.Node.prototyp
 
         var sourceTextureWidth = sourceTexture.getImage().getWidth();
 
+        // the composer need it and the texture is not binded yet so
+        // it results a textureSize of 0, so to avoid this we add it manually
+        // we could imagine to improve the composer to ask for textureSize
+        // imageSize if texture size is not yet set, but it could have side effect
+        // so we do it manually here
+        sourceTexture.setTextureSize( sourceTextureWidth, sourceTextureWidth/2 );
+
         // compute each mipmap level
         var nbMipmapLevel = Math.log(sourceTextureWidth)/Math.LN2;
         var textureList = [];
+
+        composer.addPass( new osgUtil.Composer.Filter.InputTexture( sourceTexture ) );
 
         for (var i = 0; i < nbMipmapLevel; i++ ) {
             var w = Math.pow(2, nbMipmapLevel-i );
             var h = Math.max(1, w/2);
             var targetTexture = createTexture( w, h );
             textureList.push( targetTexture );
-            composer.addPass( reduce, targetTexture );
-            if ( i == 0 )
-                break;
+
+            // we could imagine to re use a filter instead of instancing one at each
+            // pass, but composer need a instance for each pass because it uses
+            // stateset on it, and if it uses a texture it can't be shared
+            composer.addPass( this.getOrCreateFilter(), targetTexture );
         }
         composer.build();
 
@@ -153,7 +169,7 @@ PanoramanToPanoramaInlineMipmap.prototype = osg.objectInherit( osg.Node.prototyp
         var vp = new osg.Viewport( 0, 0, textureSize, textureSize );
         camera.setReferenceFrame( osg.Transform.ABSOLUTE_RF );
         camera.setViewport( vp );
-        osg.Matrix.makeOrtho( 0, textureSize, 0, textureSize, -5, 5, camera.getProjectionMatrix() );
+        osg.Matrix.makeOrtho( 0, textureSize, 0,  textureSize, -5, 5, camera.getProjectionMatrix() );
         camera.setRenderOrder( osg.Camera.PRE_RENDER, 0 );
 
         camera.attachTexture( osg.FrameBufferObject.COLOR_ATTACHMENT0, destinationTexture );
@@ -165,7 +181,7 @@ PanoramanToPanoramaInlineMipmap.prototype = osg.objectInherit( osg.Node.prototyp
         textureList.forEach( function ( texture ) {
             var w = texture.getWidth();
             var h = texture.getHeight(); // should w/2
-            var geom = osg.createTexturedQuadGeometry( 0, offsety, 0, w-1, 0, 0, 0, h-1, 0, 0, 0, 1, 1 );
+            var geom = osg.createTexturedQuadGeometry( 0, offsety, 0, w, 0, 0, 0, h, 0, 0, 0, 1, 1 );
             geom.getOrCreateStateSet().setAttributeAndModes( this.getOrCreateCopyShader() );
             geom.getOrCreateStateSet().setTextureAttributeAndModes( 0, texture );
             geom.getOrCreateStateSet().addUniform( osg.Uniform.createFloat2( 'uSize', [ w, h ] ) );
