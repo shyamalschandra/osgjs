@@ -43,19 +43,148 @@
 
 
     var Example = function () {
+        this._shaderPath = '';
     };
 
     Example.prototype = {
 
 
+        readShaders: function () {
+
+            var defer = Q.defer();
+
+            var shaders = [
+                this._shaderPath + 'panoramaVertex.glsl',
+                this._shaderPath + 'panoramaFragment.glsl' ];
+
+            var promises = [];
+
+            shaders.forEach( function( shader ) {
+                promises.push( Q( $.get( shader ) ) );
+            }.bind( this ) );
+
+
+            Q.all( promises ).then( function ( args ) {
+
+                this._vertexShader = args[ 0 ];
+                this._fragmentShader = args[ 1 ];
+                defer.resolve();
+
+            }.bind( this ) );
+
+            return defer.promise;
+        },
+
+        createShader: function() {
+
+            var vertexshader = [
+                this._vertexShader
+            ].join('\n');
+
+            var fragmentshader = [
+                '#ifdef GL_FRAGMENT_PRECISION_HIGH',
+                'precision highp float;',
+                '#else',
+                'precision mediump float;',
+                '#endif',
+                this._fragmentShader
+            ].join('\n');
+
+            var program = new osg.Program(
+                new osg.Shader( 'VERTEX_SHADER', vertexshader ),
+                new osg.Shader( 'FRAGMENT_SHADER', fragmentshader ) );
+
+            return program;
+        },
+
+
+        setPanoramaTexture: function( texture, stateSet ) {
+
+            var w = texture.getWidth();
+            var name = 'uEnvironment';
+            stateSet.addUniform( osg.Uniform.createFloat2( [ w, w/2 ], name + 'Size' ) );
+            stateSet.addUniform( osg.Uniform.createInt1( 0, name ) );
+
+        },
+
+        setGlobalUniforms: function( stateSet ) {
+
+
+            stateSet.addUniform( osg.Uniform.createFloat1( 0.0, 'uLod' ) );
+
+
+        },
+
+        setupEnvironment: function( scene ) {
+
+            // create the environment sphere
+            //var geom = osg.createTexturedSphere(size, 32, 32);
+            var size = 500;
+            var geom = osg.createTexturedBoxGeometry( 0, 0, 0, size, size, size );
+            this._stateSetBackground = geom.getOrCreateStateSet();
+            geom.getOrCreateStateSet().setAttributeAndModes( new osg.CullFace( 'DISABLE' ) );
+
+            // display the environment only for pixel on depth == 1 meaning the background
+			// unfortunately win dx9 chrome and firefox doesn't get that and doesn't draw any pixel
+            //geom.getOrCreateStateSet().setAttributeAndModes( new osg.Depth( 'EQUAL', 1, 1.1, false ) );
+
+            geom.getOrCreateStateSet().setAttributeAndModes( this.getShaderBackground() );
+            this._stateSetBackground.setRenderBinDetails( 10, 'RenderBin' );
+
+            var environmentTransform = osg.Uniform.createMatrix4( osg.Matrix.makeIdentity( [] ), 'uEnvironmentTransform' );
+            var mt = new osg.MatrixTransform();
+            var CullCallback = function () {
+                this.cull = function ( node, nv ) {
+                    // overwrite matrix, remove translate so environment is always at camera origin
+                    osg.Matrix.setTrans( nv.getCurrentModelviewMatrix(), 0, 0, 0 );
+                    var m = nv.getCurrentModelviewMatrix();
+                    osg.Matrix.copy( m, environmentTransform.get() );
+                    environmentTransform.dirty();
+                    return true;
+                };
+            };
+            mt.setCullCallback( new CullCallback() );
+
+            var cam = new osg.Camera();
+            cam.setClearMask( 0x0 );
+            cam.setReferenceFrame( osg.Transform.ABSOLUTE_RF );
+            cam.addChild( mt );
+            cam.setCullCallback(new CullCallback());
+
+
+            var self = this;
+            // the update callback get exactly the same view of the camera
+            // but configure the projection matrix to always be in a short znear/zfar range to not vary depend on the scene size
+            var info = {};
+            var proj = [];
+            var UpdateCallback = function () {
+                this.update = function ( /*node, nv*/ ) {
+                    var rootCam = self._viewer.getCamera();
+
+                    osg.Matrix.getPerspective( rootCam.getProjectionMatrix(), info );
+                    osg.Matrix.makePerspective( info.fovy, info.aspectRatio, 1.0, 1000.0, proj );
+                    cam.setProjectionMatrix( proj );
+                    cam.setViewMatrix( rootCam.getViewMatrix() );
+
+                    return true;
+                };
+            };
+            cam.setUpdateCallback( new UpdateCallback() );
+            scene.addChild( cam );
+
+            return geom;
+
+
+        },
+
         createScene: function ( textureEnv ) {
 
-            var geom2 = osg.createTexturedQuadGeometry(-5,-5,0,
-                                                      10,0,0,
-                                                      0,10,0,
-                                                      0,0,
-                                                      1,1);
-            var group = new osg.Node();
+            var root = new osg.Node();
+            this.setGlobalUniforms( root.getOrCreateStateSet() );
+
+            var group = new osg.MatrixTransform();
+            group.getOrCreateStateSet().setAttributeAndModes( new osg.CullFace('DISABLE'));
+            osg.Matrix.makeRotate( Math.PI / 2 , -1,0,0,  group.getMatrix());
 
             var nodeFunctor = new PanoramanToPanoramaInlineMipmap( textureEnv );
             group.addChild( nodeFunctor );
@@ -69,20 +198,37 @@
                                                           0,0,
                                                           1,1);
 
-                geom.getOrCreateStateSet().setTextureAttributeAndModes(0, texture );
-                group.addChild( geom );
 
-            });
+                var mt = new osg.MatrixTransform();
+                var sphere = osg.createTexturedSphereGeometry( 5, 20, 20 );
+                osg.Matrix.makeTranslate( 20 ,0 ,0, mt.getMatrix() );
+                mt.addChild( sphere );
+
+                geom.getOrCreateStateSet().setTextureAttributeAndModes(0, texture );
+                sphere.getOrCreateStateSet().setTextureAttributeAndModes(0, texture );
+                sphere.getOrCreateStateSet().setAttributeAndModes( this.createShader() );
+                this.setPanoramaTexture( texture, sphere.getOrCreateStateSet() );
+
+                //mt.addchild( osg.
+
+                group.addChild( geom );
+                group.addChild( mt );
+
+            }.bind( this ));
             return group;
 
         },
 
         run: function ( canvas ) {
 
-            // use a specific texture here
-            var texture = createTextureFromPath('textures/road_in_tenerife_mountain/reference/rgbe/road_in_tenerife_mountain.png');
+            var ready = [];
 
-            texture.then( function( textureEnv ) {
+            ready.push( this.readShaders() );
+            ready.push( createTextureFromPath('textures/road_in_tenerife_mountain/reference/rgbe/road_in_tenerife_mountain.png') );
+
+            Q.all( ready).then( function( args ) {
+
+                var textureEnv = args[1];
 
                 var viewer;
                 viewer = new osgViewer.Viewer( canvas );
@@ -103,7 +249,6 @@
             }.bind( this ));
 
         }
-
 
     };
 

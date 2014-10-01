@@ -184,8 +184,8 @@ PanoramanToPanoramaInlineMipmap.prototype = osg.objectInherit( osg.Node.prototyp
             var geom = osg.createTexturedQuadGeometry( 0, offsety, 0, w, 0, 0, 0, h, 0, 0, 0, 1, 1 );
             geom.getOrCreateStateSet().setAttributeAndModes( this.getOrCreateCopyShader() );
             geom.getOrCreateStateSet().setTextureAttributeAndModes( 0, texture );
-            geom.getOrCreateStateSet().addUniform( osg.Uniform.createFloat2( 'uSize', [ w, h ] ) );
-            geom.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( 'Texture0', [ 0 ] ) );
+            geom.getOrCreateStateSet().addUniform( osg.Uniform.createFloat2( [ w, h ], 'uSize' ) );
+            geom.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( [ 0 ], 'Texture0'  ) );
             offsety += h;
 
             grp.addChild( geom );
