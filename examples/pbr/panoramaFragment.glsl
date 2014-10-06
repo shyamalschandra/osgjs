@@ -6,6 +6,7 @@
 
 uniform sampler2D uEnvironment;
 uniform vec2 uEnvironmentSize;
+uniform float uEnvironmentMaxLod;
 uniform float uLod;
 
 uniform mat4 uEnvironmentTransform;
@@ -33,9 +34,7 @@ vec4 computeUVForMipmapOld( const in float level, const in vec2 uv, const in vec
 }
 
 
-vec4 computeUVForMipmap( const in float level, const in vec2 uv, const in vec2 size ) {
-
-    float maxLOD = log ( size[0] ) * INV_LOG2;
+vec4 computeUVForMipmap( const in float level, const in vec2 uv, const in vec2 size, const in float maxLOD ) {
 
     // width for level
     float widthForLevel = pow( 2.0, maxLOD-level);
@@ -47,7 +46,7 @@ vec4 computeUVForMipmap( const in float level, const in vec2 uv, const in vec2 s
 
 
     // globally the texture is square so width = height for texture size
-    float globalOffsetV = size.x - widthForLevel; // in texel
+    float globalOffsetVInTexel = size.x - widthForLevel; // in texel
 
     float oneOnSizeX = 1.0 / size.x;
 
@@ -70,9 +69,16 @@ vec4 computeUVForMipmap( const in float level, const in vec2 uv, const in vec2 s
 
     u *= ratioU;
     v *= ratioV;
-    v += globalOffsetV * oneOnSizeX;
 
-    return vec4( u, v , ratioU, ratioV );
+    float globalOffsetV = globalOffsetVInTexel * oneOnSizeX;
+    v += globalOffsetV;
+
+    // zw contains the max box of the local mip level
+    // boxXLimit = widthForLevel * oneOnSizeX
+    // boxYLimit = (globalOffsetV + heightForLevel ) * oneOnSizeX
+    // boxYLimit = ratioV + globalOffsetV;
+
+    return vec4( u, v , ratioU, ratioV + globalOffsetV );
 }
 
 
@@ -145,8 +151,8 @@ vec3 textureRGBELinearPanoramic(const in sampler2D texture, const in vec2 size, 
 
     vec2 uvBase = floor ( uvTexelSpace ) * t;
 
-    float maxX = mod(uv.x+t.x, maxBox.x);
-    float maxY = min(uv.y+t.y, maxBox.y-t.y); // clamp to one pixel before
+    float maxX = mod(uvBase.x+t.x, maxBox.x);
+    float maxY = min(uvBase.y+t.y, maxBox.y-t.y); // clamp to one pixel before
 
     vec3 a = textureRGBE(texture, uvBase ),
          b = textureRGBE(texture, vec2( maxX, uvBase.y) ),
@@ -158,21 +164,27 @@ vec3 textureRGBELinearPanoramic(const in sampler2D texture, const in vec2 size, 
     return mix(A, B, frac.y);
 }
 
-vec3 texturePanoramicRGBELod(const in sampler2D texture, const in vec2 size , const in vec3 direction, const float lodInput ) {
+vec3 texturePanoramicRGBELod(const in sampler2D texture,
+                             const in vec2 size ,
+                             const in vec3 direction,
+                             const in float lodInput,
+                             const in float maxLOD ) {
 
+    float lod = min( maxLOD, lodInput );
     vec2 uvBase = normalToPanoramaUV( direction );
+
+    // we scale down v here because it avoid to do twice in sub functions
     uvBase.y *= 0.5;
 
-    float lod = lodInput;
     float lod0 = floor(lod);
-    vec4 uv0 = computeUVForMipmap(lod0, uvBase, size );
+    vec4 uv0 = computeUVForMipmap(lod0, uvBase, size, maxLOD );
     vec3 texel0 = textureRGBELinearPanoramic( texture, size, uv0.xy, uv0.zw);
 
     float lod1 = ceil(lod);
-    vec4 uv1 = computeUVForMipmap(lod1, uvBase, size );
+    vec4 uv1 = computeUVForMipmap(lod1, uvBase, size, maxLOD );
     vec3 texel1 = textureRGBELinearPanoramic( texture, size, uv1.xy, uv1.zw);
 
-    return mix(texel1, texel0, fract( lod ) );
+    return mix(texel0, texel1, fract( lod ) );
 }
 
 
@@ -181,7 +193,11 @@ vec3 test0( const in vec3 direction ) {
     vec2 uvBase = normalToPanoramaUV( direction );
     //vec4 uv0 = computeUVForMipmap(0.0, uvBase, uEnvironmentSize );
     //return textureRGBE( uEnvironment, uv0.xy );
-    vec3 texel = texturePanoramicRGBELod( uEnvironment, uEnvironmentSize, direction, uLod );
+    vec3 texel = texturePanoramicRGBELod( uEnvironment,
+                                          uEnvironmentSize,
+                                          direction,
+                                          uLod,
+                                          uEnvironmentMaxLod );
     return texel;
 
 }

@@ -44,6 +44,9 @@
 
     var Example = function () {
         this._shaderPath = '';
+        this._config = {
+            lod: 0.01,
+        };
     };
 
     Example.prototype = {
@@ -103,15 +106,15 @@
             var w = texture.getWidth();
             var name = 'uEnvironment';
             stateSet.addUniform( osg.Uniform.createFloat2( [ w, w/2 ], name + 'Size' ) );
+            stateSet.addUniform( osg.Uniform.createFloat1( Math.log( w )/ Math.LN2, name + 'MaxLod' ) );
             stateSet.addUniform( osg.Uniform.createInt1( 0, name ) );
 
         },
 
         setGlobalUniforms: function( stateSet ) {
 
-
-            stateSet.addUniform( osg.Uniform.createFloat1( 0.0, 'uLod' ) );
-
+            this._lod = osg.Uniform.createFloat1( 0.0, 'uLod' );
+            stateSet.addUniform( this._lod );
 
         },
 
@@ -179,14 +182,15 @@
 
         createScene: function ( textureEnv ) {
 
-            var root = new osg.Node();
-            this.setGlobalUniforms( root.getOrCreateStateSet() );
-
             var group = new osg.MatrixTransform();
+
+            this.setGlobalUniforms( group.getOrCreateStateSet() );
+
             group.getOrCreateStateSet().setAttributeAndModes( new osg.CullFace('DISABLE'));
             osg.Matrix.makeRotate( Math.PI / 2 , -1,0,0,  group.getMatrix());
 
             var nodeFunctor = new PanoramanToPanoramaInlineMipmap( textureEnv );
+
             group.addChild( nodeFunctor );
             nodeFunctor.init();
             nodeFunctor.getPromise().then ( function( texture ) {
@@ -208,8 +212,6 @@
                 sphere.getOrCreateStateSet().setTextureAttributeAndModes(0, texture );
                 sphere.getOrCreateStateSet().setAttributeAndModes( this.createShader() );
                 this.setPanoramaTexture( texture, sphere.getOrCreateStateSet() );
-
-                //mt.addchild( osg.
 
                 group.addChild( geom );
                 group.addChild( mt );
@@ -245,6 +247,14 @@
                 viewer.getManipulator().computeHomePosition();
 
                 viewer.run();
+
+
+                var gui = new window.dat.GUI();
+                var controller = gui.add( this._config, 'lod', 0.0, 15.01).step(0.1);
+                controller.onChange( function ( value ) {
+                    this._lod.get()[ 0 ] = value;
+                    this._lod.dirty();
+                }.bind( this ) );
 
             }.bind( this ));
 
