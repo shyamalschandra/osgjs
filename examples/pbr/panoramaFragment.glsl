@@ -42,54 +42,33 @@ vec4 computeUVForMipmap( const in float level, const in vec2 uv, const in vec2 s
     // the height locally for the level in pixel
     // to opimitize a bit we scale down the v by two in the inputs uv
     //float heightForLevel = widthForLevel * 0.5;
-    float heightForLevel = widthForLevel;
+
+    vec2 sizeForLevel = vec2( widthForLevel, widthForLevel - 2.0 ); // -2.0 avoid bleeding on the top
 
 
     // globally the texture is square so width = height for texture size
-    float globalOffsetVInTexel = size.x - widthForLevel; // in texel
+    float globalOffsetVInTexel = size.x - sizeForLevel.x; // in texel
 
     float oneOnSizeX = 1.0 / size.x;
-
-    // our texture is square, so each level is width x height/2
-    float u = uv[0];
-    float v = uv[1];
 
     // we will need to transform our original uv to the mipmap level space
     // to opimitize a bit we scale down the v by two in the inputs
     // it simplifies and make ratioU/V the same
-    float ratioV = heightForLevel * oneOnSizeX;
-    //float ratioU = ratioV * 2.0;
-    float ratioU = ratioV;
-
-
+    vec2 ratio = sizeForLevel * oneOnSizeX;
 
     // u = u * ratioU
-    // v = v * ratioV + offsetY / width
-    // v = v * ( widthForLevel * 0.5 / width ) + offsetY / width
-
-    u *= ratioU;
-    v *= ratioV;
+    // v = v * ratioV + offsetY / height
+    vec2 uvGlobal = uv * ratio;
 
     float globalOffsetV = globalOffsetVInTexel * oneOnSizeX;
-    v += globalOffsetV;
+    uvGlobal.y += globalOffsetV;
 
     // zw contains the max box of the local mip level
     // boxXLimit = widthForLevel * oneOnSizeX
     // boxYLimit = (globalOffsetV + heightForLevel ) * oneOnSizeX
     // boxYLimit = ratioV + globalOffsetV;
 
-    return vec4( u, v , ratioU, ratioV + globalOffsetV );
-}
-
-
-vec2 normalToPanoramaUVOld( const in vec3 dir )
-{
-    float n = length(dir.xz);
-    vec2 pos = vec2( (n>0.0000001) ? dir.x / n : 0.0, dir.y);
-    pos = acos(pos)*INV_PI;
-    pos.x = (dir.z > 0.0) ? pos.x*0.5 : 0.9999999-(pos.x*0.5);
-    //pos.y = 1.0-pos.y;
-    return pos;
+    return vec4( uvGlobal.x, uvGlobal.y, ratio.x, ratio.y + globalOffsetV );
 }
 
 vec2 normalToPanoramaUV( const in vec3 dir )
@@ -98,10 +77,14 @@ vec2 normalToPanoramaUV( const in vec3 dir )
 
     // to avoid bleeding the max(-1.0,dir.x / n) is needed
     vec2 pos = vec2( (n>0.0000001) ? max(-1.0,dir.x / n) : 0.0, dir.y);
+
+    // fix edge bleeding
+    if ( pos.x > 0.0 ) pos.x = min( 0.999999, pos.x );
+
     pos = acos(pos)*INV_PI;
 
     // to avoid bleeding the limit must be set to 0.4999999 instead of 0.5
-    pos.x = (dir.z > 0.0) ? pos.x*0.4999999 : 1.0-(pos.x*0.4999999);
+    pos.x = (dir.z > 0.0) ? pos.x*0.5 : 1.0-(pos.x*0.5);
     pos.y = 1.0-pos.y;
     return pos;
 }
