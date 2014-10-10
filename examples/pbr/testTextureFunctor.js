@@ -7,6 +7,7 @@
     var osgViewer = OSG.osgViewer;
     var osgDB = OSG.osgDB;
     var osgUtil = OSG.osgUtil;
+    var osgShader = OSG.osgShader;
     var $ = window.$;
 
     var readImageURL= function ( url, options ) {
@@ -47,6 +48,8 @@
         this._config = {
             lod: 0.01
         };
+
+        this._shaderProcessor = new osgShader.ShaderProcessor();
     };
 
     Example.prototype = {
@@ -60,7 +63,8 @@
                 this._shaderPath + 'panoramaVertex.glsl',
                 this._shaderPath + 'panoramaFragment.glsl' ,
                 this._shaderPath + 'tangentVertex.glsl',
-                this._shaderPath + 'tangentFragment.glsl'
+                this._shaderPath + 'tangentFragment.glsl',
+                this._shaderPath + 'panoramaSampler.glsl'
             ];
 
             var promises = [];
@@ -76,6 +80,14 @@
                 this._panoramaFragment = args[ 1 ];
                 this._tangentVertex = args[ 2 ];
                 this._tangentFragment = args[ 3 ];
+
+                this._shaderProcessor.addShaders( {
+                    'panoramaVertex': this._panoramaVertex,
+                    'panoramaFragment': this._panoramaFragment,
+                    'panoramaSampler.glsl': args[4]
+//                    'pbr': args[4]
+                });
+
                 defer.resolve();
 
             }.bind( this ) );
@@ -85,18 +97,8 @@
 
         createShaderPanorama: function() {
 
-            var vertexshader = [
-                this._panoramaVertex
-            ].join('\n');
-
-            var fragmentshader = [
-                '#ifdef GL_FRAGMENT_PRECISION_HIGH',
-                'precision highp float;',
-                '#else',
-                'precision mediump float;',
-                '#endif',
-                this._panoramaFragment
-            ].join('\n');
+            var vertexshader = this._shaderProcessor.getShader('panoramaVertex');
+            var fragmentshader = this._shaderProcessor.getShader('panoramaFragment');
 
             var program = new osg.Program(
                 new osg.Shader( 'VERTEX_SHADER', vertexshader ),
