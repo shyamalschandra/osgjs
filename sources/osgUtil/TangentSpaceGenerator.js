@@ -60,6 +60,9 @@ define( [
 
             this._texCoordUnit = texCoordUnit;
 
+            if ( this._texCoordUnit === undefined )
+                this._texCoordUnit = 0;
+
             var size = geometry.getAttributes().Vertex.getElements().length;
             this._T = new osg.Float32Array( size );
             this._B = new osg.Float32Array( size );
@@ -83,7 +86,7 @@ define( [
                 var n = this._N.subarray( i * 3, i * 3 + 3 );
                 var b = this._B.subarray( i * 3, i * 3 + 3 );
 
-                Vec3.normalize( n, n);
+                Vec3.normalize( n, n );
 
                 // Gram-Schmidt orthogonalize
                 // Vec3 t3 = (t - n * (n * t));
@@ -119,17 +122,17 @@ define( [
             var i1 = primitiveSet.index( ib );
             var i2 = primitiveSet.index( ic );
 
-            var P1 = vx.getElements().subarray( i0*3, i0*3+3 );
-            var P2 = vx.getElements().subarray( i1*3, i1*3+3 );
-            var P3 = vx.getElements().subarray( i2*3, i2*3+3 );
+            var P1 = vx.getElements().subarray( i0 * 3, i0 * 3 + 3 );
+            var P2 = vx.getElements().subarray( i1 * 3, i1 * 3 + 3 );
+            var P3 = vx.getElements().subarray( i2 * 3, i2 * 3 + 3 );
 
-            var N1 = nx.getElements().subarray( i0*3, i0*3 + 3);
-            var N2 = nx.getElements().subarray( i1*3, i1*3 + 3);
-            var N3 = nx.getElements().subarray( i2*3, i2*3 + 3);
+            var N1 = nx.getElements().subarray( i0 * 3, i0 * 3 + 3 );
+            var N2 = nx.getElements().subarray( i1 * 3, i1 * 3 + 3 );
+            var N3 = nx.getElements().subarray( i2 * 3, i2 * 3 + 3 );
 
-            var uv1 = tx.getElements().subarray( i0*2, i0*2+ 2 );
-            var uv2 = tx.getElements().subarray( i1*2, i1*2+ 2 );
-            var uv3 = tx.getElements().subarray( i2*2, i2*2+ 2 );
+            var uv1 = tx.getElements().subarray( i0 * 2, i0 * 2 + 2 );
+            var uv2 = tx.getElements().subarray( i1 * 2, i1 * 2 + 2 );
+            var uv3 = tx.getElements().subarray( i2 * 2, i2 * 2 + 2 );
 
             var vz, vy;
             var V = Vec3.create();

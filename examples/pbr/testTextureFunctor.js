@@ -45,7 +45,7 @@
     var Example = function () {
         this._shaderPath = '';
         this._config = {
-            lod: 0.01,
+            lod: 0.01
         };
     };
 
@@ -58,7 +58,10 @@
 
             var shaders = [
                 this._shaderPath + 'panoramaVertex.glsl',
-                this._shaderPath + 'panoramaFragment.glsl' ];
+                this._shaderPath + 'panoramaFragment.glsl' ,
+                this._shaderPath + 'tangentVertex.glsl',
+                this._shaderPath + 'tangentFragment.glsl'
+            ];
 
             var promises = [];
 
@@ -69,8 +72,10 @@
 
             Q.all( promises ).then( function ( args ) {
 
-                this._vertexShader = args[ 0 ];
-                this._fragmentShader = args[ 1 ];
+                this._panoramaVertex = args[ 0 ];
+                this._panoramaFragment = args[ 1 ];
+                this._tangentVertex = args[ 2 ];
+                this._tangentFragment = args[ 3 ];
                 defer.resolve();
 
             }.bind( this ) );
@@ -78,10 +83,10 @@
             return defer.promise;
         },
 
-        createShader: function() {
+        createShaderPanorama: function() {
 
             var vertexshader = [
-                this._vertexShader
+                this._panoramaVertex
             ].join('\n');
 
             var fragmentshader = [
@@ -90,7 +95,30 @@
                 '#else',
                 'precision mediump float;',
                 '#endif',
-                this._fragmentShader
+                this._panoramaFragment
+            ].join('\n');
+
+            var program = new osg.Program(
+                new osg.Shader( 'VERTEX_SHADER', vertexshader ),
+                new osg.Shader( 'FRAGMENT_SHADER', fragmentshader ) );
+
+            return program;
+        },
+
+
+        createShaderTangentSpace: function() {
+
+            var vertexshader = [
+                this._tangentVertex
+            ].join('\n');
+
+            var fragmentshader = [
+                '#ifdef GL_FRAGMENT_PRECISION_HIGH',
+                'precision highp float;',
+                '#else',
+                'precision mediump float;',
+                '#endif',
+                this._tangentFragment
             ].join('\n');
 
             var program = new osg.Program(
@@ -176,18 +204,37 @@
             scene.addChild( cam );
 
             return geom;
+        },
 
+        createModelMaterialSample: function() {
+
+            var request = osgDB.readNodeURL('modeltest/file.osgjs' );
+
+            Q.when( request, function( model ) {
+
+                var mt = new osg.MatrixTransform();
+                osg.Matrix.makeRotate( Math.PI/2 , 1,0,0, mt.getMatrix() );
+                var bb = model.getBound();
+                osg.Matrix.mult( osg.Matrix.makeTranslate( 0, -bb.radius()/2, 0, osg.Matrix.create() ), mt.getMatrix(), mt.getMatrix() );
+                mt.addChild( model );
+                this._modeltest = mt;
+
+            }.bind( this ));
+
+            return request;
 
         },
 
-        createScene: function ( textureEnv ) {
+        getModelTestInstance: function() {
+            var mt = new osg.MatrixTransform();
+            mt.addChild( this._modeltest );
+            //mt.getOrCreateStateSet().setAttributeAndModes( this.createShaderTangentSpace() );
+            return mt;
+        },
 
-            var group = new osg.MatrixTransform();
+        createScenePanoramaRGBE: function( textureEnv ) {
 
-            this.setGlobalUniforms( group.getOrCreateStateSet() );
-
-            group.getOrCreateStateSet().setAttributeAndModes( new osg.CullFace('DISABLE'));
-            osg.Matrix.makeRotate( Math.PI / 2 , -1,0,0,  group.getMatrix());
+            var group = new osg.Node();
 
             var nodeFunctor = new PanoramanToPanoramaInlineMipmap( textureEnv );
 
@@ -208,9 +255,13 @@
                 osg.Matrix.makeTranslate( 20 ,0 ,0, mt.getMatrix() );
                 mt.addChild( sphere );
 
-                geom.getOrCreateStateSet().setTextureAttributeAndModes(0, texture );
-                sphere.getOrCreateStateSet().setTextureAttributeAndModes(0, texture );
-                sphere.getOrCreateStateSet().setAttributeAndModes( this.createShader() );
+                var sample = this.getModelTestInstance();
+                osg.Matrix.makeTranslate( 40 ,0 ,0, sample.getMatrix() );
+
+                group.addChild( sample );
+
+                group.getOrCreateStateSet().setTextureAttributeAndModes(0, texture );
+                sphere.getOrCreateStateSet().setAttributeAndModes( this.createShaderPanorama() );
                 this.setPanoramaTexture( texture, sphere.getOrCreateStateSet() );
 
                 group.addChild( geom );
@@ -221,12 +272,28 @@
 
         },
 
+        createScene: function ( textureEnv ) {
+
+            var group = new osg.MatrixTransform();
+
+            this.setGlobalUniforms( group.getOrCreateStateSet() );
+
+            group.getOrCreateStateSet().setAttributeAndModes( new osg.CullFace('DISABLE'));
+            osg.Matrix.makeRotate( Math.PI / 2 , -1,0,0,  group.getMatrix());
+
+            group.addChild( this.createScenePanoramaRGBE( textureEnv ) );
+
+            return group;
+
+        },
+
         run: function ( canvas ) {
 
             var ready = [];
 
             ready.push( this.readShaders() );
             ready.push( createTextureFromPath('textures/road_in_tenerife_mountain/reference/rgbe/road_in_tenerife_mountain.png') );
+            ready.push( this.createModelMaterialSample() );
 
             Q.all( ready).then( function( args ) {
 

@@ -171,18 +171,15 @@ vec3 texturePanoramicRGBELod(const in sampler2D texture,
 }
 
 
+// environment rgbe lod inline
 vec3 test0( const in vec3 direction ) {
-    //return texture2D(uEnvironment, osg_FragTexCoord0 ).rgb;
     vec2 uvBase = normalToPanoramaUV( direction );
-    //vec4 uv0 = computeUVForMipmap(0.0, uvBase, uEnvironmentSize );
-    //return textureRGBE( uEnvironment, uv0.xy );
     vec3 texel = texturePanoramicRGBELod( uEnvironment,
                                           uEnvironmentSize,
                                           direction,
                                           uLod,
                                           uEnvironmentMaxLod );
     return texel;
-
 }
 
 mat3 getEnvironmentTransfrom( mat4 transform ) {
