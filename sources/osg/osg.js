@@ -44,7 +44,6 @@ define( [
     'osg/RenderBin',
     'osg/RenderStage',
     'osg/Shader',
-    'osg/ShaderGenerator',
     'osg/Shape',
     'osg/Stack',
     'osg/State',
@@ -65,7 +64,7 @@ define( [
     'osgUtil/osgPool',
     'osg/TransformEnums',
     'osg/WebGLCaps'
-], function( BlendColor, BlendFunc, BoundingBox, BoundingSphere, BufferArray, ColorMask, Camera, ComputeMatrixFromNodePath, CullFace, CullSettings, CullStack, CullVisitor, Depth, DrawArrayLengths, DrawArrays, DrawElements, EllipsoidModel, FrameBufferObject, FrameStamp, Geometry, Image, KdTree, KdTreeBuilder, Light, LightSource, LineWidth, Lod, Map, Material, Math, Matrix, MatrixTransform, Node, NodeVisitor, Notify, Object, PagedLOD, PrimitiveFunctor, PrimitiveSet, Program, Projection, Quat, RenderBin, RenderStage, Shader, ShaderGenerator, Shape, Stack, State, StateAttribute, StateGraph, StateSet, Texture, TextureCubeMap, Transform, TriangleIndexFunctor, Uniform, UpdateVisitor, MACROUTILS, Vec2, Vec3, Vec4, Viewport, osgPool, TransformEnums, WebGLCaps ) {
+], function( BlendColor, BlendFunc, BoundingBox, BoundingSphere, BufferArray, ColorMask, Camera, ComputeMatrixFromNodePath, CullFace, CullSettings, CullStack, CullVisitor, Depth, DrawArrayLengths, DrawArrays, DrawElements, EllipsoidModel, FrameBufferObject, FrameStamp, Geometry, Image, KdTree, KdTreeBuilder, Light, LightSource, LineWidth, Lod, Map, Material, Math, Matrix, MatrixTransform, Node, NodeVisitor, Notify, Object, PagedLOD, PrimitiveFunctor, PrimitiveSet, Program, Projection, Quat, RenderBin, RenderStage, Shader, Shape, Stack, State, StateAttribute, StateGraph, StateSet, Texture, TextureCubeMap, Transform, TriangleIndexFunctor, Uniform, UpdateVisitor, MACROUTILS, Vec2, Vec3, Vec4, Viewport, osgPool, TransformEnums, WebGLCaps ) {
 
     var osg = {};
 

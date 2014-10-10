@@ -7,8 +7,9 @@ define( [
     'osgUtil/Oculus',
     'osgUtil/ParameterVisitor',
     'osgUtil/PolytopeIntersector',
+    'osgUtil/PolytopePrimitiveIntersector',
     'osgUtil/TangentSpaceGenerator',
-    'osgUtil/TriangleIntersect',
+    'osgUtil/TriangleIntersector',
     'osgUtil/WebVR',
 
 ], function ( Composer, DisplayNormalVisitor, DisplayGeometryVisitor, LineSegmentIntersector, IntersectionVisitor, Oculus, ParameterVisitor, PolytopeIntersector, TangentSpaceGenerator, TriangleIntersect, WebVR ) {
