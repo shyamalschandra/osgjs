@@ -64,7 +64,8 @@
                 this._shaderPath + 'panoramaFragment.glsl' ,
                 this._shaderPath + 'tangentVertex.glsl',
                 this._shaderPath + 'tangentFragment.glsl',
-                this._shaderPath + 'panoramaSampler.glsl'
+                this._shaderPath + 'panoramaSampler.glsl',
+                this._shaderPath + 'panoramaDebugFragment.glsl'
             ];
 
             var promises = [];
@@ -84,7 +85,8 @@
                 this._shaderProcessor.addShaders( {
                     'panoramaVertex': this._panoramaVertex,
                     'panoramaFragment': this._panoramaFragment,
-                    'panoramaSampler.glsl': args[4]
+                    'panoramaSampler.glsl': args[4],
+                    'panoramaDebugFragment': args[5]
 //                    'pbr': args[4]
                 });
 
@@ -99,6 +101,19 @@
 
             var vertexshader = this._shaderProcessor.getShader('panoramaVertex');
             var fragmentshader = this._shaderProcessor.getShader('panoramaFragment');
+
+            var program = new osg.Program(
+                new osg.Shader( 'VERTEX_SHADER', vertexshader ),
+                new osg.Shader( 'FRAGMENT_SHADER', fragmentshader ) );
+
+            return program;
+        },
+
+
+        createShaderDebugPanorama: function() {
+
+            var vertexshader = this._shaderProcessor.getShader('panoramaVertex');
+            var fragmentshader = this._shaderProcessor.getShader('panoramaDebugFragment');
 
             var program = new osg.Program(
                 new osg.Shader( 'VERTEX_SHADER', vertexshader ),
@@ -245,7 +260,7 @@
             nodeFunctor.getPromise().then ( function( texture ) {
 
 
-                var geom = osg.createTexturedQuadGeometry(-5,-5,0,
+                var quadDebug = osg.createTexturedQuadGeometry(-5,-5,0,
                                                           10,0,0,
                                                           0,10,0,
                                                           0,0,
@@ -266,7 +281,8 @@
                 sphere.getOrCreateStateSet().setAttributeAndModes( this.createShaderPanorama() );
                 this.setPanoramaTexture( texture, sphere.getOrCreateStateSet() );
 
-                group.addChild( geom );
+                quadDebug.getOrCreateStateSet().setAttributeAndModes( this.createShaderDebugPanorama() );
+                group.addChild( quadDebug );
                 group.addChild( mt );
 
             }.bind( this ));
