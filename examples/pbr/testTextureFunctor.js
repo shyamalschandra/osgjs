@@ -291,7 +291,7 @@
 
         createModelMaterialSample: function() {
 
-            var request = osgDB.readNodeURL('modeltest/file.osgjs' );
+            var request = osgDB.readNodeURL('../media/models/material-test/file.osgjs' );
 
             Q.when( request, function( model ) {
 
