@@ -43,6 +43,19 @@
     };
 
 
+    var linear2Srgb = function ( value, gamma ) {
+        if ( !gamma ) gamma = 2.2;
+        var result = 0.0;
+        if ( value < 0.0031308 ) {
+            if ( value > 0.0 )
+                result = value * 12.92;
+        } else {
+            result = 1.055 * Math.pow( value, 1.0 / gamma ) - 0.055;
+        }
+        return result;
+    };
+
+
     var Example = function () {
         this._shaderPath = '';
         this._config = {
@@ -50,26 +63,64 @@
         };
 
         this._shaderProcessor = new osgShader.ShaderProcessor();
+
+        this._albedoTextureUnit = 2;
+        this._roughnessTextureUnit = 3;
+        this._metalnessTextureUnit = 4;
+
     };
 
     Example.prototype = {
 
+        getTexture1111: function() {
+            if ( !this._texture1111 )
+                this._texture1111 = this.createTextureFromColor([1,1,1,1]);
+            return this._texture1111;
+        },
+
+        createTextureFromColor: function ( color, srgb, textureOutput ) {
+            var albedo = new osg.Uint8Array( 4 );
+
+            color.forEach( function ( value, index ) {
+                if ( srgb )
+                    albedo[ index ] = Math.floor( 255 * linear2Srgb( value ) );
+                else
+                    albedo[ index ] = Math.floor( 255 * value );
+            } );
+
+            var texture = textureOutput;
+            if (!texture)
+                texture = new osg.Texture();
+            texture.setTextureSize( 1, 1 );
+            texture.setImage( albedo );
+            return texture;
+        },
 
         readShaders: function () {
 
             var defer = Q.defer();
 
-            var shaders = [
-                this._shaderPath + 'panoramaVertex.glsl',
-                this._shaderPath + 'panoramaFragment.glsl' ,
-                this._shaderPath + 'tangentVertex.glsl',
-                this._shaderPath + 'tangentFragment.glsl',
-                this._shaderPath + 'panoramaSampler.glsl',
-                this._shaderPath + 'panoramaDebugFragment.glsl'
+            var shaderNames = [
+                'panoramaVertex.glsl',
+                'panoramaFragment.glsl' ,
+                'tangentVertex.glsl',
+                'tangentFragment.glsl',
+                'panoramaSampler.glsl',
+                'panoramaDebugFragment.glsl',
+
+                'pbrReferenceFragment.glsl',
+                'pbrReferenceVertex.glsl',
+                'colorSpace.glsl',
+                'pbr.glsl',
             ];
 
-            var promises = [];
 
+            var shaders = shaderNames.map( function( arg ) {
+                return this._shaderPath + arg;
+            }.bind(this) );
+
+
+            var promises = [];
             shaders.forEach( function( shader ) {
                 promises.push( Q( $.get( shader ) ) );
             }.bind( this ) );
@@ -77,18 +128,12 @@
 
             Q.all( promises ).then( function ( args ) {
 
-                this._panoramaVertex = args[ 0 ];
-                this._panoramaFragment = args[ 1 ];
-                this._tangentVertex = args[ 2 ];
-                this._tangentFragment = args[ 3 ];
-
-                this._shaderProcessor.addShaders( {
-                    'panoramaVertex': this._panoramaVertex,
-                    'panoramaFragment': this._panoramaFragment,
-                    'panoramaSampler.glsl': args[4],
-                    'panoramaDebugFragment': args[5]
-//                    'pbr': args[4]
+                var shaderNameContent = {};
+                shaderNames.forEach( function( name, idx ) {
+                    shaderNameContent[ name ] = args[idx];
                 });
+
+                this._shaderProcessor.addShaders( shaderNameContent );
 
                 defer.resolve();
 
@@ -99,8 +144,42 @@
 
         createShaderPanorama: function() {
 
-            var vertexshader = this._shaderProcessor.getShader('panoramaVertex');
-            var fragmentshader = this._shaderProcessor.getShader('panoramaFragment');
+            var vertexshader = this._shaderProcessor.getShader('panoramaVertex.glsl');
+            var fragmentshader = this._shaderProcessor.getShader('panoramaFragment.glsl');
+
+            var program = new osg.Program(
+                new osg.Shader( 'VERTEX_SHADER', vertexshader ),
+                new osg.Shader( 'FRAGMENT_SHADER', fragmentshader ) );
+
+            return program;
+        },
+
+
+        // config = {
+        //     normalMap: false,
+        //     glossinessMap: false,
+        //     specularMap: false
+        //     aoMap: false
+        // }
+        createShaderPbrReference: function( config ) {
+
+            var defines = [];
+            if ( config && config.normalMap === true )
+                defines.push('#define NORMAL');
+
+            if ( config && config.glossinessMap === true )
+                defines.push('#define GLOSSINESS');
+
+            if ( config && config.specularMap === true )
+                defines.push('#define SPECULAR');
+
+            if ( config && config.aoMap === true )
+                defines.push('#define AO');
+
+            defines.push('#define NB_SAMPLES 16');
+
+            var vertexshader = this._shaderProcessor.getShader('pbrReferenceVertex.glsl');
+            var fragmentshader = this._shaderProcessor.getShader('pbrReferenceFragment.glsl', defines );
 
             var program = new osg.Program(
                 new osg.Shader( 'VERTEX_SHADER', vertexshader ),
@@ -112,31 +191,8 @@
 
         createShaderDebugPanorama: function() {
 
-            var vertexshader = this._shaderProcessor.getShader('panoramaVertex');
-            var fragmentshader = this._shaderProcessor.getShader('panoramaDebugFragment');
-
-            var program = new osg.Program(
-                new osg.Shader( 'VERTEX_SHADER', vertexshader ),
-                new osg.Shader( 'FRAGMENT_SHADER', fragmentshader ) );
-
-            return program;
-        },
-
-
-        createShaderTangentSpace: function() {
-
-            var vertexshader = [
-                this._tangentVertex
-            ].join('\n');
-
-            var fragmentshader = [
-                '#ifdef GL_FRAGMENT_PRECISION_HIGH',
-                'precision highp float;',
-                '#else',
-                'precision mediump float;',
-                '#endif',
-                this._tangentFragment
-            ].join('\n');
+            var vertexshader = this._shaderProcessor.getShader('panoramaVertex.glsl');
+            var fragmentshader = this._shaderProcessor.getShader('panoramaDebugFragment.glsl');
 
             var program = new osg.Program(
                 new osg.Shader( 'VERTEX_SHADER', vertexshader ),
@@ -161,6 +217,16 @@
             this._lod = osg.Uniform.createFloat1( 0.0, 'uLod' );
             stateSet.addUniform( this._lod );
 
+        },
+
+        setupMaterial: function ( stateSet, albedo, roughness, metalness ) {
+            this._albedoTexture = this.createTextureFromColor( albedo, true, this._albedoTexture );
+            this._roughnessTexture = this.createTextureFromColor( [ roughness, roughness, roughness, 1.0 ], false, this._roughnessTexture );
+            this._metalnessTexture = this.createTextureFromColor( [ metalness, metalness, metalness, 1.0 ], false, this._metalnessTexture );
+
+            stateSet.setTextureAttributeAndModes( this._albedoTextureUnit, this._albedoTexture );
+            stateSet.setTextureAttributeAndModes( this._roughnessTextureUnit, this._roughnessTexture );
+            stateSet.setTextureAttributeAndModes( this._metalnessTextureUnit, this._metalnessTexture );
         },
 
         setupEnvironment: function( scene ) {
@@ -229,12 +295,18 @@
 
             Q.when( request, function( model ) {
 
+
+
                 var mt = new osg.MatrixTransform();
                 osg.Matrix.makeRotate( Math.PI/2 , 1,0,0, mt.getMatrix() );
                 var bb = model.getBound();
                 osg.Matrix.mult( osg.Matrix.makeTranslate( 0, -bb.radius()/2, 0, osg.Matrix.create() ), mt.getMatrix(), mt.getMatrix() );
                 mt.addChild( model );
                 this._modeltest = mt;
+
+                var tangentVisitor = new osgUtil.TangentSpaceGenerator();
+                tangentVisitor.generate( model );
+
 
             }.bind( this ));
 
@@ -275,11 +347,17 @@
                 var sample = this.getModelTestInstance();
                 osg.Matrix.makeTranslate( 40 ,0 ,0, sample.getMatrix() );
 
+
+                sample.getOrCreateStateSet().setAttributeAndModes( this.createShaderPbrReference(   ) );
+                this.setupMaterial( sample.getOrCreateStateSet(), [0.5,0.5,0.5,1.0], 0.0, 1.0 );
+
+
                 group.addChild( sample );
 
                 group.getOrCreateStateSet().setTextureAttributeAndModes(0, texture );
                 sphere.getOrCreateStateSet().setAttributeAndModes( this.createShaderPanorama() );
-                this.setPanoramaTexture( texture, sphere.getOrCreateStateSet() );
+                //this.setPanoramaTexture( texture, sphere.getOrCreateStateSet() );
+                this.setPanoramaTexture( texture, group.getOrCreateStateSet() );
 
                 quadDebug.getOrCreateStateSet().setAttributeAndModes( this.createShaderDebugPanorama() );
                 group.addChild( quadDebug );
@@ -300,6 +378,10 @@
             osg.Matrix.makeRotate( Math.PI / 2 , -1,0,0,  group.getMatrix());
 
             group.addChild( this.createScenePanoramaRGBE( textureEnv ) );
+
+            group.getOrCreateStateSet().addUniform( osg.Uniform.createInt(this._roughnessTextureUnit, 'roughnessMap'));
+            group.getOrCreateStateSet().addUniform( osg.Uniform.createInt(this._metalnessTextureUnit, 'specularMap'));
+            group.getOrCreateStateSet().addUniform( osg.Uniform.createInt(this._albedoTextureUnit, 'albedoMap'));
 
             return group;
 
