@@ -1,11 +1,12 @@
 define( [
     'osg/Utils',
     'osg/BufferArray',
+    'osg/Geometry',
     'osg/NodeVisitor',
-    'osg/Vec3',
     'osg/PrimitiveSet',
+    'osg/Vec3',
 
-], function ( MACROUTILS, BufferArray, NodeVisitor, Vec3, PrimitiveSet ) {
+], function ( MACROUTILS, BufferArray,  Geometry, NodeVisitor, PrimitiveSet, Vec3 ) {
 
     'use strict';
 
@@ -19,10 +20,21 @@ define( [
         this._texCoordUnit = 0;
     };
 
-    TangentSpaceGenerator.prototype = MACROUTILS.objectInehrit( NodeVisitor.prototype, {
+    TangentSpaceGenerator.prototype = MACROUTILS.objectInherit( NodeVisitor.prototype, {
+
+        apply: function( node ) {
+
+            if ( node.getTypeID() === Geometry.getTypeID() )
+                this.generate( node, this._texCoordUnit );
+            else
+                this.traverse( node );
+
+        },
+
         setTexCoordUnit: function ( texCoordUnit ) {
             this._texCoordUnit = texCoordUnit;
         },
+
         computePrimitiveSet: function ( geometry, primitiveSet ) {
 
             // no indices -> exit
