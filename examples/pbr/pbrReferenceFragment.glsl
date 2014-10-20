@@ -26,16 +26,41 @@ uniform sampler2D aoMap;
 #pragma include "colorSpace.glsl"
 #pragma include "panoramaSampler.glsl"
 
-vec3 getReferenceTexelEnvironment( const in vec3 dirLocal, const in float lod ) {
 
-    vec3 direction = environmentTransform * dirLocal;
-    vec2 uvBase = normalToPanoramaUV( direction );
+// I dont know where it comes from, it's from substance shaders
+float distortion(vec3 Wn)
+{
+    // Computes the inverse of the solid angle of the (differential) pixel in
+    // the environment map pointed at by Wn
+    float sinT = sqrt(1.0-Wn.y*Wn.y);
+    return sinT;
+}
+
+float computeLOD(vec3 Ln, float p, int nbSamples, float maxLod)
+{
+    return max(0.0, (maxLod-1.5) - 0.5*(log(float(nbSamples)) + log( p * distortion(Ln) ))
+               * INV_LOG2);
+}
+
+vec3 getTexelPanoramaRGBE( const in vec3 dir, const in float lod ) {
+    vec2 uvBase = normalToPanoramaUV( dir );
     vec3 texel = texturePanoramicRGBELod( uEnvironment,
                                           uEnvironmentSize,
-                                          direction,
+                                          dir,
                                           lod,
                                           uEnvironmentMaxLod );
     return texel;
+}
+
+vec3 getReferenceTexelEnvironmentLod( const in vec3 dirLocal, const in float pdf ) {
+    vec3 direction = environmentTransform * dirLocal;
+    float lod = computeLOD(direction, pdf, int(NB_SAMPLES), uEnvironmentMaxLod);
+    return getTexelPanoramaRGBE( direction, lod );
+}
+
+vec3 getReferenceTexelEnvironment( const in vec3 dirLocal, const in float lod ) {
+    vec3 direction = environmentTransform * dirLocal;
+    return getTexelPanoramaRGBE( direction, lod );
 }
 
 #pragma include "pbr.glsl"

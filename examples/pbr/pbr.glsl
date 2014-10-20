@@ -49,6 +49,7 @@ vec2 getSample(const in int i ) {
     return u;
 }
 
+
 vec3 evaluateDiffuseIBL( const in vec3 N,
                          const in vec3 V,
                          const in vec3 tangentX,
@@ -171,7 +172,7 @@ vec3 evaluateSpecularIBL( const in vec3 N,
             // could we remove the transform ?
             //vec3 dir = uEnvironmentTransform * L;
             //vec3 color = textureCubeLodEXT(uEnvironment, dir, 0.0 ).rgb;
-            vec3 color = getReferenceTexelEnvironment( L, 0.0 ).rgb;
+            vec3 color = getReferenceTexelEnvironmentLod( L, pdf ).rgb;
 
             contrib += (color * weight) * (1.0 / pdf);
         }
@@ -213,10 +214,12 @@ vec3 referenceIBL( const in vec4 tangent,
     vec3 tangentX, tangentY;
     computeTangentFrame(tangent, normal, tangentX, tangentY );
 
-    vec3 color = albedo * evaluateDiffuseIBL(normal,
-                                             view,
-                                             tangentX,
-                                             tangentY);
+    vec3 color = vec3(0.0);
+    if ( albedo != color ) // skip if no diffuse
+         color += albedo * evaluateDiffuseIBL(normal,
+                                              view,
+                                              tangentX,
+                                              tangentY);
     color += evaluateSpecularIBL(normal,
                                  view,
                                  tangentX,

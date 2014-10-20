@@ -36,8 +36,8 @@ vec4 computeUVForMipmap( const in float level, const in vec2 uv, const in vec2 s
     return vec4( uvGlobal.x, uvGlobal.y, ratio.x, ratio.y + globalOffsetV );
 }
 
-
-vec2 normalToPanoramaUV( const in vec3 dir )
+// for z up
+vec2 normalToPanoramaUVZ( const in vec3 dir )
 {
     float n = length(dir.xz);
 
@@ -54,6 +54,29 @@ vec2 normalToPanoramaUV( const in vec3 dir )
     pos.y = 1.0-pos.y;
     return pos;
 }
+
+
+//for y up
+vec2 normalToPanoramaUVY( const in vec3 dir )
+{
+    float n = length(dir.xy);
+
+    // to avoid bleeding the max(-1.0,dir.x / n) is needed
+    vec2 pos = vec2( (n>0.0000001) ? max(-1.0,dir.x / n) : 0.0, dir.z);
+
+    // fix edge bleeding
+    if ( pos.x > 0.0 ) pos.x = min( 0.999999, pos.x );
+
+    pos = acos(pos)*INV_PI;
+
+    // to avoid bleeding the limit must be set to 0.4999999 instead of 0.5
+    pos.x = (dir.y > 0.0) ? pos.x*0.5 : 1.0-(pos.x*0.5);
+    pos.y = 1.0-pos.y;
+    return pos;
+}
+
+#define normalToPanoramaUV normalToPanoramaUVY
+
 
 vec3 textureRGBE(const in sampler2D texture, const in vec2 uv) {
     vec4 rgbe = texture2D(texture, uv );
