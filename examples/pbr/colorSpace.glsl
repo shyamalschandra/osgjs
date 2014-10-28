@@ -61,3 +61,9 @@ vec3 sRGBToLinear(const in vec3 col_from, const in float gamma)
     col_to.b = sRGBToLinear(col_from.b, gamma);
     return col_to;
 }
+
+vec3 RGBEToRGB( const in vec4 rgbe )
+{
+    float f = pow(2.0, rgbe.w * 255.0 - (128.0 + 8.0));
+    return rgbe.rgb * (255.0 * f);
+}

@@ -59,6 +59,79 @@
     };
 
 
+    var CubeMapEnv = function( filePattern, options ) {
+        this._options = options || {};
+        this._pattern = filePattern; // abandoned_sanatorium_staircase_%d.png
+    };
+
+    CubeMapEnv.prototype = {
+
+        createTexture: function( image ) {
+            var texture = new osg.Texture();
+            texture.setImage( image );
+            texture.setMinFilter( this._options.minFilter || 'NEAREST' );
+            texture.setMagFilter( this._options.magFilter || 'NEAREST' );
+            return texture;
+        },
+
+        createTextureCubemap: function() {
+
+            var texture = new osg.TextureCubeMap();
+            texture.setMinFilter( this._options.minFilter || 'NEAREST' );
+            texture.setMagFilter( this._options.magFilter || 'NEAREST' );
+
+            for ( var i = 0 ; i < 6; i++ ) {
+                texture.setImage( this._images[i] );
+            }
+            return texture;
+
+        },
+
+        createGeometryDebug: function() {
+
+            var scene = new osg.Node();
+
+            var size = 10;
+            var geom = osg.createTexturedBoxGeometry( 0, 0, 0, size, size, size );
+            geom.getOrCreateStateSet().setAttributeAndModes( new osg.CullFace( 'DISABLE' ) );
+            geom.getOrCreateStateSet().setAttributeAndModes(  );
+
+            scene.addChild( geom );
+
+
+        },
+
+
+        // not finised need to check shaders
+        // createShader: function() {
+        //     if ( !this._shaderProcessor)
+        //         this._shaderProcessor = new osgShader.ShaderProcessor();
+
+        //     //this._shaderProcessor
+        // },
+
+        load: function() {
+            var defer = Q.defer();
+
+            var images = [];
+            for ( var i = 0; i < 6; i++ ) {
+                var str = this._filePattern;
+                str = str.replace('%d',i);
+                images.push( this.readImageURL( str ) );
+            }
+            this._images = images;
+
+            Q.all( images ).then( function ( images ) {
+                defer.resolve( images );
+            });
+
+            return defer.promise;
+
+        }
+    };
+
+
+
     var Example = function () {
         this._shaderPath = '';
         this._config = {

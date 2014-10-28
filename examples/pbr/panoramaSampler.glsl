@@ -1,3 +1,4 @@
+#pragma include "colorSpace.glsl"
 
 vec4 computeUVForMipmap( const in float level, const in vec2 uv, const in vec2 size, const in float maxLOD ) {
 
@@ -80,9 +81,7 @@ vec2 normalToPanoramaUVY( const in vec3 dir )
 
 vec3 textureRGBE(const in sampler2D texture, const in vec2 uv) {
     vec4 rgbe = texture2D(texture, uv );
-
-    float f = pow(2.0, rgbe.w * 255.0 - (128.0 + 8.0));
-    return rgbe.rgb * (255.0 * f);
+    return RGBEToRGB( rgbe );
 }
 
 
