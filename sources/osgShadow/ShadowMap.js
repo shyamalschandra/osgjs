@@ -61,7 +61,8 @@ define( [
             prg.trackAttributes.attributeKeys.push( 'Material' );
             prg.trackAttributes.attributeKeys.push( 'Light' + this._lightNum );
 
-            if ( this._receivingStateset ) this._receivingStateset.setAttributeAndMode( prg, StateAttribute.ON | StateAttribute.OVERRIDE );
+            // NOW USING NODE SHADERS
+            //if ( this._receivingStateset ) this._receivingStateset.setAttributeAndMode( prg, StateAttribute.ON | StateAttribute.OVERRIDE );
 
             this._receiverShaderProgram = prg;
         },
@@ -180,7 +181,8 @@ define( [
             prg.trackAttributes.attributeKeys = [];
             prg.trackAttributes.attributeKeys.push( 'Material' );
             prg.trackAttributes.attributeKeys.push( 'Light' + num );
-            receiverStateSet.setAttributeAndMode( prg, StateAttribute.ON | StateAttribute.OVERRIDE );
+            // NOW USING NODE SHADERS
+            //receiverStateSet.setAttributeAndMode( prg, StateAttribute.ON | StateAttribute.OVERRIDE );
             this._receivingStateset = receiverStateSet;
 
             //receiverStateSet.addUniform( Uniform.createInt1( 0, 'Texture0' ) );

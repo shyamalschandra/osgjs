@@ -2,9 +2,10 @@ define( [
     'osg/Utils',
     'osgShader/utils',
     'osgShader/node',
-    'osgShader/node/Node'
+    'osgShader/node/Node',
+    'osgShader/node/shadows'
 
-], function ( MACROUTILS, shaderUtils, shaderNode, Node ) {
+], function ( MACROUTILS, ShaderUtils, shaderNode, Node, ShadowNode ) {
     'use strict';
 
 
@@ -36,28 +37,66 @@ define( [
 
             var lightInputs = [];
 
+            var bias = context.getOrCreateUniform( 'float', 'bias' );
+            var VsmEpsilon = context.getOrCreateUniform( 'float', 'VsmEpsilon' );
+            var exponent = context.getOrCreateUniform( 'float', 'exponent' );
+            var exponent1 = context.getOrCreateUniform( 'float', 'exponent1' );
+            var debug = context.getOrCreateUniform( 'float', 'debug' );
+
+            var lightNode;
+            var shadowNode;
+
+            var lightedOutput = context.getOrCreateVariable( 'vec4', 'lightTempOutput' );
+            var lighted = context.getOrCreateVariable( 'bool', 'lighted' );
+            var lightPos = context.getOrCreateVariable( 'vec3', 'eyePosWorld' );
+            var lightDir = context.getOrCreateVariable( 'vec3', 'eyeDirWorld' );
+            var lightDNL = context.getOrCreateVariable( 'float', 'lightNDL' );
+            var shadowTempOutput = context.getOrCreateVariable( 'vec4', 'shadowContribTempOutput' );
+            var lightAndShadowTempOutput = context.getOrCreateVariable( 'vec4', 'lightAndShadowTempOutput' );
+
             for ( var i = 0; i < this._lights.length; i++ ) {
 
                 var light = this._lights[ i ];
-                var lightNode;
-
-                var lightedOutput = context.getOrCreateVariable( 'vec4', 'lightTempOutput' );
 
                 switch ( light.getLightType() ) {
                 case 'DIRECTION':
-                    lightNode = new SunLight( lightedOutput, this, light );
+                    lightNode = new SunLight( lightedOutput, this, light, lighted, lightPos, lightDir, lightDNL );
                     break;
                 case 'SPOT':
-                    lightNode = new SpotLight( lightedOutput, this, light );
+                    lightNode = new SpotLight( lightedOutput, this, light, lighted, lightPos, lightDir, lightDNL );
                     break;
                 default:
                 case 'POINT':
-                    lightNode = new PointLight( lightedOutput, this, light );
+                    lightNode = new PointLight( lightedOutput, this, light, lighted, lightPos, lightDir, lightDNL );
                     break;
                 }
 
                 lightNode.createFragmentShaderGraph( context );
-                lightInputs.push( lightedOutput );
+
+                if ( light._shadowTechnique ) {
+
+
+                    /*
+
+                    var textures = context._texturesByName;
+                    // TODO: texture name should be its name ?
+                    //var tex = textures[ 'shadow_' + light.getName() ];
+                    var tex = textures[ 'Texture1' ];
+                    if ( !tex )
+                        tex = textures[ 'Texture0' ];
+ */
+                    shadowNode = new ShadowNode( shadowTempOutput, lightedOutput, lighted, lightPos, lightDir, lightDNL, this, light, bias, VsmEpsilon, exponent1, exponent, debug );
+
+                    new shaderNode.Mult( lightAndShadowTempOutput, lightedOutput, shadowTempOutput );
+                    lightInputs.push( lightAndShadowTempOutput );
+
+
+                    shadowNode.createFragmentShaderGraph( context );
+
+
+                } else {
+                    lightInputs.push( lightedOutput );
+                }
             }
 
             new shaderNode.Add( this.getOutput(), lightInputs );
@@ -69,7 +108,7 @@ define( [
 
     // base class for all point based light: Point/Directional/Spot/Hemi
     // avoid duplicate code
-    var NodeLightsPointBased = function ( output, lighting, light ) {
+    var NodeLightsPointBased = function ( output, lighting, light, lighted, lightPos, lightDir, lightDNL ) {
 
         Node.call( this );
 
@@ -78,7 +117,12 @@ define( [
         this._lighting = lighting;
         this._light = light;
 
-        this.connectInputs( this._ambientColor, this._diffuseColor, this.specularColor, this.shininess, lighting._normal, lighting._eyeVector );
+        this._lighted = lighted;
+        this._lightPos = lightPos;
+        this._lightDir = lightDir;
+        this._lightNDL = lightDNL;
+
+        this.connectInputs( this._ambientColor, this._diffuseColor, this.specularColor, this.shininess, lighting._normal, lighting._eyeVector, lighted, lightPos, lightDir, lightDNL );
     };
 
     NodeLightsPointBased.prototype = MACROUTILS.objectInherit( Node.prototype, {
@@ -91,7 +135,7 @@ define( [
             // connects all inputs
             if ( inputs )
                 this.connectInputs( inputs );
-            this._text = shaderUtils.callFunction( name, output, inputs );
+            this._text = ShaderUtils.callFunction( name, output, inputs );
             return this;
         },
 
@@ -103,9 +147,9 @@ define( [
 
 
 
-    var PointLight = function ( output, lighting, light ) {
+    var PointLight = function ( output, lighting, light, lighted, lightPos, lightDir, lightDNL ) {
 
-        NodeLightsPointBased.call( this, output, lighting, light );
+        NodeLightsPointBased.call( this, output, lighting, light, lighted, lightPos, lightDir, lightDNL );
 
     };
 
@@ -139,7 +183,9 @@ define( [
                 this._lighting._ambientColor, this._lighting._diffuseColor, this._lighting._specularColor, this._lighting._shininess,
                 // light data
                 lightAmbientColor, lightDiffuseColor, lightSpecularColor, lightPosition, lightAttenuation,
-                lightMatrix, lightInvMatrix // light matrix
+                lightMatrix, lightInvMatrix, // light matrix
+                this._lightPos, this._lightDir,
+                this._lightNDL, this._lighted
             ];
 
             this.connectInputsAndCallFunction( 'computePointLightShading', this.getOutput(), inputs );
@@ -150,9 +196,9 @@ define( [
 
 
 
-    var SpotLight = function ( output, lighting, light ) {
+    var SpotLight = function ( output, lighting, light, lighted, lightPos, lightDir, lightDNL ) {
 
-        NodeLightsPointBased.call( this, output, lighting, light );
+        NodeLightsPointBased.call( this, output, lighting, light, lighted, lightPos, lightDir, lightDNL );
 
     };
 
@@ -193,7 +239,9 @@ define( [
                 // specific lights data
                 lightDirection, lightAttenuation, lightPosition,
                 lightSpotCutOff, lightSpotBlend,
-                lightMatrix, lightInvMatrix
+                lightMatrix, lightInvMatrix, // light matrix
+                this._lightPos, this._lightDir,
+                this._lightNDL, this._lighted
             ];
 
             this.connectInputsAndCallFunction( 'computeSpotLightShading', this.getOutput(), inputs );
@@ -203,9 +251,9 @@ define( [
     } );
 
 
-    var SunLight = function ( output, lighting, light ) {
+    var SunLight = function ( output, lighting, light, lighted, lightPos, lightDir, lightDNL ) {
 
-        NodeLightsPointBased.call( this, output, lighting, light );
+        NodeLightsPointBased.call( this, output, lighting, light, lighted, lightPos, lightDir, lightDNL );
 
     };
 
@@ -238,7 +286,9 @@ define( [
                 this._lighting._ambientColor, this._lighting._diffuseColor, this._lighting._specularColor, this._lighting._shininess,
                 // lights data
                 lightAmbientColor, lightDiffuseColor, lightSpecularColor, lightDirection,
-                lightMatrix, lightInvMatrix
+                lightMatrix, lightInvMatrix, // light matrix
+                this._lightPos, this._lightDir,
+                this._lightNDL, this._lighted
             ];
 
             this.connectInputsAndCallFunction( 'computeSunLightShading', this.getOutput(), inputs );

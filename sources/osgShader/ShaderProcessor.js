@@ -38,6 +38,7 @@ define( [
         // {
         //     'functions.glsl': textShaderFunctions,
         //     'lights.glsl': textShaderFunctions,
+        //     'shadows.glsl': textShaderFunctions,
         //     'textures.glsl': textShaderFunctions
         // };
         addShaders: function ( shaders ) {

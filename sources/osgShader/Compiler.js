@@ -41,9 +41,10 @@ define( [
                 if ( material !== undefined ) Notify.warn( 'Multiple Material attributes latest Chosen ' );
                 material = attributes[ i ];
 
-            } else {
-                Notify.warn( 'Compiler, does not know type ' + type );
             }
+            /*else {
+                Notify.warn( 'Compiler, does not know type ' + type );
+            }*/
 
         }
 
@@ -630,10 +631,11 @@ define( [
         },
 
         createVertexShaderGraph: function () {
-
+            var i, ll;
             var texCoordMap = {};
             var textures = this._textures;
             var texturesMaterial = this._texturesByName;
+
 
             this._vertexShader.push( [ '',
                 'attribute vec3 Vertex;',
@@ -645,10 +647,39 @@ define( [
                 'uniform mat4 NormalMatrix;',
                 'varying vec4 VertexColor;',
                 'varying vec3 FragNormal;',
-                'varying vec3 FragEyeVector;',
-                '',
-                ''
+                'varying vec3 FragEyeVector;'
             ].join( '\n' ) );
+
+            this._vertexShader.push( '' );
+            this._vertexShader.push( '' );
+            var hasShadow = false;
+            for ( i = 0, ll = this._lights.length; i < ll; i++ ) {
+                if ( this._lights[ i ]._shadowTechnique ) {
+                    //
+
+                    this._vertexShader.push( 'uniform mat4 Shadow_Projection' + i + ';' );
+                    this._vertexShader.push( 'uniform mat4 Shadow_View' + i + ';' );
+                    this._vertexShader.push( 'uniform vec4 Shadow_DepthRange' + i + ';' );
+                    //this._vertexShader.push( 'uniform vec4 Shadow_MapSize' + i + ';' );
+
+
+                    this._vertexShader.push( 'varying vec4 Shadow_VertexProjected' + i + ';' );
+                    this._vertexShader.push( 'varying vec4 Shadow_Z' + i + ';' );
+
+                    hasShadow = true;
+                }
+            }
+            if ( hasShadow ) {
+                this._vertexShader.push( 'uniform mat4 ModelWorldMatrix;' );
+                //this._vertexShader.push( 'uniform float bias;' );
+                //this._vertexShader.push( 'uniform float VsmEpsilon;' );
+                //this._vertexShader.push( 'uniform float exponent;' );
+                //this._vertexShader.push( 'uniform float exponent1;' );
+                //this._vertexShader.push( 'uniform float debug;' );
+            }
+
+            this._vertexShader.push( '' );
+            this._vertexShader.push( '' );
 
             for ( var t = 0, tl = textures.length; t < tl; t++ ) {
 
@@ -677,12 +708,16 @@ define( [
 
                 }
             }
+            this._vertexShader.push( '' );
+            this._vertexShader.push( '' );
 
             this._vertexShader.push( [ '',
                 'void main() {',
                 '  FragNormal = vec3(NormalMatrix * vec4(Normal, 0.0));',
-                '  FragEyeVector = vec3(ModelViewMatrix * vec4(Vertex,1.0));',
-                '  gl_Position = ProjectionMatrix * ModelViewMatrix * vec4(Vertex, 1.0);',
+                '  vec4 vertex4 = vec4(Vertex,1.0);',
+                '  vec4 eyeVector = ModelViewMatrix * vertex4;',
+                '  FragEyeVector = eyeVector.xyz;',
+                '  gl_Position = ProjectionMatrix * eyeVector;',
                 '  if (ArrayColorEnabled == 1.0)',
                 '    VertexColor = Color;',
                 '  else',
@@ -692,8 +727,11 @@ define( [
                 ''
             ].join( '\n' ) );
 
+
             var self = this;
             ( function () {
+                // TODO: clarify with author that shadowing var ?
+                // intentional or not
                 var texCoordMap = {};
 
                 for ( var tt = 0, ttl = textures.length; tt < ttl; tt++ ) {
@@ -703,7 +741,7 @@ define( [
                         var texture = textures[ tt ];
                         var textureMaterial = texturesMaterial[ texture.getName() ];
 
-                        // no method getTexCoordUnit, maybe we dont need it at all
+                        // no method getTexCoordUnit, maybe we don't need it at all
                         if ( !textureMaterial && !textureMaterial.textureUnit )
                             continue;
 
@@ -714,17 +752,35 @@ define( [
                         }
 
                         if ( texCoordMap[ texCoordUnit ] === undefined ) {
-                            self._vertexShader.push( 'FragTexCoord' + texCoordUnit + ' = TexCoord' + texCoordUnit + ';' );
+                            self._vertexShader.push( '  FragTexCoord' + texCoordUnit + ' = TexCoord' + texCoordUnit + ';' );
                             texCoordMap[ texCoordUnit ] = true;
                         }
                     }
                 }
             } )();
+            this._vertexShader.push( '' );
+            this._vertexShader.push( '' );
+
+            if ( hasShadow ) {
+                this._vertexShader.push( 'vec4 worldPosition = ModelWorldMatrix * vertex4;' );
+
+                for ( i = 0, ll = this._lights.length; i < ll; i++ ) {
+                    if ( this._lights[ i ]._shadowTechnique ) {
+                        //
+                        this._vertexShader.push( '  Shadow_Z' + i + ' = Shadow_View' + i + ' *  worldPosition;' );
+                        this._vertexShader.push( '  Shadow_VertexProjected' + i + ' = Shadow_Projection' + i + ' * Shadow_Z' + i + ';' );
+                    }
+                }
+            }
+
+            this._vertexShader.join( '\n' );
+
+
             this._vertexShader.push( '}' );
         },
 
         createVertexShader: function () {
-            // Call to specialised inhenrited shader Compiler
+            // Call to specialized inherited shader Compiler
             this.createVertexShaderGraph();
             var shader = this._vertexShader.join( '\n' );
             //osg.log('Vertex Shader');
@@ -734,7 +790,7 @@ define( [
         },
 
         createFragmentShader: function () {
-            // Call to specialised inhenrited shader Compiler
+            // Call to specialized inherited shader Compiler
             var root = this.createFragmentShaderGraph();
 
             this._fragmentShader.push( [ '',

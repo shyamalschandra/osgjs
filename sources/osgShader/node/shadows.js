@@ -1,49 +1,78 @@
 define( [
     'osg/Utils',
+    'osgShader/utils',
     'osgShader/node/Node'
 
-], function ( MACROUTILS, Node ) {
+], function ( MACROUTILS, ShaderUtils, Node ) {
     'use strict';
 
     // TODO : use GLSL libraries shadow.glsl
-    var ShadowNode = function ( material, shadow ) {
+    var ShadowNode = function ( shadowOutput, lightedOutput, lighted, lightPos, lightDir, lightNDL, lighting, light, bias, VsmEpsilon, exponent1, exponent, debug /* tex */ ) {
         Node.call( this );
-        this._shadow = shadow;
-        this._material = material;
+
+        this._lighting = lighting;
+        this._light = light;
+        this._lightedOutput = lightedOutput;
+        this._lighted = lighted;
+        this._lightPos = lightPos;
+        this._lightDir = lightDir;
+        this._lightNDL = lightNDL;
+        //this._shadowTex = tex;
+
+
+
+        //
+        //texture
+        //
+        this.connectInputs( lightedOutput, lighted, lightPos, lightDir, lightNDL, bias, VsmEpsilon, exponent1, exponent, debug /*, tex */ );
+
+        this.connectOutput( shadowOutput );
     };
 
     ShadowNode.prototype = MACROUTILS.objectInherit( Node.prototype, {
-        type: 'ShadowNode',
+        type: 'ShadowBasic',
 
-        _inputMaps: [ 'texture_size', 'bias' ],
-
-        // TODO: generate auto matically getters/setter using above map.
-        connect: function ( name, i ) {
-            this._inputs[ this._inputMaps.indexOf( name ) ] = i;
-        },
-        getConnection: function ( name /*, i */ ) {
-            return this._inputs[ this._inputMaps.indexOf( name ) ];
-        },
 
         globalFunctionDeclaration: function () {
-            return [
-                ''
-            ].join( '\n' );
+            return '#pragma include "shadowsFrag.glsl"';
         },
 
-        computeVertex: function () {
-            var str = [ '',
-                ''
-            ].join( '\n' );
-            return str;
+        connectInputsAndCallFunction: function ( name, output, inputs ) {
+            // connects all inputs
+            if ( inputs )
+                this.connectInputs( inputs );
+            this._text = ShaderUtils.callFunction( name, output, inputs );
+            return this;
         },
 
         computeFragment: function () {
-            var str = [ '',
-                ''
-            ].join( '\n' );
-            return str;
+            return this._text;
+        },
+
+
+        createFragmentShaderGraph: function ( context ) {
+
+            // Common
+            var normal = this._lighting._normal;
+            var shadowDepthRange = context.getOrCreateUniform( 'vec4', 'Shadow_DepthRange0' );
+            var shadowMapSize = context.getOrCreateUniform( 'vec4', 'Shadow_MapSize0' );
+
+            //
+            var shadowVertexProjected = context.getOrCreateVarying( 'vec4', 'Shadow_VertexProjected0' );
+            var shadowZ = context.getOrCreateVarying( 'vec4', 'Shadow_Z0' );
+
+
+            var inputs = [
+                shadowVertexProjected, shadowZ,
+                /*this._shadowTex,*/
+                shadowMapSize,
+                shadowDepthRange, this._lightPos, this._lightNDL, normal
+            ];
+
+            this.connectInputsAndCallFunction( 'computeShadow', this.getOutput(), inputs );
+            return this;
         }
+
     } );
 
     return ShadowNode;

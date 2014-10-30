@@ -4,9 +4,10 @@ define( [
     'osgShader/node/textures',
     'osgShader/node/functions',
     'osgShader/node/lights',
+    'osgShader/node/shadows',
     'osgShader/node/operations'
 
-], function ( /*data, textures, functions, lights, operations */) {
+], function ( /*data, textures, functions, lights, shadows, operations */) {
     'use strict';
 
     var lib = {};

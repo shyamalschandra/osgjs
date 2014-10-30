@@ -111,7 +111,7 @@ define( [], function () {
                     callString += inputs[ i ];
 
                 if ( i !== l - 1 )
-                    callString += ', ';
+                    callString += ', \n';
             }
         }
 

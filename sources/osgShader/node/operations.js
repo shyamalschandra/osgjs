@@ -54,7 +54,7 @@ define( [
                 addType = '.rgb';
             else if ( outputType === 'vec2' )
                 addType = '.rg';
-
+            //TODO: add debug / lint type check
             var str = this.getOutput().getVariable() + ' = ' + this._inputs[ 0 ].getVariable() + addType;
             for ( var i = 1, l = this._inputs.length; i < l; i++ ) {
                 str += this.operator + this._inputs[ i ].getVariable() + addType;
@@ -72,6 +72,20 @@ define( [
     Mult.prototype = MACROUTILS.objectInherit( Add.prototype, {
         type: 'Mult',
         operator: '*'
+    } );
+
+    // Scale works like Mult but saving a Temp and accepting multiple type
+    var Scale = function () {
+        BaseOperator.apply( this, arguments );
+    };
+    Scale.prototype = MACROUTILS.objectInherit( BaseOperator.prototype, {
+        type: 'Scale',
+        operator: '*',
+        computeFragment: function () {
+            var str = this.getOutput().getVariable() + ' = ' + this._inputs[ 0 ].getVariable();
+            str += ';';
+            return str;
+        }
     } );
 
 
@@ -157,6 +171,7 @@ define( [
 
     return {
         'Mult': Mult,
+        'Scale': Scale,
         'Add': Add,
         'InlineCode': InlineCode,
         'SetAlpha': SetAlpha,
