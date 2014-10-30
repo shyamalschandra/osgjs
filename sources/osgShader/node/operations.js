@@ -50,9 +50,9 @@ define( [
             var addType = '';
             if ( outputType === 'vec4' )
                 addType = '.rgba';
-            else if (outputType === 'vec3' )
+            else if ( outputType === 'vec3' )
                 addType = '.rgb';
-            else if (outputType === 'vec2' )
+            else if ( outputType === 'vec2' )
                 addType = '.rg';
 
             var str = this.getOutput().getVariable() + ' = ' + this._inputs[ 0 ].getVariable() + addType;
