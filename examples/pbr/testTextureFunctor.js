@@ -110,11 +110,13 @@
             texture.setMinFilter( this._options.minFilter || 'NEAREST' );
             texture.setMagFilter( this._options.magFilter || 'NEAREST' );
 
-            for ( var i = 0 ; i < 6; i++ ) {
-                texture.setImage( osg.Texture.TEXTURE_CUBE_MAP_POSITIVE_X + i, this._images[i] );
-            }
-            return texture;
+            var remap = [ 0, 1, 3, 2, 4, 5 ];
 
+            var i = 0;
+            remap.forEach( function( index ) {
+                texture.setImage( osg.Texture.TEXTURE_CUBE_MAP_POSITIVE_X + i++, this._images[index] );
+            }.bind( this ) );
+            return texture;
         },
 
         createShader: function() {
@@ -142,7 +144,6 @@
             var texture = this.createTextureCubemap();
             geom.getOrCreateStateSet().setTextureAttributeAndModes( 0, texture );
             geom.getOrCreateStateSet().setAttributeAndModes( this.createShader() );
-
 
             scene.addChild( geom );
             return scene;
