@@ -85,7 +85,7 @@ vec3 evaluateDiffuseIBL( const in vec3 N,
         }
     }
 
-    contrib *= 1.0 / float(NB_SAMPLES);
+    contrib *= INV_PI * 1.0 / float(NB_SAMPLES);
     return contrib;
 }
 
