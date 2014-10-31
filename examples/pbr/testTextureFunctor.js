@@ -191,10 +191,10 @@
             return program;
         },
 
-        createShaderPanorama: function () {
+        createShaderPanorama: function ( defines ) {
 
-            var vertexshader = shaderProcessor.getShader( 'panoramaVertex.glsl' );
-            var fragmentshader = shaderProcessor.getShader( 'panoramaFragment.glsl' );
+            var vertexshader = shaderProcessor.getShader( 'panoramaVertex.glsl');
+            var fragmentshader = shaderProcessor.getShader( 'panoramaFragment.glsl', defines  );
 
             var program = new osg.Program(
                 new osg.Shader( 'VERTEX_SHADER', vertexshader ),
@@ -247,6 +247,22 @@
             debugGroup.addChild( sphere );
 
             osg.Matrix.makeTranslate( -60, 0, 0, debugGroup.getMatrix() );
+
+            return debugGroup;
+        },
+
+        createDebugIrradianceGeometry: function () {
+
+            var debugGroup = new osg.MatrixTransform();
+
+            // create a sphere to debug it
+            var sphere = osg.createTexturedSphereGeometry( 5, 20, 20 );
+            sphere.getOrCreateStateSet().setAttributeAndModes( this.createShaderPanorama( [ '#define IRRADIANCE']) );
+            sphere.getOrCreateStateSet().setTextureAttributeAndModes( 0 , this._texture );
+
+            debugGroup.addChild( sphere );
+
+            osg.Matrix.makeTranslate( -150, 0, 0, debugGroup.getMatrix() );
 
             return debugGroup;
         },
@@ -459,8 +475,8 @@
             var CullCallback = function () {
                 this.cull = function ( node, nv ) {
                     // overwrite matrix, remove translate so environment is always at camera origin
-                    osg.Matrix.setTrans( nv.getCurrentModelviewMatrix(), 0, 0, 0 );
-                    var m = nv.getCurrentModelviewMatrix();
+                    osg.Matrix.setTrans( nv.getCurrentModelViewMatrix(), 0, 0, 0 );
+                    var m = nv.getCurrentModelViewMatrix();
                     osg.Matrix.copy( m, environmentTransform.get() );
                     environmentTransform.dirty();
                     return true;
@@ -595,7 +611,7 @@
 
             group.addChild( this._cubemapIrradiance.createDebugGeometry() );
 
-            osg.Matrix.makeTranslate( -120, 0,0, group.getMatrix());
+            osg.Matrix.makeTranslate( 120, 0,0, group.getMatrix());
             return group;
         },
 
@@ -605,7 +621,7 @@
 
             var group = new osg.MatrixTransform();
 
-            group.addChild( this._panoramaIrradiance.createDebugGeometry() );
+            group.addChild( this._panoramaIrradianceRGBE.createDebugIrradianceGeometry() );
 
             osg.Matrix.makeTranslate( 80, 0,0, group.getMatrix());
             return group;

@@ -30,6 +30,12 @@ vec3 test0( const in vec3 direction ) {
     return texel;
 }
 
+vec3 irradiance( const in vec3 direction ) {
+    vec2 uvBase = normalToPanoramaUV( direction );
+    vec3 texel = textureRGBE( uEnvironment, uvBase );
+    return texel;
+}
+
 mat3 getEnvironmentTransfrom( mat4 transform ) {
     vec3 x = vec3(transform[0][0], transform[1][0], transform[2][0]);
     vec3 y = vec3(transform[0][1], transform[1][1], transform[2][1]);
@@ -53,7 +59,10 @@ void main() {
     vec3 direction = normalize( osg_FragNormal);
     direction = getEnvironmentTransfrom ( uEnvironmentTransform ) * direction;
 
+#ifdef IRRADIANCE
+    vec3 color = irradiance( direction );
+#else
     vec3 color = test0( direction );
-
+#endif
     gl_FragColor = vec4( color, 1.0);
 }
