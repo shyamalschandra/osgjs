@@ -179,7 +179,7 @@
 
     PanoramaEnv.prototype = {
 
-        createShaderDebugPanorama: function () {
+        createShaderInlineDebugPanorama: function () {
 
             var vertexshader = shaderProcessor.getShader( 'panoramaVertex.glsl' );
             var fragmentshader = shaderProcessor.getShader( 'panoramaDebugFragment.glsl' );
@@ -225,25 +225,26 @@
 
             var debugGroup = new osg.MatrixTransform();
 
-            // create a quad to display the panorama generated
-            var quadDebug = osg.createTexturedQuadGeometry( -5, -5, 0,
-                10, 0, 0,
-                0, 10, 0,
-                0, 0,
-                1, 1 );
-            quadDebug.getOrCreateStateSet().setAttributeAndModes( this.createShaderDebugPanorama() );
+            if ( this._textureInlineMipMap ) {
+                // create a quad to display the panorama generated
+                var quadDebug = osg.createTexturedQuadGeometry( -5, -5, 0,
+                                                                10, 0, 0,
+                                                                0, 10, 0,
+                                                                0, 0,
+                                                                1, 1 );
+                quadDebug.getOrCreateStateSet().setAttributeAndModes( this.createShaderInlineDebugPanorama() );
+
+                var mt = new osg.MatrixTransform();
+                mt.addChild( quadDebug );
+                osg.Matrix.makeTranslate( 30, 0, 0, mt.getMatrix() );
+                debugGroup.addChild( mt );
+            }
 
             // create a sphere to debug it
             var sphere = osg.createTexturedSphereGeometry( 5, 20, 20 );
             sphere.getOrCreateStateSet().setAttributeAndModes( this.createShaderPanorama() );
-            var mt = new osg.MatrixTransform();
-            osg.Matrix.makeTranslate( 20, 0, 0, mt.getMatrix() );
-            var m = osg.Matrix.makeRotate( Math.PI/2.0, 1,0,0, osg.Matrix.create() );
-            osg.Matrix.mult( mt.getMatrix(), m, mt.getMatrix() );
-            mt.addChild( sphere );
 
-            debugGroup.addChild( mt );
-            debugGroup.addChild( quadDebug );
+            debugGroup.addChild( sphere );
 
             osg.Matrix.makeTranslate( -60, 0, 0, debugGroup.getMatrix() );
 
@@ -442,11 +443,13 @@
 
             // create the environment sphere
             var size = 500;
-            var geom = osg.createTexturedBoxGeometry( 0, 0, 0, size, size, size );
+            //var geom = osg.createTexturedBoxGeometry( 0, 0, 0, size, size, size );
+            var geom = osg.createTexturedSphereGeometry( size/2, 20, 20 ); // to use the same shader panorama
             var ss = geom.getOrCreateStateSet();
             geom.getOrCreateStateSet().setAttributeAndModes( new osg.CullFace( 'DISABLE' ) );
+            geom.getOrCreateStateSet().setAttributeAndModes( new osg.Depth('DISABLE') );
 
-            ss.setRenderBinDetails( 10, 'RenderBin' );
+            ss.setRenderBinDetails( -1, 'RenderBin' );
 
             var environmentTransform = this._environmentTransformUniform;
 
@@ -597,6 +600,16 @@
         },
 
 
+        testPanoramaIrradiance: function() {
+
+
+            var group = new osg.MatrixTransform();
+
+            group.addChild( this._panoramaIrradiance.createDebugGeometry() );
+
+            osg.Matrix.makeTranslate( 80, 0,0, group.getMatrix());
+            return group;
+        },
 
         createScene: function () {
 
@@ -614,6 +627,8 @@
             group.addChild ( this.testSphericalHarmonics() );
 
             group.addChild ( this.testCubemapIrradiance() );
+
+            group.addChild ( this.testPanoramaIrradiance() );
 
 
             group.getOrCreateStateSet().setAttributeAndModes( new osg.CullFace( 'DISABLE' ) );
@@ -636,15 +651,18 @@
             var environement = 'textures/tmp/';
 
             var panorama = environement + 'panorama.png';
+            var panoramaIrradiance = environement + 'panorama_irradiance.png';
             var spherical = environement + 'spherical';
             var cubemap = environement + 'cubemap_irradiance_%d.png';
 
             this._panoramaRGBE = new PanoramaEnv( panorama );
+            this._panoramaIrradianceRGBE = new PanoramaEnv( panoramaIrradiance );
             this._cubemapIrradiance = new CubeMapEnv( cubemap );
             this._spherical = new SphericalEnv( spherical );
 
             ready.push( this.readShaders() );
             ready.push( this._panoramaRGBE.load() );
+            ready.push( this._panoramaIrradianceRGBE.load() );
             ready.push( this._spherical.load() );
             ready.push( this._cubemapIrradiance.load() );
             ready.push( this.createModelMaterialSample() );

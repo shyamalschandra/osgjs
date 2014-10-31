@@ -15,6 +15,7 @@ varying vec3 osg_FragEye;
 varying vec3 osg_FragNormal;
 varying vec2 osg_FragTexCoord0;
 varying vec3 osg_FragVertex;
+varying vec3 osg_FragWorldVertex;
 
 #pragma include "panoramaSampler.glsl"
 
@@ -49,7 +50,8 @@ void main() {
 
     // vec3 direction = environmentTransform * L;
 
-    vec3 direction = normalize( osg_FragVertex);
+    vec3 direction = normalize( osg_FragNormal);
+    direction = getEnvironmentTransfrom ( uEnvironmentTransform ) * direction;
 
     vec3 color = test0( direction );
 

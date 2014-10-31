@@ -1,4 +1,3 @@
-
 dir="$(pwd)"
 input="$(readlink -f ${1})"
 size="${3:-128}"
@@ -52,7 +51,11 @@ function create_irr_cubemap()
     cd ~/dev/envtools/build && ./envtoirr -n $size "${in}" "${tmp}" >/tmp/create_irr_cubemap
     shCoef="$(grep "shCoef:" /tmp/create_irr_cubemap | cut -d ':' -f2 )"
     echo "${shCoef}" > ${out}/spherical
+
+    ./envremap -i cube -o rect "${tmp}" /tmp/panorama_irradiance.tif
+
     create_cubemap "${tmp}" "${out}/cubemap_irradiance"
+    encodeTexture /tmp/panorama_irradiance.tif "${out}"
 }
 
 destdir="${2:-$(dirname $input)/output}"
