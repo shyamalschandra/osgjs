@@ -56,7 +56,7 @@ vec3 sphericalHarmonics( const in vec3 normal )
     float z = normal.z;
 
     vec3 result = (
-        shCoefs[0] +
+        shCoefs[0] * uSph[0] +
 
         shCoefs[1] * uSph[1] * y +
         shCoefs[2] * uSph[2] * z +

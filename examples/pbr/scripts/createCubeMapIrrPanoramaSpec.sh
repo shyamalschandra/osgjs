@@ -1,6 +1,7 @@
 dir="$(pwd)"
 input="$(readlink -f ${1})"
-size="${3:-128}"
+sizeIrr="${3:-32}"
+sizeSpec="${4:-512}"
 
 filename=$(basename "$input")
 
@@ -48,11 +49,14 @@ function create_irr_cubemap()
     local in="${1}"
     local out="${2}"
     local tmp="/tmp/irr.tif"
-    cd ~/dev/envtools/build && ./envtoirr -n $size "${in}" "${tmp}" >/tmp/create_irr_cubemap
+    create_cubemap "${in}" "${out}/cubemap"
+
+    cd ~/dev/envtools/build && ./envtoirr -n $sizeIrr "${in}" "${tmp}" >/tmp/create_irr_cubemap
     shCoef="$(grep "shCoef:" /tmp/create_irr_cubemap | cut -d ':' -f2 )"
     echo "${shCoef}" > ${out}/spherical
 
-    ./envremap -i cube -o rect "${tmp}" /tmp/panorama_irradiance.tif
+    let "sizePanoramaIrr = $sizeIrr * 4"
+    ./envremap -n $sizePanoramaIrr -i cube -o rect "${tmp}" /tmp/panorama_irradiance.tif
 
     create_cubemap "${tmp}" "${out}/cubemap_irradiance"
     encodeTexture /tmp/panorama_irradiance.tif "${out}"
@@ -64,7 +68,7 @@ destdir="$(readlink -f ${destdir})"
 
 iconvert "${input}" "/tmp/panorama.tif"
 generic="/tmp/input_cubemap.tif"
-cd ~/dev/envtools/build && ./envremap -o cube -n $size "/tmp/panorama.tif" "${generic}"
+cd ~/dev/envtools/build && ./envremap -o cube -n $sizeSpec "/tmp/panorama.tif" "${generic}"
 
 create_irr_cubemap "${generic}" "${destdir}"
 
@@ -72,5 +76,5 @@ create_irr_cubemap "${generic}" "${destdir}"
 encodeTexture "/tmp/panorama.tif" "${destdir}"
 if [ "${destdir}" != "$(dirname $input)" ]
 then
-    rm ${destdir}/*tif
+    echo 'finish' #rm ${destdir}/*tif
 fi

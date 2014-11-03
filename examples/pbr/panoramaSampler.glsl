@@ -37,8 +37,8 @@ vec4 computeUVForMipmap( const in float level, const in vec2 uv, const in vec2 s
     return vec4( uvGlobal.x, uvGlobal.y, ratio.x, ratio.y + globalOffsetV );
 }
 
-// for z up
-vec2 normalToPanoramaUVZ( const in vec3 dir )
+//for y up
+vec2 normalToPanoramaUVY( const in vec3 dir )
 {
     float n = length(dir.xz);
 
@@ -50,15 +50,17 @@ vec2 normalToPanoramaUVZ( const in vec3 dir )
 
     pos = acos(pos)*INV_PI;
 
-    // to avoid bleeding the limit must be set to 0.4999999 instead of 0.5
     pos.x = (dir.z > 0.0) ? pos.x*0.5 : 1.0-(pos.x*0.5);
+
+    // shift u to center the panorama to -z
+    pos.x = mod(pos.x-0.25+1.0, 1.0 );
     pos.y = 1.0-pos.y;
     return pos;
 }
 
 
-//for y up
-vec2 normalToPanoramaUVY( const in vec3 dir )
+// for z up
+vec2 normalToPanoramaUVZ( const in vec3 dir )
 {
     float n = length(dir.xy);
 
@@ -72,6 +74,9 @@ vec2 normalToPanoramaUVY( const in vec3 dir )
 
     // to avoid bleeding the limit must be set to 0.4999999 instead of 0.5
     pos.x = (dir.y > 0.0) ? pos.x*0.5 : 1.0-(pos.x*0.5);
+
+    // shift u to center the panorama to -y
+    pos.x = mod(pos.x-0.25+1.0, 1.0 );
     pos.y = 1.0-pos.y;
     return pos;
 }
@@ -109,6 +114,10 @@ vec3 textureRGBELinearPanoramic(const in sampler2D texture, const in vec2 size, 
     return mix(A, B, frac.y);
 }
 
+vec3 textureRGBELinearPanoramic(const in sampler2D texture, const in vec2 size, const in vec2 uv ) {
+
+    return textureRGBELinearPanoramic( texture, size, uv, vec2(1.0) );
+}
 
 vec3 texturePanoramicRGBELod(const in sampler2D texture,
                              const in vec2 size ,

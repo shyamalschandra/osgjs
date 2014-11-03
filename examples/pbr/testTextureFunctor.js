@@ -39,19 +39,19 @@
     var shaderProcessor = new osgShader.ShaderProcessor();
 
 
-    var readTextFile = function( path ) {
+    var readTextFile = function ( path ) {
         return Q( $.get( path ) );
     };
 
 
 
-    var SphericalEnv = function( file ) {
+    var SphericalEnv = function ( file ) {
         this._file = file;
     };
 
     SphericalEnv.prototype = {
 
-        createShaderSpherical: function() {
+        createShaderSpherical: function () {
 
             var vertexshader = shaderProcessor.getShader( 'sphericalHarmonicsVertex.glsl' );
             var fragmentshader = shaderProcessor.getShader( 'sphericalHarmonicsFragment.glsl' );
@@ -66,37 +66,36 @@
         createDebugGeometry: function () {
 
             var debugGroup = new osg.MatrixTransform();
-
+            var size = 10;
             // create a sphere to debug it
-            var sphere = osg.createTexturedSphereGeometry( 5, 20, 20 );
+            var sphere = osg.createTexturedSphereGeometry( size, 20, 20 );
             sphere.getOrCreateStateSet().setAttributeAndModes( this.createShaderSpherical() );
             var uniform = osg.Uniform.createFloat3Array( this._sphCoef, 'uSph' );
             sphere.getOrCreateStateSet().addUniform( uniform );
 
             debugGroup.addChild( sphere );
-            osg.Matrix.makeTranslate( -90, 0, 0, debugGroup.getMatrix() );
-
             return debugGroup;
         },
 
-        load: function() {
+        load: function () {
             var p = readTextFile( this._file );
-            p.then( function( text ) {
+            p.then( function ( text ) {
                 this._sphCoef = JSON.parse( text );
-                this._sphCoef.splice( 9*3 );
+                this._sphCoef.splice( 9 * 3 );
             }.bind( this ) );
             return p;
         }
     };
 
-    var CubeMapEnv = function( filePattern, options ) {
+
+    var CubeMapEnv = function ( filePattern, options ) {
         this._options = options || {};
         this._pattern = filePattern; // abandoned_sanatorium_staircase_%d.png
     };
 
     CubeMapEnv.prototype = {
 
-        createTexture: function( image ) {
+        createTexture: function ( image ) {
             var texture = new osg.Texture();
             texture.setImage( image );
             texture.setMinFilter( this._options.minFilter || 'NEAREST' );
@@ -104,22 +103,19 @@
             return texture;
         },
 
-        createTextureCubemap: function() {
+        createTextureCubemap: function () {
 
             var texture = new osg.TextureCubeMap();
             texture.setMinFilter( this._options.minFilter || 'NEAREST' );
             texture.setMagFilter( this._options.magFilter || 'NEAREST' );
 
-            var remap = [ 0, 1, 3, 2, 4, 5 ];
+            for ( var i = 0; i < 6; i++ )
+                texture.setImage( osg.Texture.TEXTURE_CUBE_MAP_POSITIVE_X + i, this._images[ i ] );
 
-            var i = 0;
-            remap.forEach( function( index ) {
-                texture.setImage( osg.Texture.TEXTURE_CUBE_MAP_POSITIVE_X + i++, this._images[index] );
-            }.bind( this ) );
             return texture;
         },
 
-        createShader: function() {
+        createShader: function () {
 
             var vertexshader = shaderProcessor.getShader( 'cubemapVertex.glsl' );
             var fragmentshader = shaderProcessor.getShader( 'cubemapFragment.glsl' );
@@ -132,13 +128,12 @@
 
         },
 
-        createDebugGeometry: function() {
+        createDebugGeometry: function () {
 
             var scene = new osg.Node();
 
             var size = 10;
-            //var geom = osg.createTexturedBoxGeometry( 0, 0, 0, size, size, size );
-            var geom = osg.createTexturedSphereGeometry( 5, 20, 20 );
+            var geom = osg.createTexturedSphereGeometry( size, 20, 20 );
 
             geom.getOrCreateStateSet().setAttributeAndModes( new osg.CullFace( 'DISABLE' ) );
             var texture = this.createTextureCubemap();
@@ -150,20 +145,20 @@
         },
 
 
-        load: function() {
+        load: function () {
             var defer = Q.defer();
 
             var images = [];
             for ( var i = 0; i < 6; i++ ) {
                 var str = this._pattern;
-                str = str.replace('%d',i);
+                str = str.replace( '%d', i );
                 images.push( readImageURL( str ) );
             }
             this._images = images;
 
             Q.all( images ).then( function ( images ) {
                 defer.resolve( images );
-            });
+            } );
 
             return defer.promise;
 
@@ -172,7 +167,7 @@
     };
 
 
-    var PanoramaEnv = function( file, options) {
+    var PanoramaEnv = function ( file, options ) {
         this._options = options || {};
         this._file = file;
     };
@@ -193,17 +188,22 @@
 
         createShaderPanorama: function ( defines ) {
 
-            var vertexshader = shaderProcessor.getShader( 'panoramaVertex.glsl');
-            var fragmentshader = shaderProcessor.getShader( 'panoramaFragment.glsl', defines  );
+            if ( this._shaderPanorama === undefined ) {
 
-            var program = new osg.Program(
-                new osg.Shader( 'VERTEX_SHADER', vertexshader ),
-                new osg.Shader( 'FRAGMENT_SHADER', fragmentshader ) );
+                var vertexshader = shaderProcessor.getShader( 'panoramaVertex.glsl' );
+                var fragmentshader = shaderProcessor.getShader( 'panoramaFragment.glsl', defines );
 
-            return program;
+                var program = new osg.Program(
+                    new osg.Shader( 'VERTEX_SHADER', vertexshader ),
+                    new osg.Shader( 'FRAGMENT_SHADER', fragmentshader ) );
+
+                this._shaderPanorama = program;
+            }
+
+            return this._shaderPanorama;
         },
 
-        load: function() {
+        load: function () {
             var defer = Q.defer();
 
             readImageURL( this._file ).then( function ( image ) {
@@ -224,30 +224,31 @@
         createDebugGeometry: function () {
 
             var debugGroup = new osg.MatrixTransform();
-
+            var texture = this._texture;
+            var size = 10;
             if ( this._textureInlineMipMap ) {
                 // create a quad to display the panorama generated
-                var quadDebug = osg.createTexturedQuadGeometry( -5, -5, 0,
-                                                                10, 0, 0,
-                                                                0, 10, 0,
-                                                                0, 0,
-                                                                1, 1 );
+                var quadDebug = osg.createTexturedQuadGeometry( -size, -size, 0,
+                    size*2, 0, 0,
+                    0, size*2, 0,
+                    0, 0,
+                    1, 1 );
                 quadDebug.getOrCreateStateSet().setAttributeAndModes( this.createShaderInlineDebugPanorama() );
 
                 var mt = new osg.MatrixTransform();
                 mt.addChild( quadDebug );
-                osg.Matrix.makeTranslate( 30, 0, 0, mt.getMatrix() );
+                osg.Matrix.makeTranslate( 0, -( size*2 + 1 ), 0, mt.getMatrix() );
                 debugGroup.addChild( mt );
+
+                texture = this._textureInlineMipMap;
             }
 
             // create a sphere to debug it
-            var sphere = osg.createTexturedSphereGeometry( 5, 20, 20 );
+            var sphere = osg.createTexturedSphereGeometry( size, 20, 20 );
             sphere.getOrCreateStateSet().setAttributeAndModes( this.createShaderPanorama() );
+            debugGroup.getOrCreateStateSet().setTextureAttributeAndModes(0, texture );
 
             debugGroup.addChild( sphere );
-
-            osg.Matrix.makeTranslate( -60, 0, 0, debugGroup.getMatrix() );
-
             return debugGroup;
         },
 
@@ -255,14 +256,16 @@
 
             var debugGroup = new osg.MatrixTransform();
 
+            var size = 10;
             // create a sphere to debug it
-            var sphere = osg.createTexturedSphereGeometry( 5, 20, 20 );
-            sphere.getOrCreateStateSet().setAttributeAndModes( this.createShaderPanorama( [ '#define IRRADIANCE']) );
-            sphere.getOrCreateStateSet().setTextureAttributeAndModes( 0 , this._texture );
+            var sphere = osg.createTexturedSphereGeometry( size, 20, 20 );
+
+            sphere.getOrCreateStateSet().setAttributeAndModes( this.createShaderPanorama( [ '#define IRRADIANCE' ] ) );
+            sphere.getOrCreateStateSet().setTextureAttributeAndModes( 0, this._texture );
+            var w = this._texture.getImage().getWidth();
+            debugGroup.getOrCreateStateSet().addUniform( osg.Uniform.createFloat2( [ w, w / 2 ], 'uIrradianceSize' ) );
 
             debugGroup.addChild( sphere );
-
-            osg.Matrix.makeTranslate( -150, 0, 0, debugGroup.getMatrix() );
 
             return debugGroup;
         },
@@ -289,7 +292,9 @@
             return group;
 
         },
-        getTextureInlineMipMapPromise: function() { return this._textureInlinePromise; }
+        getTextureInlineMipMapPromise: function () {
+            return this._textureInlinePromise;
+        }
 
 
 
@@ -460,10 +465,10 @@
             // create the environment sphere
             var size = 500;
             //var geom = osg.createTexturedBoxGeometry( 0, 0, 0, size, size, size );
-            var geom = osg.createTexturedSphereGeometry( size/2, 20, 20 ); // to use the same shader panorama
+            var geom = osg.createTexturedSphereGeometry( size / 2, 20, 20 ); // to use the same shader panorama
             var ss = geom.getOrCreateStateSet();
             geom.getOrCreateStateSet().setAttributeAndModes( new osg.CullFace( 'DISABLE' ) );
-            geom.getOrCreateStateSet().setAttributeAndModes( new osg.Depth('DISABLE') );
+            geom.getOrCreateStateSet().setAttributeAndModes( new osg.Depth( 'DISABLE' ) );
 
             ss.setRenderBinDetails( -1, 'RenderBin' );
 
@@ -477,7 +482,11 @@
                     // overwrite matrix, remove translate so environment is always at camera origin
                     osg.Matrix.setTrans( nv.getCurrentModelViewMatrix(), 0, 0, 0 );
                     var m = nv.getCurrentModelViewMatrix();
-                    osg.Matrix.copy( m, environmentTransform.get() );
+
+                    // add a rotation, because environment has the convention y up
+                    var rotateYtoZ = osg.Matrix.makeRotate( -Math.PI / 2, 1, 0, 0, osg.Matrix.create() );
+                    osg.Matrix.mult( m, rotateYtoZ, environmentTransform.get() );
+                    //osg.Matrix.copy( m, environmentTransform.get() );
                     environmentTransform.dirty();
                     return true;
                 };
@@ -538,7 +547,7 @@
 
         },
 
-        getModelTestInstance: function () {
+        getModelTestInstance: function ( offset ) {
             var mt = new osg.MatrixTransform();
             mt.addChild( this._modeltest );
             return mt;
@@ -558,13 +567,13 @@
 
 
 
-        createSampleModels: function() {
+        createSampleModels: function () {
             var group = new osg.Node();
             group.addChild( this.createSampleModel( [ 0.5, 0.5, 0.5, 1.0 ], 0.3, 0.0 ) );
             return group;
         },
 
-        implementPanoramaRGBE: function() {
+        implementPanoramaRGBE: function () {
 
 
             var group = new osg.Node();
@@ -576,61 +585,84 @@
 
             // add the functor to process the environment
             group.addChild( this._panoramaRGBE.createWorkerInlineMipMapRGBE() );
-            this._panoramaRGBE.getTextureInlineMipMapPromise().then( function( texture ) {
+            this._panoramaRGBE.getTextureInlineMipMapPromise().then( function ( texture ) {
 
 
                 group.addChild( this.createSampleModels() );
 
-                group.addChild( this._panoramaRGBE.createDebugGeometry() );
-
                 // set the stateSet of the environment geometry
                 environmentGeometry.getOrCreateStateSet().setAttributeAndModes( this._panoramaRGBE.createShaderPanorama() );
-                this.setPanoramaTexture( texture,  group.getOrCreateStateSet() );
+                this.setPanoramaTexture( texture, group.getOrCreateStateSet() );
 
-            }.bind ( this ) );
+            }.bind( this ) );
 
             return group;
         },
 
 
-        testSphericalHarmonics: function() {
+        testSphericalHarmonics: function ( offset, offsety ) {
 
-
+            var y = ( offsety !== undefined ) ? offsety : 0;
             var group = new osg.MatrixTransform();
+            osg.Matrix.makeTranslate( offset, y, 0, group.getMatrix() );
 
             group.addChild( this._spherical.createDebugGeometry() );
-
             return group;
         },
 
 
-        testCubemapIrradiance: function() {
+        testCubemapIrradiance: function ( offset, offsety ) {
 
-
+            var y = ( offsety !== undefined ) ? offsety : 0;
             var group = new osg.MatrixTransform();
+            osg.Matrix.makeTranslate( offset, y, 0, group.getMatrix() );
 
             group.addChild( this._cubemapIrradiance.createDebugGeometry() );
+            return group;
+        },
 
-            osg.Matrix.makeTranslate( 120, 0,0, group.getMatrix());
+        testCubemap: function ( offset, offsety ) {
+
+            var y = ( offsety !== undefined ) ? offsety : 0;
+            var group = new osg.MatrixTransform();
+            osg.Matrix.makeTranslate( offset, y, 0, group.getMatrix() );
+
+            group.addChild( this._cubemap.createDebugGeometry() );
             return group;
         },
 
 
-        testPanoramaIrradiance: function() {
+        testPanoramaIrradiance: function ( offset, offsety ) {
 
-
+            var y = ( offsety !== undefined ) ? offsety : 0;
             var group = new osg.MatrixTransform();
+            osg.Matrix.makeTranslate( offset, y, 0, group.getMatrix() );
 
             group.addChild( this._panoramaIrradianceRGBE.createDebugIrradianceGeometry() );
-
-            osg.Matrix.makeTranslate( 80, 0,0, group.getMatrix());
             return group;
         },
+
+
+        testPanorama: function ( offset, offsety ) {
+            var y = ( offsety !== undefined ) ? offsety : 0;
+            var group = new osg.MatrixTransform();
+            osg.Matrix.makeTranslate( offset, y, 0, group.getMatrix() );
+
+            this._panoramaRGBE.getTextureInlineMipMapPromise().then( function() {
+                group.addChild( this._panoramaRGBE.createDebugGeometry() );
+            }.bind( this ) );
+            return group;
+        },
+
 
         createScene: function () {
 
+            var root = new osg.Node();
+            root.addChild( osg.createAxisGeometry( 50 ) );
+
             var group = new osg.MatrixTransform();
-            group.addChild( osg.createAxisGeometry( 50 ) );
+            root.addChild( group );
+            //group.addChild( osg.createAxisGeometry( 50 ) );
 
             // add lod controller to debug
             this._lod = osg.Uniform.createFloat1( 0.0, 'uLod' );
@@ -638,13 +670,16 @@
 
 
             // implement a scene with panorama RGBE
-            group.addChild ( this.implementPanoramaRGBE() );
+            group.addChild( this.implementPanoramaRGBE() );
 
-            group.addChild ( this.testSphericalHarmonics() );
 
-            group.addChild ( this.testCubemapIrradiance() );
+            group.addChild( this.testSphericalHarmonics( -30, 30 ) );
 
-            group.addChild ( this.testPanoramaIrradiance() );
+            group.addChild( this.testCubemap( -60 ) );
+            group.addChild( this.testCubemapIrradiance( -60, 30 ) );
+
+            group.addChild( this.testPanoramaIrradiance( -90, 30 ) );
+            group.addChild( this.testPanorama( -90 ) );
 
 
             group.getOrCreateStateSet().setAttributeAndModes( new osg.CullFace( 'DISABLE' ) );
@@ -656,7 +691,7 @@
             group.getOrCreateStateSet().addUniform( osg.Uniform.createInt( this._metalnessTextureUnit, 'specularMap' ) );
             group.getOrCreateStateSet().addUniform( osg.Uniform.createInt( this._albedoTextureUnit, 'albedoMap' ) );
 
-            return group;
+            return root;
 
         },
 
@@ -669,11 +704,13 @@
             var panorama = environement + 'panorama.png';
             var panoramaIrradiance = environement + 'panorama_irradiance.png';
             var spherical = environement + 'spherical';
-            var cubemap = environement + 'cubemap_irradiance_%d.png';
+            var cubemapIrradiance = environement + 'cubemap_irradiance_%d.png';
+            var cubemap = environement + 'cubemap_%d.png';
 
             this._panoramaRGBE = new PanoramaEnv( panorama );
             this._panoramaIrradianceRGBE = new PanoramaEnv( panoramaIrradiance );
-            this._cubemapIrradiance = new CubeMapEnv( cubemap );
+            this._cubemapIrradiance = new CubeMapEnv( cubemapIrradiance );
+            this._cubemap = new CubeMapEnv( cubemap );
             this._spherical = new SphericalEnv( spherical );
 
             ready.push( this.readShaders() );
@@ -681,6 +718,7 @@
             ready.push( this._panoramaIrradianceRGBE.load() );
             ready.push( this._spherical.load() );
             ready.push( this._cubemapIrradiance.load() );
+            ready.push( this._cubemap.load() );
             ready.push( this.createModelMaterialSample() );
 
             Q.all( ready ).then( function () {

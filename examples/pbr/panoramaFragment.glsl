@@ -6,6 +6,7 @@
 
 uniform sampler2D uEnvironment;
 uniform vec2 uEnvironmentSize;
+uniform vec2 uIrradianceSize;
 uniform float uEnvironmentMaxLod;
 uniform float uLod;
 
@@ -32,7 +33,7 @@ vec3 test0( const in vec3 direction ) {
 
 vec3 irradiance( const in vec3 direction ) {
     vec2 uvBase = normalToPanoramaUV( direction );
-    vec3 texel = textureRGBE( uEnvironment, uvBase );
+    vec3 texel = textureRGBELinearPanoramic( uEnvironment, uIrradianceSize, uvBase );
     return texel;
 }
 

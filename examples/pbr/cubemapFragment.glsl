@@ -19,7 +19,9 @@ mat3 getEnvironmentTransfrom( mat4 transform ) {
 
 void main() {
     vec3 direction = normalize( osg_FragNormal);
+    //direction = normalize(osg_FragVertex.xyz);
     direction = getEnvironmentTransfrom( uEnvironmentTransform ) * direction;
     vec3 color = textureCubeRGBE( uEnvironment, direction );
+    //color = textureCube(uEnvironment, direction ).rgb;
     gl_FragColor = vec4( color, 1.0);
 }
