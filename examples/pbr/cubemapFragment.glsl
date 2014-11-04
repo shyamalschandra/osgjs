@@ -21,7 +21,11 @@ void main() {
     vec3 direction = normalize( osg_FragNormal);
     //direction = normalize(osg_FragVertex.xyz);
     direction = getEnvironmentTransfrom( uEnvironmentTransform ) * direction;
+#ifndef FLOAT_CUBEMAP
     vec3 color = textureCubeRGBE( uEnvironment, direction );
+#else
+    vec3 color = textureCube( uEnvironment, direction ).rgb;
+#endif
     //color = textureCube(uEnvironment, direction ).rgb;
     gl_FragColor = vec4( color, 1.0);
 }

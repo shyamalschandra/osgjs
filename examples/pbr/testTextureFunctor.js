@@ -115,10 +115,10 @@
             return texture;
         },
 
-        createShader: function () {
+        createShader: function ( defines ) {
 
             var vertexshader = shaderProcessor.getShader( 'cubemapVertex.glsl' );
-            var fragmentshader = shaderProcessor.getShader( 'cubemapFragment.glsl' );
+            var fragmentshader = shaderProcessor.getShader( 'cubemapFragment.glsl', defines );
 
             var program = new osg.Program(
                 new osg.Shader( 'VERTEX_SHADER', vertexshader ),
@@ -144,6 +144,36 @@
             return scene;
         },
 
+        createFloatCubeMapDebugGeometry: function () {
+
+            var scene = new osg.Node();
+
+            var size = 10;
+            var geom = osg.createTexturedSphereGeometry( size, 20, 20 );
+
+            geom.getOrCreateStateSet().setAttributeAndModes( new osg.CullFace( 'DISABLE' ) );
+            var texture = this._convertor.getTexture();
+            geom.getOrCreateStateSet().setTextureAttributeAndModes( 0, texture );
+            geom.getOrCreateStateSet().setAttributeAndModes( this.createShader( [ '#define FLOAT_CUBEMAP'] ) );
+
+            scene.addChild( geom );
+            return scene;
+        },
+
+        createWorkerRGBEToFloatCubeMap: function () {
+            var textures = [];
+            for ( var i = 0; i < 6; i++ ) {
+                var texture = this.createTexture( this._images[i] );
+                texture.setFlipY( false );
+                textures.push( texture );
+            }
+            this._convertor = new TextureListRGBEToCubemapFloat( textures );
+            return this._convertor.getOperatorNode();
+        },
+
+        getFloatCubeMapPromise: function() {
+            return this._convertor.getPromise();
+        },
 
         load: function () {
             var defer = Q.defer();
@@ -632,6 +662,24 @@
         },
 
 
+        testCubemapFloat: function ( offset, offsety ) {
+
+            var y = ( offsety !== undefined ) ? offsety : 0;
+            var group = new osg.MatrixTransform();
+            osg.Matrix.makeTranslate( offset, y, 0, group.getMatrix() );
+
+            var node = this._cubemapFloat.createWorkerRGBEToFloatCubeMap();
+
+            group.addChild( node );
+
+            this._cubemapFloat.getFloatCubeMapPromise().then( function() {
+                group.addChild( this._cubemapFloat.createFloatCubeMapDebugGeometry() );
+            }.bind( this ));
+
+            return group;
+        },
+
+
         testPanoramaIrradiance: function ( offset, offsety ) {
 
             var y = ( offsety !== undefined ) ? offsety : 0;
@@ -676,6 +724,7 @@
             group.addChild( this.testSphericalHarmonics( -30, 30 ) );
 
             group.addChild( this.testCubemap( -60 ) );
+            group.addChild( this.testCubemapFloat( -60,-30 ) );
             group.addChild( this.testCubemapIrradiance( -60, 30 ) );
 
             group.addChild( this.testPanoramaIrradiance( -90, 30 ) );
@@ -711,6 +760,7 @@
             this._panoramaIrradianceRGBE = new PanoramaEnv( panoramaIrradiance );
             this._cubemapIrradiance = new CubeMapEnv( cubemapIrradiance );
             this._cubemap = new CubeMapEnv( cubemap );
+            this._cubemapFloat = new CubeMapEnv( cubemap );
             this._spherical = new SphericalEnv( spherical );
 
             ready.push( this.readShaders() );
@@ -719,6 +769,7 @@
             ready.push( this._spherical.load() );
             ready.push( this._cubemapIrradiance.load() );
             ready.push( this._cubemap.load() );
+            ready.push( this._cubemapFloat.load() );
             ready.push( this.createModelMaterialSample() );
 
             Q.all( ready ).then( function () {
@@ -1001,8 +1052,8 @@
         this._textureTarget = [
             osg.Texture.TEXTURE_CUBE_MAP_POSITIVE_X,
             osg.Texture.TEXTURE_CUBE_MAP_NEGATIVE_X,
-            osg.Texture.TEXTURE_CUBE_MAP_NEGATIVE_Y,
             osg.Texture.TEXTURE_CUBE_MAP_POSITIVE_Y,
+            osg.Texture.TEXTURE_CUBE_MAP_NEGATIVE_Y,
             osg.Texture.TEXTURE_CUBE_MAP_POSITIVE_Z,
             osg.Texture.TEXTURE_CUBE_MAP_NEGATIVE_Z
         ];
@@ -1042,12 +1093,36 @@
         this.getAttributes().TexCoord0 = quad.getAttributes().TexCoord0;
         this.getPrimitives().push( quad.getPrimitives()[ 0 ] );
 
+
+        // new
+        var camera = new osg.Camera();
+        var vp = new osg.Viewport( 0, 0, w, h );
+        camera.setReferenceFrame( osg.Transform.ABSOLUTE_RF );
+        camera.setViewport( vp );
+        osg.Matrix.makeOrtho( -w / 2, w / 2, -h / 2, h / 2, -5, 5, camera.getProjectionMatrix() );
+        camera.addChild( this );
+
+        this.getPromise().then( function()  {
+
+            // auto remove it self
+            camera.getParents()[0].removeChild( camera );
+
+        }.bind( this ));
+
+        this._camera = camera;
+
         this.initStateSet();
     };
 
     TextureListRGBEToCubemapFloat.prototype = osg.objectInherit( osg.Geometry.prototype, {
+        getTexture: function() {
+            return this._textureCubemap;
+        },
         getPromise: function () {
             return this._defer.promise;
+        },
+        getOperatorNode: function() {
+            return this._camera;
         },
         initStateSet: function () {
             var ss = this.getOrCreateStateSet();
