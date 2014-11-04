@@ -50,7 +50,6 @@ vec2 getSample(const in int i ) {
     return u;
 }
 
-
 vec3 evaluateDiffuseSphericalHarmonics( const in vec3 N,
                                         const in vec3 V,
                                         const in vec3 tangentX,
@@ -127,7 +126,8 @@ vec3 evaluateSpecularIBL( const in vec3 N,
     for ( int i = 0; i < NB_SAMPLES; i++ ) {
 
         // get sample
-        vec2 u = getSample( i );
+        //vec2 u = getSample( i );
+        vec2 u = uHammersleySamples[i];
 
         // Importance sampling GGX NDF sampling
         float cosThetaH = sqrt( (1.0-u.y) / (1.0 + alpha2MinusOne * u.y) );

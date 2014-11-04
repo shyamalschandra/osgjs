@@ -4,12 +4,20 @@
 #define INV_LOG2 1.4426950408889634073599246810019
 
 uniform mat4 uEnvironmentTransform;
+
+uniform samplerCube uEnvironmentCube;
+#extension GL_EXT_shader_texture_lod : enable
+
 uniform sampler2D uEnvironment;
+
+
 uniform vec2 uEnvironmentSize;
 uniform float uEnvironmentMaxLod;
 uniform float uLod;
 
 uniform vec3 uEnvironmentSphericalHarmonics[9];
+
+uniform vec2 uHammersleySamples[NB_SAMPLES];
 
 varying vec3 osg_FragEye;
 varying vec3 osg_FragNormal;
@@ -38,7 +46,7 @@ float distortion(vec3 Wn)
     return sinT;
 }
 
-float computeLOD(vec3 Ln, float p, int nbSamples, float maxLod)
+float computeLOD(const in vec3 Ln, float p, const in int nbSamples, const in float maxLod)
 {
     return max(0.0, (maxLod-1.5) - 0.5*(log(float(nbSamples)) + log( p * distortion(Ln) ))
                * INV_LOG2);
@@ -55,10 +63,20 @@ vec3 getTexelPanoramaRGBE( const in vec3 dir, const in float lod ) {
 }
 
 vec3 getReferenceTexelEnvironmentLod( const in vec3 dirLocal, const in float pdf ) {
+
     vec3 direction = environmentTransform * dirLocal;
+
+#ifdef FLOAT_CUBEMAP_LOD
+    float lod = computeLOD(vec3(0.0), pdf, int(NB_SAMPLES), uEnvironmentMaxLod);
+    return textureCubeLodEXT(uEnvironmentCube, direction, lod ).rgb;
+#else
     float lod = computeLOD(direction, pdf, int(NB_SAMPLES), uEnvironmentMaxLod);
     return getTexelPanoramaRGBE( direction, lod );
+#endif
 }
+
+
+
 
 vec3 getReferenceTexelEnvironment( const in vec3 dirLocal, const in float lod ) {
     vec3 direction = environmentTransform * dirLocal;

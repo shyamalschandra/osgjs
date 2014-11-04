@@ -77,7 +77,7 @@ window.EnvironmentCubeMap = ( function () {
             geom.getOrCreateStateSet().setAttributeAndModes( new osg.CullFace( 'DISABLE' ) );
             var texture = this._convertor.getTexture();
             geom.getOrCreateStateSet().setTextureAttributeAndModes( 0, texture );
-            geom.getOrCreateStateSet().setAttributeAndModes( this.createShader( [ '#define FLOAT_CUBEMAP' ] ) );
+            geom.getOrCreateStateSet().setAttributeAndModes( this.createShader( [ '#define FLOAT_CUBEMAP_LOD' ] ) );
 
             scene.addChild( geom );
             return scene;

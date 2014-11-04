@@ -36,11 +36,14 @@
 
         this._config = {
             lod: 0.01,
-            albedo: '#bdaaeb'
+            albedo: '#bdaaeb',
+            nbSamples: 8,
+            environmentType: 'cubemap'
         };
 
         this.updateAlbedo();
 
+        this._uniformHammersleySequence = {};
         this._albedoTextureUnit = 2;
         this._roughnessTextureUnit = 3;
         this._metalnessTextureUnit = 4;
@@ -134,7 +137,7 @@
         //     specularMap: false
         //     aoMap: false
         // }
-        createShaderPbrReference: function ( config ) {
+        createShaderPBR: function ( config ) {
 
             var defines = [];
             if ( config && config.normalMap === true )
@@ -149,13 +152,20 @@
             if ( config && config.aoMap === true )
                 defines.push( '#define AO' );
 
-            defines.push( '#define NB_SAMPLES 32' );
+            if ( config && config.nbSamples !== undefined )
+                defines.push( '#define NB_SAMPLES ' + config.nbSamples );
+            else
+                defines.push( '#define NB_SAMPLES 8' );
+
+            if ( config && config.environmentType === 'cubemap' )
+                defines.push( '#define FLOAT_CUBEMAP_LOD ');
+
 
             if ( !this._shaderCache )
                 this._shaderCache = {};
 
             var hash = defines.join();
-            if ( !this._shaderCache[hash] ) {
+            if ( !this._shaderCache[ hash ] ) {
 
                 var vertexshader = shaderProcessor.getShader( 'pbrReferenceVertex.glsl' );
                 var fragmentshader = shaderProcessor.getShader( 'pbrReferenceFragment.glsl', defines );
@@ -164,11 +174,11 @@
                     new osg.Shader( 'VERTEX_SHADER', vertexshader ),
                     new osg.Shader( 'FRAGMENT_SHADER', fragmentshader ) );
 
-                this._shaderCache[hash] = program;
+                this._shaderCache[ hash ] = program;
 
             }
 
-            return this._shaderCache[hash];
+            return this._shaderCache[ hash ];
         },
 
 
@@ -185,20 +195,13 @@
 
         },
 
-        setGlobalUniforms: function ( stateSet ) {
-
-            this._lod = osg.Uniform.createFloat1( 0.0, 'uLod' );
-            stateSet.addUniform( this._lod );
-
-        },
-
         setupMaterial: function ( stateSet, roughness, metalness ) {
 
 
             var roughnessTexture = this._roughnessTexture = this.createTextureFromColor( [ roughness, roughness, roughness, 1.0 ], false // , this._roughnessTexture
-                                                                                       );
+            );
             var metalnessTexture = this._metalnessTexture = this.createTextureFromColor( [ metalness, metalness, metalness, 1.0 ], false //, this._metalnessTexture
-                                                                                       );
+            );
 
             stateSet.setTextureAttributeAndModes( this._albedoTextureUnit, this._albedoTexture );
             stateSet.setTextureAttributeAndModes( this._roughnessTextureUnit, roughnessTexture );
@@ -276,8 +279,6 @@
 
             Q.when( request, function ( model ) {
 
-
-
                 var mt = new osg.MatrixTransform();
                 osg.Matrix.makeRotate( Math.PI / 2, 1, 0, 0, mt.getMatrix() );
                 var bb = model.getBound();
@@ -294,7 +295,7 @@
 
         },
 
-        getModelTestInstance: function ( offset ) {
+        getModelTestInstance: function () {
             var mt = new osg.MatrixTransform();
             mt.addChild( this._modeltest );
             return mt;
@@ -309,12 +310,10 @@
             var y = metal * 80;
             osg.Matrix.makeTranslate( x, 0, y, sample.getMatrix() );
 
-            sample.getOrCreateStateSet().setAttributeAndModes( this.createShaderPbrReference() );
             this.setupMaterial( sample.getOrCreateStateSet(), roughness, metal );
 
             return sample;
         },
-
 
 
         createSampleModels: function () {
@@ -323,14 +322,68 @@
             var nbRough = 5;
             for ( var i = 0; i < nb; i++ ) {
                 for ( var j = 0; j < nbRough; j++ ) {
-                    group.addChild( this.createSampleModel(  j/(nbRough-1), i/ (nb-1)) );
+                    group.addChild( this.createSampleModel( j / ( nbRough - 1 ), i / ( nb - 1 ) ) );
                 }
             }
+
+            this._stateSetPBR = group.getOrCreateStateSet();
+            this.updateShaderPBR();
+
             return group;
         },
 
-        implementPanoramaRGBE: function () {
+        createSampleScene: function () {
 
+            var group = new osg.Node();
+            this._mainSceneNode = group;
+            // add environment geometry
+            var environmentGeometry = this.createEnvironmentNode();
+            group.addChild( environmentGeometry );
+
+            this._environmentStateSet = environmentGeometry.getOrCreateStateSet();
+
+            group.addChild( this.createSampleModels() );
+
+            return group;
+        },
+
+        setPanorama: function () {
+
+            // set the stateSet of the environment geometry
+            this._environmentStateSet.setAttributeAndModes( this._panoramaRGBE.createShaderPanorama() );
+            var texture = this._panoramaRGBE._textureInlineMipMap;
+
+            var stateSet = this._mainSceneNode.getOrCreateStateSet();
+            var w = texture.getWidth();
+            var name = 'uEnvironment';
+            stateSet.addUniform( osg.Uniform.createFloat2( [ w, w / 2 ], name + 'Size' ) );
+            stateSet.addUniform( osg.Uniform.createFloat1( Math.log( w ) / Math.LN2, name + 'MaxLod' ) );
+            stateSet.addUniform( osg.Uniform.createInt1( 0, name ) );
+
+            stateSet.addUniform( this._environmentTransformUniform );
+            stateSet.setTextureAttributeAndModes( 0, texture );
+
+        },
+
+        setCubemap: function () {
+
+            // set the stateSet of the environment geometry
+            this._environmentStateSet.setAttributeAndModes( this._cubemapFloat.createShader( [ '#define FLOAT_CUBEMAP_LOD' ] ) );
+            var texture = this._cubemapFloat._convertor.getTexture();
+
+            var stateSet = this._mainSceneNode.getOrCreateStateSet();
+            var w = texture.getWidth();
+
+            stateSet.addUniform( osg.Uniform.createFloat2( [ w, w ], 'uEnvironmentSize' ) );
+            stateSet.addUniform( osg.Uniform.createFloat1( Math.log( w ) / Math.LN2, 'uEnvironmentMaxLod' ) );
+            stateSet.addUniform( osg.Uniform.createInt1( 0, 'uEnvironmentCube' ) );
+
+            stateSet.addUniform( this._environmentTransformUniform );
+            stateSet.setTextureAttributeAndModes( 0, texture );
+
+        },
+
+        implementPanoramaRGBE: function () {
 
             var group = new osg.Node();
 
@@ -338,11 +391,11 @@
             var environmentGeometry = this.createEnvironmentNode();
             group.addChild( environmentGeometry );
 
+            this._environmentStateSet = environmentGeometry.getOrCreateStateSet();
 
             // add the functor to process the environment
             group.addChild( this._panoramaRGBE.createWorkerInlineMipMapRGBE() );
             this._panoramaRGBE.getTextureInlineMipMapPromise().then( function ( texture ) {
-
 
                 group.addChild( this.createSampleModels() );
 
@@ -394,14 +447,7 @@
             var group = new osg.MatrixTransform();
             osg.Matrix.makeTranslate( offset, y, 0, group.getMatrix() );
 
-            var node = this._cubemapFloat.createWorkerRGBEToFloatCubeMap( { minFilter: 'LINEAR' } );
-
-            group.addChild( node );
-
-            this._cubemapFloat.getFloatCubeMapPromise().then( function() {
-                group.addChild( this._cubemapFloat.createFloatCubeMapDebugGeometry() );
-            }.bind( this ));
-
+            group.addChild( this._cubemapFloat.createFloatCubeMapDebugGeometry() );
             return group;
         },
 
@@ -418,13 +464,12 @@
 
 
         testPanorama: function ( offset, offsety ) {
+
             var y = ( offsety !== undefined ) ? offsety : 0;
             var group = new osg.MatrixTransform();
             osg.Matrix.makeTranslate( offset, y, 0, group.getMatrix() );
 
-            this._panoramaRGBE.getTextureInlineMipMapPromise().then( function() {
-                group.addChild( this._panoramaRGBE.createDebugGeometry() );
-            }.bind( this ) );
+            group.addChild( this._panoramaRGBE.createDebugGeometry() );
             return group;
         },
 
@@ -436,35 +481,57 @@
 
             var group = new osg.MatrixTransform();
             root.addChild( group );
-            //group.addChild( osg.createAxisGeometry( 50 ) );
 
             // add lod controller to debug
             this._lod = osg.Uniform.createFloat1( 0.0, 'uLod' );
             group.getOrCreateStateSet().addUniform( this._lod );
 
 
-            // implement a scene with panorama RGBE
-            group.addChild( this.implementPanoramaRGBE() );
+            var promises = [];
+
+            // precompute panorama
+            group.addChild( this._panoramaRGBE.createWorkerInlineMipMapRGBE() );
+            promises.push( this._panoramaRGBE.getTextureInlineMipMapPromise() );
+
+            // precompute cubemap float
+            group.addChild( this._cubemapFloat.createWorkerRGBEToFloatCubeMap( {
+                minFilter: 'LINEAR_MIPMAP_LINEAR'
+            } ) );
+            promises.push( this._cubemapFloat.getFloatCubeMapPromise() );
 
 
-            group.addChild( this.testSphericalHarmonics( -30, 30 ) );
 
-            group.addChild( this.testCubemap( -60 ) );
-            group.addChild( this.testCubemapFloat( -60,-30 ) );
-            group.addChild( this.testCubemapIrradiance( -60, 30 ) );
+            Q.all( promises ).then( function () {
 
-            group.addChild( this.testPanoramaIrradiance( -90, 30 ) );
-            group.addChild( this.testPanorama( -90 ) );
+                group.addChild( this.createSampleScene() );
+
+                this.updateEnvironment();
+
+                group.addChild( this.testSphericalHarmonics( -30, 30 ) );
+
+                group.addChild( this.testCubemap( -60 ) );
+                group.addChild( this.testCubemapFloat( -60, -30 ) );
+                group.addChild( this.testCubemapIrradiance( -60, 30 ) );
+
+                group.addChild( this.testPanoramaIrradiance( -90, 30 ) );
+                group.addChild( this.testPanorama( -90 ) );
 
 
-            group.getOrCreateStateSet().setAttributeAndModes( new osg.CullFace( 'DISABLE' ) );
+                //group.getOrCreateStateSet().setAttributeAndModes( new osg.CullFace( 'DISABLE' ) );
 
-            // y up
-            osg.Matrix.makeRotate( Math.PI / 2, -1, 0, 0, group.getMatrix() );
+                // y up
+                osg.Matrix.makeRotate( Math.PI / 2, -1, 0, 0, group.getMatrix() );
 
-            group.getOrCreateStateSet().addUniform( osg.Uniform.createInt( this._roughnessTextureUnit, 'roughnessMap' ) );
-            group.getOrCreateStateSet().addUniform( osg.Uniform.createInt( this._metalnessTextureUnit, 'specularMap' ) );
-            group.getOrCreateStateSet().addUniform( osg.Uniform.createInt( this._albedoTextureUnit, 'albedoMap' ) );
+                group.getOrCreateStateSet().addUniform( osg.Uniform.createInt( this._roughnessTextureUnit, 'roughnessMap' ) );
+                group.getOrCreateStateSet().addUniform( osg.Uniform.createInt( this._metalnessTextureUnit, 'specularMap' ) );
+                group.getOrCreateStateSet().addUniform( osg.Uniform.createInt( this._albedoTextureUnit, 'albedoMap' ) );
+
+
+
+
+            }.bind( this ) );
+
+
 
             return root;
 
@@ -474,13 +541,13 @@
 
             var ready = [];
 
-            var environement = 'textures/tmp/';
+            var environment = 'textures/tmp/';
 
-            var panorama = environement + 'panorama.png';
-            var panoramaIrradiance = environement + 'panorama_irradiance.png';
-            var spherical = environement + 'spherical';
-            var cubemapIrradiance = environement + 'cubemap_irradiance_%d.png';
-            var cubemap = environement + 'cubemap_%d.png';
+            var panorama = environment + 'panorama.png';
+            var panoramaIrradiance = environment + 'panorama_irradiance.png';
+            var spherical = environment + 'spherical';
+            var cubemapIrradiance = environment + 'cubemap_irradiance_%d.png';
+            var cubemap = environment + 'cubemap_%d.png';
 
             this._panoramaRGBE = new EnvironmentPanorama( panorama );
             this._panoramaIrradianceRGBE = new EnvironmentPanorama( panoramaIrradiance );
@@ -525,17 +592,69 @@
                 controller = gui.addColor( this._config, 'albedo' );
                 controller.onChange( this.updateAlbedo.bind( this ) );
 
-                controller.onChange( function () {
-                    this.updateAlbedo();
-                }.bind( this ) );
+                controller = gui.add( this._config, 'nbSamples', [ 4, 8, 16, 32, 64, 128, 256 ] );
+                controller.onChange( this.updateShaderPBR.bind( this ) );
 
+                controller = gui.add( this._config, 'environmentType', [ 'cubemap', 'panorama' ] );
+                controller.onChange( this.updateEnvironment.bind( this ) );
 
             }.bind( this ) );
 
         },
 
-        updateAlbedo: function() {
-            this._albedoTexture = this.createTextureFromColor( this.convertColor( this._config.albedo) , true, this._albedoTexture );
+        // http://holger.dammertz.org/stuff/notes_HammersleyOnHemisphere.html
+        computeHammersleyReverse: function ( a ) {
+            a = ( a << 16 | a >>> 16 ) >>> 0;
+            a = ( ( a & 1431655765 ) << 1 | ( a & 2863311530 ) >>> 1 ) >>> 0;
+            a = ( ( a & 858993459 ) << 2 | ( a & 3435973836 ) >>> 2 ) >>> 0;
+            a = ( ( a & 252645135 ) << 4 | ( a & 4042322160 ) >>> 4 ) >>> 0;
+            return ( ( ( a & 16711935 ) << 8 | ( a & 4278255360 ) >>> 8 ) >>> 0 ) / 4294967296;
+        },
+
+        computeHammersleySequence: function ( size ) {
+            var hammersley = [];
+            for ( var i = 0; i < size; i++ ) {
+                var u = i / size;
+                var v = this.computeHammersleyReverse( i );
+                hammersley.push( u );
+                hammersley.push( v );
+            }
+            //console.log( this._hammersley );
+            return hammersley;
+        },
+
+        updateAlbedo: function () {
+            this._albedoTexture = this.createTextureFromColor( this.convertColor( this._config.albedo ), true, this._albedoTexture );
+        },
+
+        updateShaderPBR: function () {
+
+            var nbSamples = this._config.nbSamples;
+            if ( !this._uniformHammersleySequence[ nbSamples ] ) {
+                var sequence = this.computeHammersleySequence( nbSamples );
+                var uniformHammersley = osg.Uniform.createFloat2Array( sequence, 'uHammersleySamples' );
+                this._uniformHammersleySequence[ nbSamples ] = uniformHammersley;
+            }
+            var uniformHammerslay = this._uniformHammersleySequence[ nbSamples ];
+
+            var program = this.createShaderPBR( {
+                nbSamples: nbSamples,
+                environmentType: this._config.environmentType
+            } );
+
+            this._stateSetPBR.setAttributeAndModes( program );
+            this._stateSetPBR.addUniform( uniformHammerslay );
+        },
+
+        updateEnvironment: function () {
+
+            if ( this._config.environmentType === 'cubemap' ) {
+                this.setCubemap();
+            } else {
+                this.setPanorama();
+            }
+
+            this.updateShaderPBR();
         },
 
         convertColor: function ( color ) {
