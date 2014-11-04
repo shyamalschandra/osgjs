@@ -136,7 +136,7 @@ define( [
             this._textureHeight = 0;
             this._unrefImageDataAfterApply = false;
             this._internalFormat = undefined;
-            this._dirtyMipmap = true;
+            this._mipmapDirty = false;
             this._textureTarget = Texture.TEXTURE_2D;
             this._type = Texture.UNSIGNED_BYTE;
 
@@ -289,9 +289,11 @@ define( [
             }
             this.dirty();
         },
+
         getImage: function () {
             return this._image;
         },
+
         setImageFormat: function ( imageFormat ) {
             if ( imageFormat ) {
                 if ( typeof ( imageFormat ) === 'string' ) {
@@ -302,6 +304,7 @@ define( [
                 this._imageFormat = Texture.RGBA;
             }
         },
+
         setType: function ( value ) {
             if ( typeof ( value ) === 'string' ) {
                 this._type = Texture[ value ];
@@ -309,6 +312,7 @@ define( [
                 this._type = value;
             }
         },
+
         setUnrefImageDataAfterApply: function ( bool ) {
             this._unrefImageDataAfterApply = bool;
         },
@@ -329,6 +333,7 @@ define( [
         getInternalFormat: function () {
             return this._internalFormat;
         },
+
         isDirtyMipmap: function () {
             return this._dirtyMipmap;
         },
@@ -358,12 +363,10 @@ define( [
         },
 
         generateMipmap: function ( gl, target ) {
-
             if ( this._minFilter === gl.NEAREST_MIPMAP_NEAREST ||
                 this._minFilter === gl.LINEAR_MIPMAP_NEAREST ||
                 this._minFilter === gl.NEAREST_MIPMAP_LINEAR ||
                 this._minFilter === gl.LINEAR_MIPMAP_LINEAR ) {
-
                 gl.generateMipmap( target );
                 this._dirtyMipmap = false;
             }
@@ -399,7 +402,6 @@ define( [
             var gl = state.getGraphicContext();
 
             if ( this._textureObject !== undefined && !this.isDirty() ) {
-
                 this._textureObject.bind( gl );
                 // If we have modified the texture via Rtt or texSubImage2D and _need_ updated mipmaps,
                 // then we must regenerate the mipmaps explicitely.
@@ -407,7 +409,6 @@ define( [
                 if ( this.isDirtyMipmap() ) {
                     this.generateMipmap( gl, this._textureTarget );
                 }
-
             } else if ( this.defaultType ) {
                 gl.bindTexture( this._textureTarget, null );
             } else {

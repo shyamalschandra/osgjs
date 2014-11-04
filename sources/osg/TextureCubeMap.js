@@ -138,6 +138,13 @@ define( [
             if ( this._textureObject !== undefined && !this.isDirty() ) {
                 this._textureObject.bind( gl );
 
+                // If we have modified the texture via Rtt or texSubImage2D and _need_ updated mipmaps,
+                // then we must regenerate the mipmaps explicitely.
+                // In all other cases, don't set this flag because it can be costly
+                if ( this.isDirtyMipmap() ) {
+                    this.generateMipmap( gl, this._textureTarget );
+                }
+
             } else if ( this.defaultType ) {
                 gl.bindTexture( this._textureTarget, null );
 
