@@ -3,7 +3,7 @@ var osgUtil = window.OSG.osgUtil;
 var Q = window.Q;
 
 
-var PanoramanToPanoramaInlineMipmap = function ( texture, dest, textureTarget ) {
+var PanoramaToPanoramaInlineMipmap = function ( texture, dest, textureTarget ) {
     osg.Node.call( this );
     this._texture = texture;
     this._finalTexture = dest;
@@ -31,7 +31,7 @@ var PanoramanToPanoramaInlineMipmap = function ( texture, dest, textureTarget ) 
 };
 
 
-PanoramanToPanoramaInlineMipmap.prototype = osg.objectInherit( osg.Node.prototype, {
+PanoramaToPanoramaInlineMipmap.prototype = osg.objectInherit( osg.Node.prototype, {
 
     getPromise: function() {
         return this._defer.promise;
@@ -274,5 +274,188 @@ PanoramanToPanoramaInlineMipmap.prototype = osg.objectInherit( osg.Node.prototyp
         this.addChild( composer );
     }
 
+
+} );
+
+
+
+// convert rgbe texture list into a cubemap float
+// we could make it more generic by giving parameter
+// like input format ( rgbe / float ) and cubemap output
+var TextureListRGBEToCubemapFloat = function ( textureSources, options ) {
+    osg.Geometry.call( this );
+
+    this._defer = Q.defer();
+    var finalTexture = new osg.TextureCubeMap();
+
+    this._width = textureSources[ 0 ].getImage().getWidth();
+    this._height = textureSources[ 0 ].getImage().getHeight();
+
+    var minFilter = options.minFilter || 'LINEAR'; // use mipamp if texture lod
+    var textureType = options.textureType || 'FLOAT'; // or HALF_FLOAT
+
+    finalTexture.setTextureSize( this._width, this._height );
+    finalTexture.setType( textureType );
+    finalTexture.setMinFilter( minFilter );
+    finalTexture.setMagFilter( 'LINEAR' );
+    this._textureCubemap = finalTexture;
+
+    this._textureTarget = [
+        osg.Texture.TEXTURE_CUBE_MAP_POSITIVE_X,
+        osg.Texture.TEXTURE_CUBE_MAP_NEGATIVE_X,
+        osg.Texture.TEXTURE_CUBE_MAP_POSITIVE_Y,
+        osg.Texture.TEXTURE_CUBE_MAP_NEGATIVE_Y,
+        osg.Texture.TEXTURE_CUBE_MAP_POSITIVE_Z,
+        osg.Texture.TEXTURE_CUBE_MAP_NEGATIVE_Z
+    ];
+
+    this._textureSources = textureSources;
+    this._fbo = new osg.FrameBufferObject();
+    this._fbo.setAttachment( {
+        'attachment': osg.FrameBufferObject.COLOR_ATTACHMENT0,
+        'texture': this._textureCubemap,
+        'textureTarget': this._textureTarget[ 0 ]
+    } );
+
+    var self = this;
+    var UpdateCallback = function () {
+        this._done = false;
+        this.update = function ( node, nodeVisitor ) {
+
+            if ( nodeVisitor.getVisitorType() === osg.NodeVisitor.UPDATE_VISITOR ) {
+                if ( this._done ) {
+                    self._defer.resolve( self._textureCubemap );
+                    self._textureCubemap.dirtyMipmap();
+                    node.setNodeMask( 0 );
+                } else {
+                    this._done = true;
+                }
+            }
+        };
+    };
+    this.setUpdateCallback( new UpdateCallback() );
+
+    var w = this._width;
+    var h = this._height;
+    var quad = osg.createTexturedQuadGeometry( -w / 2, -h / 2, 0,
+                                               w, 0, 0,
+                                               0, h, 0 );
+    this.getAttributes().Vertex = quad.getAttributes().Vertex;
+    this.getAttributes().TexCoord0 = quad.getAttributes().TexCoord0;
+    this.getPrimitives().push( quad.getPrimitives()[ 0 ] );
+
+
+    // new
+    var camera = new osg.Camera();
+    var vp = new osg.Viewport( 0, 0, w, h );
+    camera.setReferenceFrame( osg.Transform.ABSOLUTE_RF );
+    camera.setViewport( vp );
+    osg.Matrix.makeOrtho( -w / 2, w / 2, -h / 2, h / 2, -5, 5, camera.getProjectionMatrix() );
+    camera.addChild( this );
+
+    this.getPromise().then( function()  {
+
+        // auto remove it self
+        camera.getParents()[0].removeChild( camera );
+
+    }.bind( this ));
+
+    this._camera = camera;
+
+    this.initStateSet();
+};
+
+TextureListRGBEToCubemapFloat.prototype = osg.objectInherit( osg.Geometry.prototype, {
+    getTexture: function() {
+        return this._textureCubemap;
+    },
+    getPromise: function () {
+        return this._defer.promise;
+    },
+    getOperatorNode: function() {
+        return this._camera;
+    },
+    initStateSet: function () {
+        var ss = this.getOrCreateStateSet();
+
+        var vtx = [
+            '#ifdef GL_FRAGMENT_PRECISION_HIGH',
+            'precision highp float;',
+            '#else',
+            'precision mediump float;',
+            '#endif',
+
+            'attribute vec3 Vertex;',
+            'attribute vec2 TexCoord0;',
+
+            'uniform mat4 ModelViewMatrix;',
+            'uniform mat4 ProjectionMatrix;',
+
+            'varying vec2 FragTexCoord0;',
+
+            'void main(void) {',
+            '    FragTexCoord0 = TexCoord0;',
+            '    gl_Position = ProjectionMatrix * ModelViewMatrix * vec4(Vertex,1.0);',
+            '}',
+        ].join( '\n' );
+
+        var frag = [
+            '#ifdef GL_ES',
+            'precision highp float;',
+            '#endif',
+
+            'uniform sampler2D source;',
+            'varying vec2 FragTexCoord0;',
+
+            'vec4 textureRGBE(const in sampler2D texture, const in vec2 uv) {',
+            '    vec4 rgbe = texture2D(texture, uv );',
+
+            '    float f = pow(2.0, rgbe.w * 255.0 - (128.0 + 8.0));',
+            '    return vec4(rgbe.rgb * 255.0 * f, 1.0);',
+            '}',
+
+            'void main() {',
+            '  vec3 decode = textureRGBE(source, FragTexCoord0).rgb;',
+            '  gl_FragColor = vec4(decode, 1.0);',
+            '}',
+            ''
+        ].join( '\n' );
+
+        ss.addUniform( osg.Uniform.createInt1( 0, 'source' ) );
+
+        var program = new osg.Program(
+            new osg.Shader( 'VERTEX_SHADER', vtx ),
+            new osg.Shader( 'FRAGMENT_SHADER', frag ) );
+
+        ss.setAttributeAndModes( program );
+        ss.setAttributeAndModes( this._fbo );
+        ss.setAttributeAndModes( new osg.Depth( 'DISABLE' ) );
+    },
+
+    draw: function ( state ) {
+        osg.Geometry.prototype.drawImplementation.call( this, state );
+    },
+
+    drawImplementation: function ( state ) {
+
+        var gl = state.getGraphicContext();
+
+        // will be applied by stateSet
+        //state.applyAttribute( this._fbo );
+
+        var textureID = this._textureCubemap.getTextureObject().id();
+
+        for ( var i = 0; i < 6; i++ ) {
+            gl.framebufferTexture2D( gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, this._textureTarget[ i ], textureID, 0 );
+            var status = gl.checkFramebufferStatus( gl.FRAMEBUFFER );
+            if ( status !== 0x8CD5 ) {
+                this._fbo._reportFrameBufferError( status );
+            }
+
+            state.applyTextureAttribute( 0, this._textureSources[ i ] );
+
+            this.draw( state );
+        }
+    }
 
 } );

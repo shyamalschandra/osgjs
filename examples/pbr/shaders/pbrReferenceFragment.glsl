@@ -9,6 +9,8 @@ uniform vec2 uEnvironmentSize;
 uniform float uEnvironmentMaxLod;
 uniform float uLod;
 
+uniform vec3 uEnvironmentSphericalHarmonics[9];
+
 varying vec3 osg_FragEye;
 varying vec3 osg_FragNormal;
 varying vec2 osg_FragTexCoord0;
@@ -133,7 +135,7 @@ void main(void) {
     albedo = albedoReduced;
 #endif
 
-    vec4 result = vec4( referenceIBL( tangent, normal, -eye, albedo, roughness, specular ), 1.0);
+    vec4 result = vec4( computeIBL( tangent, normal, -eye, albedo, roughness, specular ), 1.0);
 
     gl_FragColor = result;
 }

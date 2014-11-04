@@ -1,3 +1,4 @@
+#pragma include "sphericalHarmonics.glsl"
 
 // expect to have a function to fetch texel in it
 // getReferenceTexelEnvironment( Direction, Lod )
@@ -49,6 +50,14 @@ vec2 getSample(const in int i ) {
     return u;
 }
 
+
+vec3 evaluateDiffuseSphericalHarmonics( const in vec3 N,
+                                        const in vec3 V,
+                                        const in vec3 tangentX,
+                                        const in vec3 tangentY) {
+
+    return sphericalHarmonics( uEnvironmentSphericalHarmonics, environmentTransform * N );
+}
 
 vec3 evaluateDiffuseIBL( const in vec3 N,
                          const in vec3 V,
@@ -203,6 +212,36 @@ void computeTangentFrame( const in vec4 tangent, const in vec3 normal,
 
 }
 
+vec3 computeIBL( const in vec4 tangent,
+                 const in vec3 normal,
+                 const in vec3 view,
+                 const in vec3 albedo,
+                 const in float roughness,
+                 const in vec3 specular)
+{
+
+    //vectors used for importance sampling
+    vec3 tangentX, tangentY;
+    computeTangentFrame(tangent, normal, tangentX, tangentY );
+
+    vec3 color = vec3(0.0);
+    if ( albedo != color ) { // skip if no diffuse
+        color += albedo * evaluateDiffuseSphericalHarmonics(normal,
+                                                            view,
+                                                            tangentX,
+                                                            tangentY);
+    }
+
+    color += evaluateSpecularIBL(normal,
+                                 view,
+                                 tangentX,
+                                 tangentY,
+                                 roughness,
+                                 specular);
+
+    return color;
+}
+
 vec3 referenceIBL( const in vec4 tangent,
                    const in vec3 normal,
                    const in vec3 view,
@@ -215,11 +254,13 @@ vec3 referenceIBL( const in vec4 tangent,
     computeTangentFrame(tangent, normal, tangentX, tangentY );
 
     vec3 color = vec3(0.0);
-    if ( albedo != color ) // skip if no diffuse
+    if ( albedo != color ) { // skip if no diffuse
          color += albedo * evaluateDiffuseIBL(normal,
                                               view,
                                               tangentX,
                                               tangentY);
+    }
+
     color += evaluateSpecularIBL(normal,
                                  view,
                                  tangentX,
