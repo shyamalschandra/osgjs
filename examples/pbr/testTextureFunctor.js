@@ -82,6 +82,32 @@
             p.then( function ( text ) {
                 this._sphCoef = JSON.parse( text );
                 this._sphCoef.splice( 9 * 3 );
+
+                var coef0 = 1.0/(2.0*Math.sqrt(Math.PI) );
+                var coef1 = -( Math.sqrt(3.0/Math.PI)*0.5 );
+                var coef2 = -coef1;
+                var coef3 = coef1;
+                var coef4 = Math.sqrt(15.0/Math.PI) * 0.5;
+                var coef5 = -coef4;
+                var coef6 = Math.sqrt(5.0/Math.PI)* 0.25;
+                var coef7 = coef5;
+                var coef8 = Math.sqrt(15.0/Math.PI) * 0.25;
+
+                var coef = [ coef0,coef0,coef0,
+                             coef1,coef1,coef1,
+                             coef2,coef2,coef2,
+                             coef3,coef3,coef3,
+                             coef4,coef4,coef4,
+                             coef5,coef5,coef5,
+                             coef6,coef6,coef6,
+                             coef7,coef7,coef7,
+                             coef8,coef8,coef8,
+                           ];
+
+                this._sphCoef = coef.map( function( value, index ) {
+                    return value * this._sphCoef[index];
+                }.bind( this ) );
+
             }.bind( this ) );
             return p;
         }
@@ -160,14 +186,14 @@
             return scene;
         },
 
-        createWorkerRGBEToFloatCubeMap: function () {
+        createWorkerRGBEToFloatCubeMap: function ( options ) {
             var textures = [];
             for ( var i = 0; i < 6; i++ ) {
                 var texture = this.createTexture( this._images[i] );
                 texture.setFlipY( false );
                 textures.push( texture );
             }
-            this._convertor = new TextureListRGBEToCubemapFloat( textures );
+            this._convertor = new TextureListRGBEToCubemapFloat( textures, options );
             return this._convertor.getOperatorNode();
         },
 
@@ -668,7 +694,7 @@
             var group = new osg.MatrixTransform();
             osg.Matrix.makeTranslate( offset, y, 0, group.getMatrix() );
 
-            var node = this._cubemapFloat.createWorkerRGBEToFloatCubeMap();
+            var node = this._cubemapFloat.createWorkerRGBEToFloatCubeMap( { minFilter: 'LINEAR' } );
 
             group.addChild( node );
 
@@ -1034,7 +1060,7 @@
     // convert rgbe texture list into a cubemap float
     // we could make it more generic by giving parameter
     // like input format ( rgbe / float ) and cubemap output
-    var TextureListRGBEToCubemapFloat = function ( textureSources ) {
+    var TextureListRGBEToCubemapFloat = function ( textureSources, options ) {
         osg.Geometry.call( this );
 
         this._defer = Q.defer();
@@ -1043,9 +1069,12 @@
         this._width = textureSources[ 0 ].getImage().getWidth();
         this._height = textureSources[ 0 ].getImage().getHeight();
 
+        var minFilter = options.minFilter || 'LINEAR'; // use mipamp if texture lod
+        var textureType = options.textureType || 'FLOAT'; // or HALF_FLOAT
+
         finalTexture.setTextureSize( this._width, this._height );
-        finalTexture.setType( 'FLOAT' );
-        finalTexture.setMinFilter( 'LINEAR_MIPMAP_LINEAR' );
+        finalTexture.setType( textureType );
+        finalTexture.setMinFilter( minFilter );
         finalTexture.setMagFilter( 'LINEAR' );
         this._textureCubemap = finalTexture;
 

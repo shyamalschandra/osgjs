@@ -50,23 +50,37 @@ void createCoef() {
 // https://github.com/cedricpinson/envtools/blob/master/Cubemap.cpp#L523
 vec3 sphericalHarmonics( const in vec3 normal )
 {
-    createCoef();
     float x = normal.x;
     float y = normal.y;
     float z = normal.z;
 
+    //createCoef();
+    // vec3 result = (
+    //     shCoefs[0] * uSph[0] +
+
+    //     shCoefs[1] * uSph[1] * y +
+    //     shCoefs[2] * uSph[2] * z +
+    //     shCoefs[3] * uSph[3] * x +
+
+    //     shCoefs[4] * uSph[4] * y * x +
+    //     shCoefs[5] * uSph[5] * y * z +
+    //     shCoefs[6] * uSph[6] * (3.0 * z * z - 1.0) +
+    //     shCoefs[7] * uSph[7] * (z * x) +
+    //     shCoefs[8] * uSph[8] * (x*x - y*y)
+    // );
+
     vec3 result = (
-        shCoefs[0] * uSph[0] +
+        uSph[0] +
 
-        shCoefs[1] * uSph[1] * y +
-        shCoefs[2] * uSph[2] * z +
-        shCoefs[3] * uSph[3] * x +
+        uSph[1] * y +
+        uSph[2] * z +
+        uSph[3] * x +
 
-        shCoefs[4] * uSph[4] * y * x +
-        shCoefs[5] * uSph[5] * y * z +
-        shCoefs[6] * uSph[6] * (3.0 * z * z - 1.0) +
-        shCoefs[7] * uSph[7] * (z * x) +
-        shCoefs[8] * uSph[8] * (x*x - y*y)
+        uSph[4] * y * x +
+        uSph[5] * y * z +
+        uSph[6] * (3.0 * z * z - 1.0) +
+        uSph[7] * (z * x) +
+        uSph[8] * (x*x - y*y)
     );
 
     return max(result, vec3(0.0));
