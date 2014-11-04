@@ -24,7 +24,7 @@
              'texturesize': 1024,
              'shadow': 'ESM',
              'texturetype': 'BYTE',
-             'lightnum': 1,
+             'lightnum': 3,
              'lightType': 'Spot',
              'bias': 0.005,
              'VsmEpsilon': 0.0008,
@@ -115,14 +115,14 @@
          this._lightsMatrix = [];
          this._lightsSource = [];
          this._lightsUniform = [];
-         this._casterStateSet = [ undefined, undefined, undefined ]; // one statset per light casting shadow
-         this._shadowTexture = [ undefined, undefined, undefined ];
-         this._shadowCamera = [ undefined, undefined, undefined ];
+         this._casterStateSet = []; // one statset per light casting shadow
+         this._shadowTexture = [];
+         this._shadowCamera = [];
 
-         this._shadowTechnique = [ undefined, undefined, undefined ];
+         this._shadowTechnique = [];
 
-         this._blurPass = [ undefined, undefined, undefined ];
-         this._downPass = [ undefined, undefined, undefined ];
+         this._blurPass = [];
+         this._downPass = [];
 
          // shared
          this._receiverStateSet = undefined;
@@ -573,10 +573,10 @@
                  }
 */
                  l = numLights;
-                 var shadowSettings = this._lightAndShadowScene.getShadowSettings();
                  while ( l-- ) {
 
                      shadowMap = this._shadowTechnique[ l ];
+                     var shadowSettings = shadowMap.getShadowSettings();
 
                      shadowSettings.setTextureType( textureType );
                      shadowSettings.setTextureFilter( texFilterMin, texFilterMax );
@@ -657,15 +657,6 @@
              while ( l-- ) {
                  shadowMap = this._shadowTechnique[ l ];
                  shadowMap.setShadowCasterShaderProgram( prg );
-             }
-
-             prg = this.getShadowReceiverShaderProgram();
-             l = numLights;
-             while ( l-- ) {
-                 shadowMap = this._shadowTechnique[ l ];
-                 // handled by shadow compiler
-                 //
-                 //shadowMap.setShadowReceiverShaderProgram( prg );
              }
          },
          updateDebugRtt: function () {
@@ -849,8 +840,9 @@
              return defer.promise;
          },
          getShaderProgram: function ( vs, ps, defines ) {
-             if ( this._cacheProgram[ vs + ps + defines ] !== undefined )
-                 return this._cacheProgram[ vs + ps + defines ];
+             var idxCache = vs + ps + defines.join( '_' );
+             if ( this._cacheProgram[ idxCache ] !== undefined )
+                 return this._cacheProgram[ idxCache ];
 
              var vertexshader = this._shaderProcessor.getShader( vs, defines );
              var fragmentshader = this._shaderProcessor.getShader( ps, defines );
@@ -858,7 +850,7 @@
              var program = new osg.Program(
                  new osg.Shader( this._glContext.VERTEX_SHADER, vertexshader ), new osg.Shader( this._glContext.FRAGMENT_SHADER, fragmentshader ) );
 
-             this._cacheProgram[ vs + ps + defines ] = program;
+             this._cacheProgram[ idxCache ] = program;
              return program;
          },
          // computes a shader upon user choice
@@ -1123,16 +1115,102 @@
 
              return ShadowScene;
          },
+         addShadowedLight: function ( group, num, position, target, lightScale ) {
+
+             var shadowSettings = new osgShadow.ShadowSettings( this._config );
+             //this._lightAndShadowScene.setShadowSettings( shadowSettings );
+
+             var mapres = parseInt( this._config[ 'texturesize' ] );
+             shadowSettings.setTextureSize( [ mapres, mapres ] );
+
+             shadowSettings.setCastsShadowTraversalMask( this._castsShadowTraversalMask );
+
+
+             // at three light you might burn...
+             ////////////////// Light 0
+             /////////////////////////////
+             var lightSource = new osg.LightSource();
+             var lightNode = new osg.MatrixTransform();
+             lightNode.setName( 'lightNode0' );
+             var light = new osg.Light( num );
+
+             light.setPosition( position );
+             var dir = [ 0, 0, 0, 0 ];
+             osg.Vec3.sub( target, light._position, dir );
+             osg.Vec3.normalize( dir, dir );
+             light.setDirection( dir );
+
+             light.setName( 'light' + num );
+
+             light.setSpotCutoff( this._config[ '_spotCutoff' ] );
+             light.setSpotBlend( this._config[ '_spotBlend' ] );
+             light.setConstantAttenuation( this._config[ '_constantAttenuation' ] );
+             light.setLinearAttenuation( this._config[ '_linearAttenuation' ] );
+             light.setQuadraticAttenuation( this._config[ '_quadraticAttenuation' ] );
+
+             light._ambient = [ 0.0, 0.0, 0.0, 1.0 ];
+             light._diffuse = [ lightScale, lightScale, lightScale, 1.0 ];
+             light._specular = [ lightScale, lightScale, lightScale, 1.0 ];
+
+             lightSource.setLight( light );
+             lightNode.addChild( lightSource );
+
+             this._lights.push( light );
+             this._lightsMatrix.push( lightNode );
+             this._lightsSource.push( lightSource );
+             // how to give light link to ancestor ?
+             // TODO: use positioned data ? to make sure it set before
+             light.setUserData( lightNode );
+
+
+             /////////////////////////////
+             group.addChild( lightNode );
+             /////////////////////////////
+
+             var lightNodemodel = osg.createAxisGeometry();
+             var lightNodemodelNode = new osg.MatrixTransform();
+             lightNodemodelNode.addChild( lightNodemodel );
+             // light debug axis view
+             group.addChild( lightNodemodelNode );
+
+             ////////////
+             lightSource.setUpdateCallback( new LightUpdateCallback( this, lightNodemodelNode ) );
+
+             shadowSettings.setLight( light );
+             ///////////////////////////////
+
+             var shadowMap = new osgShadow.ShadowMap( shadowSettings );
+             this._lightAndShadowScene.addShadowTechnique( shadowMap );
+
+             /////////////////////////////
+             //light0.setShadowTechnique( shadowMap );
+             light._shadowTechnique = shadowMap;
+             ///////////////////////////////////
+             // set shadow shaders
+             shadowMap.setShadowCasterShaderProgram( this.getShadowCasterShaderProgram() );
+
+             this._shadowTechnique.push( shadowMap );
+             //shadowMap.init();
+
+         },
          /*
           * main sample scene shadow code using OSG interface
           */
          createScene: function () {
              var group = new osg.Node();
 
+             this._receivesShadowTraversalMask = 0x1;
+             this._castsShadowTraversalMask = 0x2;
 
              this._shadowScene = this.createSceneCasterReceiver();
 
              var shadowedScene = new osgShadow.ShadowedScene();
+             this._lightAndShadowScene = shadowedScene;
+             shadowedScene.setReceivesShadowTraversalMask( this._receivesShadowTraversalMask );
+
+             //this._shadowScene.setNodeMask( this._castsShadowTraversalMask );
+             //this._shadowScene.setNodeMask( this._receivesShadowTraversalMask );
+             this._groundNode.setNodeMask( ~this._castsShadowTraversalMask );
 
              /////////////////////////
              shadowedScene.setGLContext( this._glContext );
@@ -1145,105 +1223,21 @@
              // need camera position in world too
              this._config[ 'camera' ] = this._viewer.getCamera();
 
-             var shadowSettings = new osgShadow.ShadowSettings( this._config );
-             shadowedScene.setShadowSettings( shadowSettings );
+             var numLights = ~~ ( this._config[ 'lightnum' ] );
+             var lightScale = 1.0 / numLights;
 
-             var mapres = 1024;
-             shadowSettings.setTextureSize( [ mapres, mapres ] );
-             var ReceivesShadowTraversalMask = 0x1;
-             var CastsShadowTraversalMask = 0x2;
-
-             shadowSettings.setReceivesShadowTraversalMask( ReceivesShadowTraversalMask );
-             shadowSettings.setCastsShadowTraversalMask( CastsShadowTraversalMask );
-
-             //this._shadowScene.setNodeMask( CastsShadowTraversalMask );
-             //this._shadowScene.setNodeMask( ReceivesShadowTraversalMask );
-             this._groundNode.setNodeMask( ~CastsShadowTraversalMask );
-
-             var lightScale = 1.0;
-             // at three light you might burn...
-             ////////////////// Light 0
-             /////////////////////////////
-             var lightSource0 = new osg.LightSource();
-             var lightNode0 = new osg.MatrixTransform();
-             lightNode0.setName( 'lightNode0' );
-             var light0 = new osg.Light( 0 );
-             this._light0 = light0;
-
-             light0.setPosition( [ 50, 50, 15, 1 ] );
-             var dir = [ 0, 0, 0, 0 ];
-             osg.Vec3.sub( [ 0, 0, 0.0 ], light0._position, dir );
-             osg.Vec3.normalize( dir, dir );
-             light0.setDirection( dir );
-
-             light0.setName( 'light0' );
-
-             light0.setSpotCutoff( this._config[ '_spotCutoff' ] );
-             light0.setSpotBlend( this._config[ '_spotBlend' ] );
-             light0.setConstantAttenuation( this._config[ '_constantAttenuation' ] );
-             light0.setLinearAttenuation( this._config[ '_linearAttenuation' ] );
-             light0.setQuadraticAttenuation( this._config[ '_quadraticAttenuation' ] );
-
-             light0._ambient = [ 0.0, 0.0, 0.0, 1.0 ];
-             light0._diffuse = [ lightScale, lightScale, lightScale, 1.0 ];
-             light0._specular = [ lightScale, lightScale, lightScale, 1.0 ];
-
-             lightSource0.setLight( light0 );
-             lightNode0.addChild( lightSource0 );
-
-             this._lights.push( light0 );
-             this._lightsMatrix.push( lightNode0 );
-             this._lightsSource.push( lightSource0 );
-             // how to give light link to ancestor ?
-             // TODO: use positioned data ? to make sure it set before
-             light0.setUserData( lightNode0 );
-
-
-             /////////////////////////////
-             group.addChild( lightNode0 );
-             /////////////////////////////
-
-             var lightNodemodel0 = osg.createAxisGeometry();
-             var lightNodemodelNode0 = new osg.MatrixTransform();
-             lightNodemodelNode0.addChild( lightNodemodel0 );
-             // light debug axis view
-             group.addChild( lightNodemodelNode0 );
-
-             ////////////
-             lightSource0.setUpdateCallback( new LightUpdateCallback( this, lightNodemodelNode0 ) );
-
-             shadowSettings.setLight( light0 );
-             ///////////////////////////////
-
-             var shadowMap = new osgShadow.ShadowMap();
-             shadowedScene.setShadowTechnique( shadowMap );
-
-             /////////////////////////////
-             //light0.setShadowTechnique( shadowMap );
-             light0._shadowTechnique = shadowMap;
-             ///////////////////////////////////
-
-             this._shadowTechnique[ 0 ] = shadowMap;
-
-             // set shadow shaders
-             shadowMap.setShadowCasterShaderProgram( this.getShadowCasterShaderProgram() );
-
+             this.addShadowedLight( group, 0, [ 50, 50, 15, 1 ], [ 0, 0, 0, 0 ], lightScale );
+             this.addShadowedLight( group, 1, [ 150, 150, 50, 1 ], [ 0, 0, 0, 0 ], lightScale );
+             this.addShadowedLight( group, 2, [ 50, 75, 35, 1 ], [ 0, 0, 0, 0 ], lightScale );
 
              shadowedScene.init();
-             //shadowMap.init();
 
-             this._lightAndShadowScene = shadowedScene;
-
-             // while only 1 light possible
-             {
-                 var st = shadowedScene.getReceivingStateSet();
-                 var enabledLight = new osg.Uniform.createFloat1( 0.0, 'Light' + 1 + '_uniform_enable' );
-                 st.addUniform( enabledLight );
-                 enabledLight = new osg.Uniform.createFloat1( 0.0, 'Light' + 2 + '_uniform_enable' );
-                 st.addUniform( enabledLight );
+             var l = numLights;
+             while ( l-- ) {
+                 var shadowMap = this._shadowTechnique[ l ];
+                 this._rtt.push( shadowMap.getTexture() );
              }
 
-             this._rtt.push( shadowMap.getTexture() );
 
              this._rttdebugNode = new osg.Node();
              this._rttdebugNode._name = 'debugFBNode';
@@ -1257,7 +1251,7 @@
              }
 
              // one config to rule them all
-             this._config = shadowedScene.getShadowSettings()._config;
+             //this._config = shadowedScene.getShadowSettings()._config;
 
              return group;
          },

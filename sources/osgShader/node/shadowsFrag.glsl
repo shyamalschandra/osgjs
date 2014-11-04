@@ -1,6 +1,6 @@
 
-#define lerp(_x, _y, _s) (_x + _s*(_y-_x))
-
+////////////////////////////////////////////////
+ /// Float codec
 float DecodeFloatRGBA( vec4 rgba ) {
 	return dot( rgba, vec4(1.0, 1.0/255.0, 1.0/65025.0, 1.0/160581375.0) );
 }
@@ -28,7 +28,31 @@ vec4 EncodeHalfFloatRGBA( vec2 v ) {
 }
 
 
+ float getSingleFloatFromTex(sampler2D depths, vec2 uv){
+      #ifndef _FLOATTEX
+       return  DecodeFloatRGBA(texture2D(depths, uv));
+      #else
+        return texture2D(depths, uv).x;
+      #endif
+}
 
+ vec2 getDoubleFloatFromTex(sampler2D depths, vec2 uv){
+      #ifndef _FLOATTEX
+        return DecodeHalfFloatRGBA(texture2D(depths, uv));
+      #else
+        return texture2D(depths, uv).xy;
+      #endif
+}
+
+vec4 getQuadFloatFromTex(sampler2D depths, vec2 uv){
+    return texture2D(depths, uv).xyzw;
+}
+
+/// end Float codec
+///////////////////////////////////////////////////
+
+////////////////////////////////////////////////
+// VSM
 float ChebychevInequality (vec2 moments, float t)
 {
 	// No shadow if depth of fragment is in front
@@ -66,6 +90,13 @@ float ChebyshevUpperBound(vec2 moments, float mean, float bias, float minVarianc
     // One-tailed Chebyshev
     return clamp(max(p, pMax), 0.0, 1.0);
 }
+// end VSM
+////////////////////////////////////////////////
+
+////////////////////////////////////////////////
+// PCF
+#define lerp(_x, _y, _s) (_x + _s*(_y-_x))
+
 
 float bicubicInterpolationFast(in vec2 uv, in sampler2D tex, in vec4 texSize) {
   vec2 rec_nrCP = texSize.zw;
@@ -104,10 +135,10 @@ float bicubicInterpolationFast(in vec2 uv, in sampler2D tex, in vec4 texSize) {
   coord11 = (coord11 + 0.5) * rec_nrCP;
 
       #ifndef _FLOATTEX
-  float tex00 = DecodeFloatRGBA(texture2D(tex, coord00));
-  float tex10 = DecodeFloatRGBA(texture2D(tex, coord10));
-  float tex01 = DecodeFloatRGBA(texture2D(tex, coord01));
-  float tex11 = DecodeFloatRGBA(texture2D(tex, coord11));
+  float tex00 = getSingleFloatFromTex(tex, coord00);
+  float tex10 = getSingleFloatFromTex(tex, coord10);
+  float tex01 = getSingleFloatFromTex(tex, coord01);
+  float tex11 = getSingleFloatFromTex(tex, coord11);
       #else
   float tex00 = texture2D(tex, coord00).x;
   float tex10 = texture2D(tex, coord10).x;
@@ -121,16 +152,15 @@ float bicubicInterpolationFast(in vec2 uv, in sampler2D tex, in vec4 texSize) {
   return lerp(tex10, tex00, g0.x);
 }
 
- float texture2DCompare(sampler2D depths, vec2 uv, float compare, float gbias){
-      #ifndef _FLOATTEX
-        float depth = DecodeFloatRGBA(texture2D(depths, uv));
-      #else
-        float depth = texture2D(depths, uv).x;
-      #endif
+float texture2DCompare(sampler2D depths, vec2 uv, float compare, float gbias){
+
+    float depth = getSingleFloatFromTex(depths, uv);
     return step(compare, depth - gbias);
+
 }
 
 float texture2DShadowLerp(sampler2D depths, vec4 size, vec2 uv, float compare, float gbias){
+
     vec2 texelSize = vec2(1.0)*size.zw;
     vec2 f = fract(uv*size.xy+0.5);
     vec2 centroidUV = floor(uv*size.xy+0.5)*size.zw;
@@ -143,9 +173,11 @@ float texture2DShadowLerp(sampler2D depths, vec4 size, vec2 uv, float compare, f
     float b = mix(rb, rt, f.y);
     float c = mix(a, b, f.x);
     return c;
+
 }
 
 float PCFLerp(sampler2D depths, vec4 size, vec2 uv, float compare, float gbias){
+
     float result = 0.0;
     for(int x=-1; x<=1; x++){
         for(int y=-1; y<=1; y++){
@@ -154,8 +186,11 @@ float PCFLerp(sampler2D depths, vec4 size, vec2 uv, float compare, float gbias){
         }
     }
     return result/9.0;
+
 }
-float PCF(sampler2D tex, vec4 shadowMapSize, vec2 shadowUV, float shadowZ, float gbias, float exponent) {
+
+float PCF(sampler2D tex, vec4 shadowMapSize, vec2 shadowUV, float shadowZ, float gbias, float exponent, float exponent1) {
+
     vec2 o = shadowMapSize.zw;
     float shadowed = 0.0;
 
@@ -180,7 +215,7 @@ float PCF(sampler2D tex, vec4 shadowMapSize, vec2 shadowUV, float shadowZ, float
       #if defined( _ESM )
         //http://research.edm.uhasselt.be/tmertens/papers/gi_08_esm.pdf
          float depthScale = exponent1;
-        float over_darkening_factor = exponent;
+         float over_darkening_factor = exponent;
          float receiver = depthScale*shadowZ- gbias;
       #endif
 
@@ -189,11 +224,7 @@ float PCF(sampler2D tex, vec4 shadowMapSize, vec2 shadowUV, float shadowZ, float
       #ifdef _BICUBIC
         float zz = bicubicInterpolationFast(fetch[i], tex, shadowMapSize);
       #else
-            #ifndef _FLOATTEX
-              float zz = DecodeFloatRGBA(texture2D(tex, fetch[i]));
-            #else
-              float zz = texture2D(tex, fetch[i]).x;
-            #endif
+        float zz = getSingleFloatFromTex(tex, fetch[i]);
       #endif
       #if defined( _ESM )
         zz = exp(over_darkening_factor * (zz - receiver));
@@ -204,14 +235,19 @@ float PCF(sampler2D tex, vec4 shadowMapSize, vec2 shadowUV, float shadowZ, float
      }
     shadowed = shadowed / 16.0;
     return shadowed;
-}
 
-float ESM_Fetch(sampler2D tex, vec4 shadowMapSize, vec2 shadowUV, float shadowZ, float gbias, float exponent) {
+}
+// end PCF
+////////////////////////////////////////////////
+
+////////////////////////////////////////////////
+// ESM
+float ESM_Fetch(sampler2D tex, vec4 shadowMapSize, vec2 shadowUV, float shadowZ, float gbias, float exponent, float exponent1) {
 
     //http://research.edm.uhasselt.be/tmertens/papers/gi_08_esm.pdf
     //http://pixelstoomany.wordpress.com/2008/06/12/a-conceptually-simpler-way-to-derive-exponential-shadow-maps-sample-code/
-
-       vec2 o = shadowMapSize.zw;
+    //
+    vec2 o = shadowMapSize.zw;
     float shadowed = 0.0;
 
     vec2 unnormalized = shadowUV * shadowMapSize.xy;
@@ -219,17 +255,10 @@ float ESM_Fetch(sampler2D tex, vec4 shadowMapSize, vec2 shadowUV, float shadowZ,
     unnormalized = floor(unnormalized);
 
     vec4 occluder4;
-#ifndef _FLOATTEX
-    occluder4.x = DecodeFloatRGBA(texture2D(tex, (unnormalized + vec2( -0.5, 0.5 ))* shadowMapSize.zw ));
-    occluder4.y = DecodeFloatRGBA(texture2D(tex, (unnormalized + vec2( 0.5, 0.5 ))* shadowMapSize.zw ));
-    occluder4.z = DecodeFloatRGBA(texture2D(tex, (unnormalized + vec2( 0.5, -0.5 ))* shadowMapSize.zw ));
-    occluder4.w = DecodeFloatRGBA(texture2D(tex, (unnormalized + vec2( -0.5, -0.5))* shadowMapSize.zw ));
-#else
-    occluder4.x = texture2D(tex, (unnormalized + vec2( -0.5, 0.5 ))* shadowMapSize.zw ).x;
-    occluder4.y = texture2D(tex, (unnormalized + vec2( 0.5, 0.5 ))* shadowMapSize.zw ).x;
-    occluder4.z = texture2D(tex, (unnormalized + vec2( 0.5, -0.5 ))* shadowMapSize.zw ).x;
-    occluder4.w = texture2D(tex, (unnormalized + vec2( -0.5, -0.5 ))* shadowMapSize.zw).x;
- #endif
+    occluder4.x = getSingleFloatFromTex(tex, (unnormalized + vec2( -0.5,  0.5 ))* shadowMapSize.zw );
+    occluder4.y = getSingleFloatFromTex(tex, (unnormalized + vec2( 0.5,   0.5 ))* shadowMapSize.zw );
+    occluder4.z = getSingleFloatFromTex(tex, (unnormalized + vec2( 0.5,  -0.5 ))* shadowMapSize.zw );
+    occluder4.w = getSingleFloatFromTex(tex, (unnormalized + vec2( -0.5, -0.5 ))* shadowMapSize.zw );
 
     vec2 fetch[5];;
     fetch[1] = shadowUV.xy + vec2(-1.5, -1.5)*o;
@@ -247,52 +276,46 @@ float ESM_Fetch(sampler2D tex, vec4 shadowMapSize, vec2 shadowUV, float shadowZ,
 
     return exp(over_darkening_factor * ( occluder - receiver ));
 }
+// end ESM
+////////////////////////////////////////////////
 
 
-float getShadowedTermUnified(vec2 shadowUV, float shadowZ, sampler2D tex, vec4 shadowMapSize, float myBias) {
-  //
+////////////////////////////////////////////////
+// SHADOWS
+float getShadowedTermUnified(in vec2 shadowUV, in float shadowZ,
+  in sampler2D tex, in vec4 shadowMapSize,
+  in float myBias, in float VsmEpsilon,
+  in float exponent, in float exponent1) {
+
+
   // Calculate shadow amount
   float shadow = 1.0;
-
 
  //#define _VSM
 //#define  _ESM
 //#define  _PCF
 #define _NONE
+
+
     #ifdef _NONE
-      #ifndef _FLOATTEX
-        float shadowDepth = DecodeFloatRGBA(texture2D(tex, shadowUV.xy));
-      #else
-        float shadowDepth = texture2D(tex, shadowUV.xy).x;
-      #endif
-        shadow = ( shadowZ - myBias > shadowDepth ) ? 0.0 : 1.0;
+
+      float shadowDepth = getSingleFloatFromTex(tex, shadowUV.xy);
+      shadow = ( shadowZ - myBias > shadowDepth ) ? 0.0 : 1.0;
+
     #elif defined( _PCF ) || (defined(_ESM ) && defined(_PCF ))
-      shadow = PCF(tex, shadowMapSize, shadowUV, shadowZ, myBias, exponent);
+
+      shadow = PCF(tex, shadowMapSize, shadowUV, shadowZ, myBias, exponent, exponent1);
       //shadow = PCFLerp(tex, shadowMapSize, shadowUV, shadowZ, myBias);
       //shadow = (shadowZ -myBias > bicubicInterpolationFast(shadowUV, tex, shadowMapSize)) ? 0.0 : 1.0;
+      //
+      //
     #elif defined( _ESM )
       //http://research.edm.uhasselt.be/tmertens/papers/gi_08_esm.pdf
-      /*
+      shadow = ESM_Fetch(tex, shadowMapSize, shadowUV, shadowZ, myBias, exponent, exponent1);
 
-       /float over_darkening_factor= exponent;
-      vec4 texel = texture2D(tex, shadowUV.xy);
-      #ifndef _FLOATTEX
-        float lightDistance = DecodeFloatRGBA(texel);
-      #else
-        float lightDistance = texel.x;
-      #endif
-         float depthScale = exponent1;
-         float receiver = depthScale*shadowZ- myBias;
-        //shadow = exp(over_darkening_factor * (lightDistance - receiver  - myBias ));
-        */
-        shadow = ESM_Fetch(tex, shadowMapSize, shadowUV, shadowZ, myBias, exponent);
     #elif  defined( _VSM )
-      vec4 texel = texture2D(tex, shadowUV.xy);
-      #ifndef _FLOATTEX
-        vec2 moments = DecodeHalfFloatRGBA(texel);
-      #else
-        vec2 moments = texel.xy;
-      #endif
+
+      vec2 moments = getDoubleFloatFromTex(tex, shadowUV.xy);
       float shadowBias = myBias;
       shadow = ChebyshevUpperBound(moments, shadowZ, shadowBias, VsmEpsilon);
       //shadow = ChebychevInequality(moments, shadowZ.z);
@@ -300,63 +323,47 @@ float getShadowedTermUnified(vec2 shadowUV, float shadowZ, sampler2D tex, vec4 s
 
       //shadow = (1.0 - shadow >=myBias) ? (0.0) : (1.0);
       //shadow = shadow * 0.9;
+
+
     #elif  defined( _EVSM )
-      vec4 texel = texture2D(tex, shadowUV.xy);
-      #ifndef _FLOATTEX
-        vec2 moments = DecodeHalfFloatRGBA(texel);
-      #else
-        vec2 moments = texel.xy;
-      #endif
+
+      vec4 occluder = getQuadFloatFromTex(tex, shadowUV.xy);
+      vec2 warpedDepth = WarpDepth(shadowZ, exponents);
+
+      float g_EVSM_Derivation = vsmEpsilon;
+      // Derivative of warping at depth
+      vec2 depthScale = g_EVSM_Derivation * exponents * warpedDepth;
+      vec2 minVariance = depthScale * depthScale;
+
       evsmEpsilon = -vsmEpsilon;
       float shadowBias = myBias;
-      shadow = ChebyshevUpperBound(moments, shadowZ, shadowBias, VsmEpsilon);
-      //shadow = (1.0 - shadow >=myBias) ? (0.0) : (1.0);
+
+      // Compute the upper bounds of the visibility function both for x and y
+      float posContrib = ChebyshevUpperBound(occluder.xz, -warpedDepth.x, shadowBias, minVariance.x);
+      float negContrib = ChebyshevUpperBound(occluder.yw, warpedDepth.y,  shadowBias, minVariance.y);
+
+      shadow = min(posContrib, negContrib);
+
     #endif
+
 
     return shadow;
 }
 
-float computeShadowTerm(in vec4 shadowVertexProjected, in vec4 shadowZ,
-  in sampler2D tex, in vec4 texSize,
-  in vec4 depthRange, in vec3 LightPosition, in float N_Dot_L, in vec3 Normal) {
 
-    vec4 shadowUV;
-
-	//normal offset aka Exploding Shadow Receivers
-    float shadowMapTexelSize = shadowVertexProjected.z * 2.0*texSize.z;
-    shadowVertexProjected -= vec4(Normal.xyz*bias*shadowMapTexelSize,0);
-
-    shadowUV = shadowVertexProjected / shadowVertexProjected.w;
-    shadowUV.xy = shadowUV.xy* 0.5 + 0.5;
-
-    if (shadowUV.x > 1.0 || shadowUV.y > 1.0 || shadowUV.x < 0.0 || shadowUV.y < 0.0)
-     return (debug == 0.0) ? 0.0 : 1.0;// 0.0 to show limits of light frustum
-
-    float objDepth;
- //#define NUM_STABLE
-    #ifndef NUM_STABLE
-      objDepth = -shadowZ.z;
-      objDepth =  (objDepth - depthRange.x)* depthRange.w;// linearize (aka map z to near..far to 0..1)
-      objDepth =   clamp(objDepth, 0.0, 1.0);
-    #else
-      objDepth =  length(LightPosition.xyz - shadowZ.xyz );
-      objDepth =  (objDepth - depthRange.x)* depthRange.w;// linearize (aka map z to near..far to 0..1)
-      objDepth =   clamp(objDepth, 0.0, 1.0);
-
-    #endif
-
-
-   float shadowBias = 0.005*tan(acos(N_Dot_L)); // cosTheta is dot( n, l ), clamped between 0 and 1
-    shadowBias = clamp(shadowBias, 0.0, bias);
-
-    return getShadowedTermUnified(shadowUV.xy, objDepth, tex, texSize, bias);
-
-}
-
-vec4 computeShadow(in vec4 shadowVertexProjected, in vec4 shadowZ,
-/* in sampler2D tex, */
+vec4 computeShadow(in vec4 shadowVertexProjected,
+  in vec4 shadowZ,
+  in sampler2D tex,
   in vec4 texSize,
-  in vec4 depthRange, in vec3 LightPosition, in float N_Dot_L, in vec3 Normal) {
+  in vec4 depthRange,
+  in vec3 LightPosition,
+  in float N_Dot_L,
+  in vec3 Normal,
+  in float bias,
+  in float VsmEpsilon,
+  in float exponent,
+  in float exponent1,
+  in float debug) {
 
 
 
@@ -389,6 +396,8 @@ vec4 computeShadow(in vec4 shadowVertexProjected, in vec4 shadowZ,
     shadowBias = clamp(shadowBias, 0.0, bias);
 
     //return vec4(vec3(getShadowedTermUnified(shadowUV.xy, objDepth, tex, texSize, bias)), 1.0);
-    return vec4(vec3(getShadowedTermUnified(shadowUV.xy, objDepth, Texture1, texSize, bias)), 1.0);
+    return vec4(vec3(getShadowedTermUnified(shadowUV.xy, objDepth, tex, texSize, bias, VsmEpsilon, exponent, exponent1)), 1.0);
 
 }
+// end shadows
+////////////////////////////////////////////////

@@ -1,16 +1,16 @@
 define( [
     'osg/Notify',
     'osg/Utils'
-], function( Notify, Utils ) {
+], function ( Notify, Utils ) {
 
     /**
      * Shader manage shader for vertex and fragment, you need both to create a glsl program.
      * @class Shader
      */
-    var Shader = function( type, text ) {
+    var Shader = function ( type, text ) {
 
         var t = type;
-        if ( typeof( type ) === 'string' ) {
+        if ( typeof ( type ) === 'string' ) {
             t = Shader[ type ];
         }
         this.type = t;
@@ -26,10 +26,10 @@ define( [
 
     /** @lends Shader.prototype */
     Shader.prototype = {
-        setText: function( text ) {
+        setText: function ( text ) {
             this.text = text;
         },
-        getText: function() {
+        getText: function () {
             return this.text;
         },
         // this is where it creates a fail safe shader that should work everywhere
@@ -38,13 +38,30 @@ define( [
             gl.shaderSource( this.shader, this.type === Shader.VERTEX_SHADER ? Shader.VS_DBG : Shader.FS_DBG );
             gl.compileShader( this.shader );
         },
-        compile: function( gl ) {
+        processErrors: function ( errors, source ) {
+            var re = /ERROR: [\d]+:([\d]+): (.+)/gmi;
+            var lines = source.split( '\n' );
+            var m;
+            while ( ( m = re.exec( errors ) ) != null ) {
+                if ( m.index === re.lastIndex ) {
+                    re.lastIndex++;
+                }
+
+                Notify.error( 'ERROR ' + m[ 2 ] + ' in line ' + m[ 1 ] );
+                Notify.error( lines[ m[ 1 ] - 1 ].replace( /^[ \t]+/g, '' ) );
+            }
+        },
+        compile: function ( gl ) {
             this.shader = gl.createShader( this.type );
             gl.shaderSource( this.shader, this.text );
             Utils.timeStamp( 'osgjs.metrics:compileShader' );
             gl.compileShader( this.shader );
             if ( !gl.getShaderParameter( this.shader, gl.COMPILE_STATUS ) && !gl.isContextLost() ) {
-                Notify.error( gl.getShaderInfoLog( this.shader ) );
+
+                var err = gl.getShaderInfoLog( this.shader );
+                this.processErrors( err, this.text );
+                //Notify.error( err );
+                //
                 var tmpText = '\n' + this.text;
                 var splittedText = tmpText.split( '\n' );
                 var newText = '\n';
@@ -59,7 +76,7 @@ define( [
         }
     };
 
-    Shader.create = function( type, text ) {
+    Shader.create = function ( type, text ) {
         Notify.log( 'Shader.create is deprecated, use new Shader with the same arguments instead' );
         return new Shader( type, text );
     };

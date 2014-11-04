@@ -37,27 +37,22 @@ define( [
 
             var lightInputs = [];
 
-            var bias = context.getOrCreateUniform( 'float', 'bias' );
-            var VsmEpsilon = context.getOrCreateUniform( 'float', 'VsmEpsilon' );
-            var exponent = context.getOrCreateUniform( 'float', 'exponent' );
-            var exponent1 = context.getOrCreateUniform( 'float', 'exponent1' );
-            var debug = context.getOrCreateUniform( 'float', 'debug' );
 
             var lightNode;
             var shadowNode;
 
-            var lightedOutput = context.getOrCreateVariable( 'vec4', 'lightTempOutput' );
+
             var lighted = context.getOrCreateVariable( 'bool', 'lighted' );
             var lightPos = context.getOrCreateVariable( 'vec3', 'eyePosWorld' );
             var lightDir = context.getOrCreateVariable( 'vec3', 'eyeDirWorld' );
             var lightDNL = context.getOrCreateVariable( 'float', 'lightNDL' );
-            var shadowTempOutput = context.getOrCreateVariable( 'vec4', 'shadowContribTempOutput' );
-            var lightAndShadowTempOutput = context.getOrCreateVariable( 'vec4', 'lightAndShadowTempOutput' );
+
 
             for ( var i = 0; i < this._lights.length; i++ ) {
 
                 var light = this._lights[ i ];
 
+                var lightedOutput = context.getOrCreateVariable( 'vec4', 'lightTempOutput' );
                 switch ( light.getLightType() ) {
                 case 'DIRECTION':
                     lightNode = new SunLight( lightedOutput, this, light, lighted, lightPos, lightDir, lightDNL );
@@ -75,17 +70,10 @@ define( [
 
                 if ( light._shadowTechnique ) {
 
+                    var shadowTempOutput = context.getOrCreateVariable( 'vec4', 'shadowContribTempOutput' );
+                    var lightAndShadowTempOutput = context.getOrCreateVariable( 'vec4', 'lightAndShadowTempOutput' );
 
-                    /*
-
-                    var textures = context._texturesByName;
-                    // TODO: texture name should be its name ?
-                    //var tex = textures[ 'shadow_' + light.getName() ];
-                    var tex = textures[ 'Texture1' ];
-                    if ( !tex )
-                        tex = textures[ 'Texture0' ];
- */
-                    shadowNode = new ShadowNode( shadowTempOutput, lightedOutput, lighted, lightPos, lightDir, lightDNL, this, light, bias, VsmEpsilon, exponent1, exponent, debug );
+                    shadowNode = new ShadowNode( shadowTempOutput, lightedOutput, lighted, lightPos, lightDir, lightDNL, this, light );
 
                     new shaderNode.Mult( lightAndShadowTempOutput, lightedOutput, shadowTempOutput );
                     lightInputs.push( lightAndShadowTempOutput );

@@ -28,11 +28,11 @@ define( [
      *  ShadowMap provides an implementation of shadow textures.
      *  @class ShadowMap
      */
-    var ShadowMap = function () {
+    var ShadowMap = function ( settings ) {
         ShadowTechnique.call( this );
 
         // uniforms, shaders ?
-        this._lightNum = 0;
+        this._lightNum = settings.getLight().getLightNumber();
         this._shadowTextureUnit = this._lightNum + 1;
         // this._texture
         // this._cameraShadow
@@ -42,6 +42,8 @@ define( [
 
         this._tmpMat = Matrix.create();
         this._bs = new BoundingSphere();
+
+        this._shadowSettings = settings;
     };
 
     /** @lends ShadowMap.prototype */
@@ -71,14 +73,31 @@ define( [
             return this._castingStateset;
         },
 
+        /* Gets shadowSettings
+         * or return Default shadowSettings
+         * if it's shared between techniques
+         */
+        getShadowSettings: function () {
+            return this._shadowSettings || this.getShadowedScene().getShadowSettings();
+        },
+        /* Sets  shadowSettings
+         */
+        setShadowSettings: function ( ss ) {
+            this._shadowSettings = ss;
+        },
+
         /** initialize the ShadowedScene and local cached data structures.*/
         init: function () {
             if ( !this._shadowedScene ) return;
 
             this._receivingStateset = this._shadowedScene.getReceivingStateSet();
 
-            var shadowSettings = this.getShadowedScene().getShadowSettings();
+            var shadowSettings = this._shadowSettings || this.getShadowedScene().getShadowSettings();
             var light = shadowSettings.getLight();
+
+            // TODO: add shadow map caster to shadow lib ? access shaderprocessor ?
+            // reuse decencfloat.glsl
+            //this.setShadowCasterShaderProgram( this.getShadowCasterShaderProgram() );
 
             // init texture
             var shadowTexture = new Texture();
@@ -173,6 +192,26 @@ define( [
             this._receivingStateset.addUniform( shadowMapSizeNum );
 
 
+            // draw only shadow & light, not texture
+            var texturedebug = shadowSettings._config[ 'texture' ] ? 1.0 : 0.0;
+            var myuniform = Uniform.createFloat1( texturedebug, 'debug_' + num );
+            this._receivingStateset.addUniform( myuniform );
+            // Shadow bias /acne/ peter panning
+            var bias = shadowSettings._config[ 'bias' ];
+            myuniform = Uniform.createFloat1( bias, 'bias_' + num );
+            this._receivingStateset.addUniform( myuniform );
+            // ESM & EVSM
+            var exponent = shadowSettings._config[ 'exponent' ];
+            myuniform = Uniform.createFloat1( exponent, 'exponent_' + num );
+            this._receivingStateset.addUniform( myuniform );
+            var exponent1 = shadowSettings._config[ 'exponent1' ];
+            myuniform = Uniform.createFloat1( exponent1, 'exponent1_' + num );
+            this._receivingStateset.addUniform( myuniform );
+            // VSM
+            var VsmEpsilon = shadowSettings._config[ 'VsmEpsilon' ];
+            myuniform = Uniform.createFloat1( VsmEpsilon, 'VsmEpsilon_' + num );
+            this._receivingStateset.addUniform( myuniform );
+
 
             var camera = shadowSettings._config[ 'camera' ];
             this._cameraShadowed = camera;
@@ -189,13 +228,10 @@ define( [
 
         updateShadowParams: function () {
             // could do some light/scene change check here and skip it
-            var shadowSettings = this.getShadowedScene().getShadowSettings();
+            var shadowSettings = this._shadowSettings || this.getShadowedScene().getShadowSettings();
             var light = shadowSettings.getLight();
 
             this.aimShadowCastingCamera( light, light.getPosition(), light.getDirection() );
-
-
-
 
 
             // update accordingly
@@ -244,8 +280,9 @@ define( [
             // Why would we restrict the bbox further used for computation to just the
             // caster bbox ?
             // we'll need both caster+receiver to determine shadow map view/projection
-            this._cbbv.setTraversalMask( this.getShadowedScene().getShadowSettings().getCastsShadowTraversalMask() );
-            //this._cbbv.setTraversalMask( this.getShadowedScene().getShadowSettings().getReceivesShadowTraversalMask() );
+            var shadowSettings = this._shadowSettings || this.getShadowedScene().getShadowSettings();
+            this._cbbv.setTraversalMask( shadowSettings.getCastsShadowTraversalMask() );
+            //this._cbbv.setTraversalMask( shadowSettings.getReceivesShadowTraversalMask() );
 
 
             this.getShadowedScene().nodeTraverse( this._cbbv );
@@ -369,18 +406,24 @@ define( [
             receivingUniforms[ 'Shadow_DepthRange' + num ].getUniform().set( depthRange );
             castUniforms[ 'Shadow_DepthRange' ].getUniform().set( depthRange );
 
+            receivingUniforms[ 'debug_' + num ].getUniform().set( this._shadowSettings._config[ 'texture' ] ? 1.0 : 0.0 );
+            receivingUniforms[ 'bias_' + num ].getUniform().set( this._shadowSettings._config[ 'bias' ] );
+            receivingUniforms[ 'exponent_' + num ].getUniform().set( this._shadowSettings._config[ 'exponent' ] );
+            receivingUniforms[ 'exponent1_' + num ].getUniform().set( this._shadowSettings._config[ 'exponent1' ] );
+            receivingUniforms[ 'VsmEpsilon_' + num ].getUniform().set( this._shadowSettings._config[ 'VsmEpsilon' ] );
+
         },
 
         cullShadowCastingScene: function ( cullVisitor ) {
             // record the traversal mask on entry so we can reapply it later.
             var traversalMask = cullVisitor.getTraversalMask();
+            var shadowSettings = this._shadowSettings || this.getShadowedScene().getShadowSettings();
 
-            cullVisitor.setTraversalMask( this.getShadowedScene().getShadowSettings().getCastsShadowTraversalMask() );
+            cullVisitor.setTraversalMask( shadowSettings.getCastsShadowTraversalMask() );
 
             // cast geometries into depth shadow map
             cullVisitor.pushStateSet( this._castingStateset );
 
-            var shadowSettings = this.getShadowedScene().getShadowSettings();
             var light = shadowSettings.getLight();
 
             this.aimShadowCastingCamera( light, light.getPosition(), light.getDirection() );
