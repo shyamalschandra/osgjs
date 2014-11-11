@@ -63,17 +63,17 @@ define( [
 
             var internalFormat = this._internalFormat;
 
-            this.applyTexImage2D( gl, gl.TEXTURE_CUBE_MAP_POSITIVE_X, 0, internalFormat, this._textureWidth, this._textureHeight, 0, internalFormat, gl.UNSIGNED_BYTE, null );
+            this.applyTexImage2D( gl, gl.TEXTURE_CUBE_MAP_POSITIVE_X, 0, internalFormat, this._textureWidth, this._textureHeight, 0, internalFormat, this._type, null );
 
-            this.applyTexImage2D( gl, gl.TEXTURE_CUBE_MAP_NEGATIVE_X, 0, internalFormat, this._textureWidth, this._textureHeight, 0, internalFormat, gl.UNSIGNED_BYTE, null );
+            this.applyTexImage2D( gl, gl.TEXTURE_CUBE_MAP_NEGATIVE_X, 0, internalFormat, this._textureWidth, this._textureHeight, 0, internalFormat, this._type, null );
 
-            this.applyTexImage2D( gl, gl.TEXTURE_CUBE_MAP_POSITIVE_Y, 0, internalFormat, this._textureWidth, this._textureHeight, 0, internalFormat, gl.UNSIGNED_BYTE, null );
+            this.applyTexImage2D( gl, gl.TEXTURE_CUBE_MAP_POSITIVE_Y, 0, internalFormat, this._textureWidth, this._textureHeight, 0, internalFormat, this._type, null );
 
-            this.applyTexImage2D( gl, gl.TEXTURE_CUBE_MAP_NEGATIVE_Y, 0, internalFormat, this._textureWidth, this._textureHeight, 0, internalFormat, gl.UNSIGNED_BYTE, null );
+            this.applyTexImage2D( gl, gl.TEXTURE_CUBE_MAP_NEGATIVE_Y, 0, internalFormat, this._textureWidth, this._textureHeight, 0, internalFormat, this._type, null );
 
-            this.applyTexImage2D( gl, gl.TEXTURE_CUBE_MAP_POSITIVE_Z, 0, internalFormat, this._textureWidth, this._textureHeight, 0, internalFormat, gl.UNSIGNED_BYTE, null );
+            this.applyTexImage2D( gl, gl.TEXTURE_CUBE_MAP_POSITIVE_Z, 0, internalFormat, this._textureWidth, this._textureHeight, 0, internalFormat, this._type, null );
 
-            this.applyTexImage2D( gl, gl.TEXTURE_CUBE_MAP_NEGATIVE_Z, 0, internalFormat, this._textureWidth, this._textureHeight, 0, internalFormat, gl.UNSIGNED_BYTE, null );
+            this.applyTexImage2D( gl, gl.TEXTURE_CUBE_MAP_NEGATIVE_Z, 0, internalFormat, this._textureWidth, this._textureHeight, 0, internalFormat, this._type, null );
 
             return true;
         },
@@ -100,7 +100,7 @@ define( [
                 0,
                 internalFormat,
                 internalFormat,
-                gl.UNSIGNED_BYTE,
+                this._type,
                 image.getImage() );
 
             imgObject.dirty = false;
