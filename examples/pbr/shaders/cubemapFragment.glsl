@@ -2,6 +2,7 @@ uniform samplerCube uEnvironmentCube;
 
 uniform mat4 uEnvironmentTransform;
 uniform float uLod;
+uniform float uEnvironmentMaxLod;
 #extension GL_EXT_shader_texture_lod : enable
 
 varying vec3 osg_FragEye;
@@ -24,7 +25,7 @@ void main() {
     //direction = normalize(osg_FragVertex.xyz);
     direction = getEnvironmentTransfrom( uEnvironmentTransform ) * direction;
 #ifdef FLOAT_CUBEMAP_LOD
-    vec3 color = textureCubeLodEXT(uEnvironmentCube, direction, uLod ).rgb;
+    vec3 color = textureCubeLodEXTFixed(uEnvironmentCube, direction, uLod ).rgb;
 #else
 #ifndef FLOAT_CUBEMAP
     vec3 color = textureCubeRGBE( uEnvironmentCube, direction );

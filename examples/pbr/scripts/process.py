@@ -146,6 +146,9 @@ class ProcessEnvironment(object):
         self.cubemap_generic = cubemap_generic
         execute_command(cmd)
 
+        # create cubemap original
+        self.create_cubemap(cubemap_generic, os.path.join(self.output_directory,'cubemap') )
+
         # generate irradiance
         self.envtoirr(cubemap_generic)
 

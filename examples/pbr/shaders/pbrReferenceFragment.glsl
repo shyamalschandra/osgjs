@@ -34,6 +34,7 @@ uniform sampler2D aoMap;
 
 
 #pragma include "colorSpace.glsl"
+#pragma include "cubemapSampler.glsl"
 #pragma include "panoramaSampler.glsl"
 
 
@@ -68,7 +69,8 @@ vec3 getReferenceTexelEnvironmentLod( const in vec3 dirLocal, const in float pdf
 
 #ifdef FLOAT_CUBEMAP_LOD
     float lod = computeLOD(vec3(0.0), pdf, int(NB_SAMPLES), uEnvironmentMaxLod);
-    return textureCubeLodEXT(uEnvironmentCube, direction, lod ).rgb;
+
+    return textureCubeLodEXTFixed(uEnvironmentCube, direction, lod ).rgb;
 #else
     float lod = computeLOD(direction, pdf, int(NB_SAMPLES), uEnvironmentMaxLod);
     return getTexelPanoramaRGBE( direction, lod );

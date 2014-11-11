@@ -1,3 +1,4 @@
+#pragma include "math.glsl"
 #pragma include "colorSpace.glsl"
 
 vec4 computeUVForMipmap( const in float level, const in vec2 uv, const in vec2 size, const in float maxLOD ) {

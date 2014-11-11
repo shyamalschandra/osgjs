@@ -1,9 +1,3 @@
-
-#define PI 3.1415926535897932384626433832795
-#define PI_2 (2.0*3.1415926535897932384626433832795)
-#define INV_PI 1.0/PI
-#define INV_LOG2 1.4426950408889634073599246810019
-
 uniform sampler2D uEnvironment;
 uniform vec2 uEnvironmentSize;
 uniform vec2 uIrradianceSize;
@@ -18,6 +12,7 @@ varying vec2 osg_FragTexCoord0;
 varying vec3 osg_FragVertex;
 varying vec3 osg_FragWorldVertex;
 
+#pragma include "math.glsl"
 #pragma include "panoramaSampler.glsl"
 
 // environment rgbe lod inline

@@ -8,6 +8,7 @@ window.EnvironmentCubeMap = ( function () {
     var osgShader = OSG.osgShader;
 
     var TextureListRGBEToCubemapFloat = window.TextureListRGBEToCubemapFloat;
+    var PanoramaToCubeMap = window.PanoramaToCubeMap;
 
     var shaderProcessor = new osgShader.ShaderProcessor();
 
@@ -75,8 +76,7 @@ window.EnvironmentCubeMap = ( function () {
             var geom = osg.createTexturedSphereGeometry( size, 20, 20 );
 
             geom.getOrCreateStateSet().setAttributeAndModes( new osg.CullFace( 'DISABLE' ) );
-            var texture = this._convertor.getTexture();
-            geom.getOrCreateStateSet().setTextureAttributeAndModes( 0, texture );
+            geom.getOrCreateStateSet().setTextureAttributeAndModes( 0, this._textureCube );
             geom.getOrCreateStateSet().setAttributeAndModes( this.createShader( [ '#define FLOAT_CUBEMAP_LOD' ] ) );
 
             scene.addChild( geom );
@@ -91,7 +91,36 @@ window.EnvironmentCubeMap = ( function () {
                 textures.push( texture );
             }
             this._convertor = new TextureListRGBEToCubemapFloat( textures, options );
+            this._textureCube = this._convertor.getTexture();
+
             return this._convertor.getOperatorNode();
+        },
+
+        loadPanorama: function ( path ) {
+            var defer = Q.defer();
+
+            osgDB.readImageURL( path, {
+                imageLoadingUsePromise: true
+            } ).then( function ( image ) {
+
+                this._texturePanoramic = new osg.Texture();
+                this._texturePanoramic.setImage( image );
+
+                this._texturePanoramic.setMinFilter( 'NEAREST' );
+                this._texturePanoramic.setMagFilter( 'NEAREST' );
+
+                defer.resolve( this._texturePanoramic );
+
+            }.bind( this ) );
+
+            return defer.promise;
+        },
+
+        generate: function() {
+            var node = new PanoramaToCubeMap( this._texturePanoramic );
+            node.init();
+            this._textureCube = node._texture;
+            return node;
         },
 
         getFloatCubeMapPromise: function () {

@@ -1,5 +1,6 @@
 var osg = window.OSG.osg;
 var osgUtil = window.OSG.osgUtil;
+var osgShader = window.OSG.osgShader;
 var Q = window.Q;
 
 
@@ -33,12 +34,14 @@ var PanoramaToPanoramaInlineMipmap = function ( texture, dest, textureTarget ) {
 
 PanoramaToPanoramaInlineMipmap.prototype = osg.objectInherit( osg.Node.prototype, {
 
-    getPromise: function() {
+    getPromise: function () {
         return this._defer.promise;
     },
-    getTexture: function() { return this._finalTexture; },
+    getTexture: function () {
+        return this._finalTexture;
+    },
 
-    getOrCreateCopyShader: function() {
+    getOrCreateCopyShader: function () {
 
         if ( this._shader ) {
             return this._shader;
@@ -58,7 +61,7 @@ PanoramaToPanoramaInlineMipmap.prototype = osg.objectInherit( osg.Node.prototype
             '  gl_Position = ProjectionMatrix * vec4(Vertex,1.0);',
             '  FragTexCoord0 = TexCoord0;',
             '}',
-        ].join('\n');
+        ].join( '\n' );
 
         var frg = [
             '#ifdef GL_ES',
@@ -69,11 +72,11 @@ PanoramaToPanoramaInlineMipmap.prototype = osg.objectInherit( osg.Node.prototype
 
             'void main (void)',
             '{',
-            '  //gl_FragColor = vec4(1.0);',//texture2D( Texture0, FragTexCoord0);',
+            '  //gl_FragColor = vec4(1.0);', //texture2D( Texture0, FragTexCoord0);',
             '  gl_FragColor = texture2D( Texture0, FragTexCoord0);',
             '}',
 
-        ].join('\n');
+        ].join( '\n' );
 
         var program = new osg.Program(
             new osg.Shader( 'VERTEX_SHADER', vtx ),
@@ -82,7 +85,7 @@ PanoramaToPanoramaInlineMipmap.prototype = osg.objectInherit( osg.Node.prototype
         return this._shader;
     },
 
-    getOrCreateFilter: function() {
+    getOrCreateFilter: function () {
 
         var reduce = new osgUtil.Composer.Filter.Custom( [
             '#ifdef GL_ES',
@@ -180,7 +183,7 @@ PanoramaToPanoramaInlineMipmap.prototype = osg.objectInherit( osg.Node.prototype
 
         // we will need to add a pixel format depending on the target plateform
         // ideally should be float/halffloat but if not possible rgbe
-        var createTexture = function( w, h ) {
+        var createTexture = function ( w, h ) {
             var texture = new osg.Texture();
             //texture.setMinFilter( 'LINEAR' );
             //texture.setMagFilter( 'LINEAR' );
@@ -197,17 +200,17 @@ PanoramaToPanoramaInlineMipmap.prototype = osg.objectInherit( osg.Node.prototype
         // we could imagine to improve the composer to ask for textureSize
         // imageSize if texture size is not yet set, but it could have side effect
         // so we do it manually here
-        sourceTexture.setTextureSize( sourceTextureWidth, sourceTextureWidth/2 );
+        sourceTexture.setTextureSize( sourceTextureWidth, sourceTextureWidth / 2 );
 
         // compute each mipmap level
-        var nbMipmapLevel = Math.log(sourceTextureWidth)/Math.LN2;
+        var nbMipmapLevel = Math.log( sourceTextureWidth ) / Math.LN2;
         var textureList = [];
 
         composer.addPass( new osgUtil.Composer.Filter.InputTexture( sourceTexture ) );
 
-        for (var i = 0; i < nbMipmapLevel; i++ ) {
-            var w = Math.pow(2, nbMipmapLevel-i );
-            var h = Math.max(1, w/2);
+        for ( var i = 0; i < nbMipmapLevel; i++ ) {
+            var w = Math.pow( 2, nbMipmapLevel - i );
+            var h = Math.max( 1, w / 2 );
             var targetTexture = createTexture( w, h );
             textureList.push( targetTexture );
 
@@ -227,7 +230,7 @@ PanoramaToPanoramaInlineMipmap.prototype = osg.objectInherit( osg.Node.prototype
         var vp = new osg.Viewport( 0, 0, textureSize, textureSize );
         camera.setReferenceFrame( osg.Transform.ABSOLUTE_RF );
         camera.setViewport( vp );
-        osg.Matrix.makeOrtho( 0, textureSize, 0,  textureSize, -5, 5, camera.getProjectionMatrix() );
+        osg.Matrix.makeOrtho( 0, textureSize, 0, textureSize, -5, 5, camera.getProjectionMatrix() );
         camera.setRenderOrder( osg.Camera.PRE_RENDER, 0 );
 
         camera.attachTexture( osg.FrameBufferObject.COLOR_ATTACHMENT0, destinationTexture );
@@ -243,7 +246,7 @@ PanoramaToPanoramaInlineMipmap.prototype = osg.objectInherit( osg.Node.prototype
             geom.getOrCreateStateSet().setAttributeAndModes( this.getOrCreateCopyShader() );
             geom.getOrCreateStateSet().setTextureAttributeAndModes( 0, texture );
             geom.getOrCreateStateSet().addUniform( osg.Uniform.createFloat2( [ w, h ], 'uSize' ) );
-            geom.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( [ 0 ], 'Texture0'  ) );
+            geom.getOrCreateStateSet().addUniform( osg.Uniform.createInt1( [ 0 ], 'Texture0' ) );
             offsety += h;
 
             grp.addChild( geom );
@@ -276,6 +279,217 @@ PanoramaToPanoramaInlineMipmap.prototype = osg.objectInherit( osg.Node.prototype
 
 
 } );
+
+
+
+
+
+var PanoramaToCubeMap = function ( texturePanoramic ) {
+    osg.Node.call( this );
+    this._texturePanoramic = texturePanoramic;
+    this._texture = undefined;
+    this._defer = Q.defer();
+
+    this._textureRTT = {};
+    this._cubemap = {};
+
+};
+
+
+PanoramaToCubeMap.prototype = osg.objectInherit( osg.Node.prototype, {
+
+    getPromise: function () {
+        return this._defer.promise;
+    },
+
+    getTexture: function () {
+        return this._texture;
+    },
+
+    Environment: ( function () {
+
+        var environmentGeometry = osg.createTexturedSphereGeometry( 100 / 2, 20, 20 ); // to use the same shader panorama
+        environmentGeometry.getOrCreateStateSet().setAttributeAndModes( new osg.CullFace( 'DISABLE' ) );
+        environmentGeometry.getOrCreateStateSet().setAttributeAndModes( new osg.Depth( 'DISABLE' ) );
+
+
+        var Environment = function ( textureCubemap, cubemapTarget, level, size ) {
+            this._level = level;
+            this._size = size;
+            this._cubemapTarget = cubemapTarget;
+            this._textureCubemap = textureCubemap;
+        };
+
+        Environment.prototype = osg.objectInherit( environmentGeometry, {
+
+            draw: function ( state ) {
+                osg.Geometry.prototype.drawImplementation.call( this, state );
+            },
+
+            drawImplementation: function ( state ) {
+
+                var gl = state.getGraphicContext();
+
+                var textureID = this._textureCubemap.getTextureObject().id();
+
+                for ( var i = 0; i < 6; i++ ) {
+                    gl.framebufferTexture2D( gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, this._textureTarget[ i ], textureID, 0 );
+                    var status = gl.checkFramebufferStatus( gl.FRAMEBUFFER );
+                    if ( status !== 0x8CD5 ) {
+                        this._fbo._reportFrameBufferError( status );
+                    }
+
+                    //state.applyTextureAttribute( 0, this._textureSources[ i ] );
+
+                    this.draw( state );
+                }
+
+                // draw as usual
+                // this.draw( state );
+
+                // then copy the current frame buffer to texture cubemap
+                // var gl = state.getGraphicContext();
+
+                // state.applyTextureAttribute( 1, this._textureCubemap );
+                // gl.copyTexImage2D( this._cubemapTarget, this._level, gl.RGB, 0, 0, this._size, this._size, 0 );
+            }
+        } );
+
+        return Environment;
+    } )(),
+
+
+    getOrCreateEnvironmentGeometry: function ( target, level, size ) {
+
+        var Environment = this.Environment;
+        return new Environment( this._texture, target, level, size );
+
+    },
+
+    getOrCreateEnvironment: function () {
+
+        if ( !this._environmentNode ) {
+            // create the environment sphere
+            var size = 500;
+            //var geom = osg.createTexturedBoxGeometry( 0, 0, 0, size, size, size );
+            var geom = osg.createTexturedSphereGeometry( size / 2, 20, 20 ); // to use the same shader panorama
+            geom.getOrCreateStateSet().setAttributeAndModes( new osg.CullFace( 'DISABLE' ) );
+            geom.getOrCreateStateSet().setAttributeAndModes( new osg.Depth( 'DISABLE' ) );
+
+            var mt = new osg.MatrixTransform();
+            mt.addChild( geom );
+            this._environmentNode = mt;
+        }
+
+        return this._environmentNode;
+    },
+
+    getOrCreateTextureCubeMap: function ( size ) {
+        if ( !this._cubemap[ size ] ) {
+            var cm = new osg.TextureCubeMap();
+            cm.setTextureSize( size, size );
+            cm.setType( 'FLOAT' );
+            cm.setInternalFormat( 'RGB' );
+            this._cubemap[ size ] = cm;
+        }
+        return this._cubemap[ size ];
+    },
+
+    getOrCreateTextureRTT: function ( size ) {
+        if ( true || !this._textureRTT[ size ] ) {
+            var t = new osg.Texture();
+            t.setTextureSize( size, size );
+            t.setType( 'FLOAT' );
+            t.setMagFilter( 'NEAREST' );
+            t.setMinFilter( 'NEAREST' );
+
+            this._textureRTT[ size ] = t;
+        }
+        return this._textureRTT[ size ];
+    },
+
+    axis: [ {
+        direction: [ 1, 0, 0 ],
+        up: [ 0, 1, 0 ]
+    }, {
+        direction: [ -1, 0, 0 ],
+        up: [ 0, 1, 0 ]
+    }, {
+        direction: [ 0, 1, 0 ],
+        up: [ 0, 0, -1 ]
+    }, {
+        direction: [ 0, -1, 0 ],
+        up: [ 0, 0, -1 ]
+    }, {
+        direction: [ 0, 0, 1 ],
+        up: [ 0, 1, 0 ]
+    }, {
+        direction: [ 0, 0, -1 ],
+        up: [ 0, 1, 0 ]
+    } ],
+
+
+    createGraphRenderToTexture: function ( index, level, size ) {
+
+        var node = new osg.Node();
+        var camera = new osg.Camera();
+
+        var vp = new osg.Viewport( 0, 0, size, size );
+        camera.setReferenceFrame( osg.Transform.ABSOLUTE_RF );
+        camera.setViewport( vp );
+        camera.setRenderOrder( osg.Camera.PRE_RENDER, 0 );
+        camera.attachTexture( osg.FrameBufferObject.COLOR_ATTACHMENT0, this._texture );
+
+        var fov = (2.0 * Math.atan( size / ( size - 0.5 ) )) * 180.0/Math.PI;
+        osg.Matrix.makePerspective( fov, 1.0, 0.1, 1000, camera.getProjectionMatrix() );
+        osg.Matrix.makeLookAt( [ 0, 0, 0 ],
+            this.axis[ index ].direction,
+            this.axis[ index ].up,
+            camera.getViewMatrix() );
+
+        node.addChild( camera );
+        camera.addChild( this.getOrCreateEnvironmentGeometry( osg.Texture.TEXTURE_CUBE_MAP_POSITIVE_X + index, level, size ) );
+
+        return node;
+    },
+
+    init: function () {
+        this._texture = this.getOrCreateTextureCubeMap( 512 );
+        var maxLevel = 9;
+
+        var node = new osg.Node();
+        node.getOrCreateStateSet().setTextureAttributeAndModes( 0, this._texturePanoramic );
+        node.getOrCreateStateSet().setAttributeAndModes( this.getOrCreateShader() );
+        for ( var i = 0; i < 1; i++ ) {
+            for ( var f = 0; f < 6; f++ ) {
+                var rtt = this.createGraphRenderToTexture( f, i, Math.pow( 2, maxLevel - i ) );
+                node.addChild( rtt );
+            }
+        }
+        this.addChild( node );
+    },
+
+    getOrCreateShader: function () {
+
+        if ( !this._shader ) {
+
+            var shaderProcessor = new osgShader.ShaderProcessor();
+            var vertexshader = shaderProcessor.getShader( 'panoramaToCubemapVertex.glsl' );
+            var fragmentshader = shaderProcessor.getShader( 'panoramaToCubemapFragment.glsl' );
+
+            var program = new osg.Program(
+                new osg.Shader( 'VERTEX_SHADER', vertexshader ),
+                new osg.Shader( 'FRAGMENT_SHADER', fragmentshader ) );
+            this._shader = program;
+        }
+
+        return this._shader;
+    }
+
+
+} );
+
+
 
 
 
@@ -338,8 +552,8 @@ var TextureListRGBEToCubemapFloat = function ( textureSources, options ) {
     var w = this._width;
     var h = this._height;
     var quad = osg.createTexturedQuadGeometry( -w / 2, -h / 2, 0,
-                                               w, 0, 0,
-                                               0, h, 0 );
+        w, 0, 0,
+        0, h, 0 );
     this.getAttributes().Vertex = quad.getAttributes().Vertex;
     this.getAttributes().TexCoord0 = quad.getAttributes().TexCoord0;
     this.getPrimitives().push( quad.getPrimitives()[ 0 ] );
@@ -353,12 +567,12 @@ var TextureListRGBEToCubemapFloat = function ( textureSources, options ) {
     osg.Matrix.makeOrtho( -w / 2, w / 2, -h / 2, h / 2, -5, 5, camera.getProjectionMatrix() );
     camera.addChild( this );
 
-    this.getPromise().then( function()  {
+    this.getPromise().then( function () {
 
         // auto remove it self
-        camera.getParents()[0].removeChild( camera );
+        camera.getParents()[ 0 ].removeChild( camera );
 
-    }.bind( this ));
+    }.bind( this ) );
 
     this._camera = camera;
 
@@ -366,13 +580,13 @@ var TextureListRGBEToCubemapFloat = function ( textureSources, options ) {
 };
 
 TextureListRGBEToCubemapFloat.prototype = osg.objectInherit( osg.Geometry.prototype, {
-    getTexture: function() {
+    getTexture: function () {
         return this._textureCubemap;
     },
     getPromise: function () {
         return this._defer.promise;
     },
-    getOperatorNode: function() {
+    getOperatorNode: function () {
         return this._camera;
     },
     initStateSet: function () {
@@ -439,9 +653,6 @@ TextureListRGBEToCubemapFloat.prototype = osg.objectInherit( osg.Geometry.protot
     drawImplementation: function ( state ) {
 
         var gl = state.getGraphicContext();
-
-        // will be applied by stateSet
-        //state.applyAttribute( this._fbo );
 
         var textureID = this._textureCubemap.getTextureObject().id();
 
