@@ -116,13 +116,6 @@ window.EnvironmentCubeMap = ( function () {
             return defer.promise;
         },
 
-        generate: function() {
-            var node = new PanoramaToCubeMap( this._texturePanoramic );
-            node.init();
-            this._textureCube = node._texture;
-            return node;
-        },
-
         getFloatCubeMapPromise: function () {
             return this._convertor.getPromise();
         },

@@ -477,17 +477,6 @@
             return group;
         },
 
-        testCubemapFromPanorama: function ( offset, offsety ) {
-
-            var y = ( offsety !== undefined ) ? offsety : 0;
-            var group = new osg.MatrixTransform();
-            osg.Matrix.makeTranslate( offset, y, 0, group.getMatrix() );
-
-            group.addChild( this._cubemapFromPanorama.createFloatCubeMapDebugGeometry() );
-            return group;
-        },
-
-
 
         createScene: function () {
 
@@ -514,15 +503,10 @@
             } ) );
             promises.push( this._cubemapFloat.getFloatCubeMapPromise() );
 
-            group.addChild( this._cubemapFromPanorama.generate() );
-            //promises.push( this._cubemapFromPanorama.getFloatCubeMapPromise() );
-
-
 
             Q.all( promises ).then( function () {
 
-                //group.addChild( this.createSampleScene() );
-                this.createSampleScene();
+                group.addChild( this.createSampleScene() );
 
                 this.updateEnvironment();
 
@@ -535,9 +519,6 @@
 
                 group.addChild( this.testPanoramaIrradiance( -90, 30 ) );
                 group.addChild( this.testPanorama( -90 ) );
-
-                //group.addChild( this.testCubemapFromPanorama( -60, 60 ) );
-
 
 
 
@@ -580,7 +561,6 @@
             this._cubemap = new EnvironmentCubeMap( cubemap );
             this._cubemapFloat = new EnvironmentCubeMap( cubemap );
             this._spherical = new EnvironmentSphericalHarmonics( spherical );
-            this._cubemapFromPanorama = new EnvironmentCubeMap( panorama );
 
             ready.push( this.readShaders() );
             ready.push( this._panoramaRGBE.load() );
@@ -589,7 +569,6 @@
             ready.push( this._cubemapIrradiance.load() );
             ready.push( this._cubemap.load() );
             ready.push( this._cubemapFloat.load() );
-            ready.push( this._cubemapFromPanorama.loadPanorama( panorama ) );
             ready.push( this.createModelMaterialSample() );
 
             Q.all( ready ).then( function () {
