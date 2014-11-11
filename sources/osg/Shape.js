@@ -499,7 +499,7 @@ define( [
     };
 
     /**
-     * Create a Textured Sphere on the given center with given radius
+     * Create a Textured Sphere with a given radius
      * @name createTexturedSphere
      * @author Darrell Esau
      */
