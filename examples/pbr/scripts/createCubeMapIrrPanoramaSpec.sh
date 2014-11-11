@@ -5,6 +5,12 @@ sizeSpec="${4:-512}"
 
 filename=$(basename "$input")
 
+function get_range()
+{
+    range="$(iinfo --stats $1 | grep Max | sed 's/ *Stats Max://' | sed 's/(float)//g' | tr ' ' '\n' | sort -r | head -1 )"
+    echo "${range}"
+}
+
 function encodeTexture()
 {
     local input="${1}"
@@ -16,6 +22,9 @@ function encodeTexture()
 
     mkdir -p "${outputdir}"
     local output="${outputdir}/${filename_without_extension}.png"
+
+    echo "image range $(get_range ${input} )"
+
     cd ~/dev/rgbx/build && ./rgbx -m rgbe "${input}" "${output}"
 }
 
@@ -49,6 +58,8 @@ function create_irr_cubemap()
     local in="${1}"
     local out="${2}"
     local tmp="/tmp/irr.tif"
+
+    #cd ~/dev/envtools/build && ./fixEdge
     create_cubemap "${in}" "${out}/cubemap"
 
     cd ~/dev/envtools/build && ./envtoirr -n $sizeIrr "${in}" "${tmp}" >/tmp/create_irr_cubemap
