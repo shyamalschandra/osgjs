@@ -164,6 +164,11 @@
             if ( config && config.environmentType === 'cubemap' )
                 defines.push( '#define FLOAT_CUBEMAP_LOD ');
 
+            if ( config && config.environmentType === 'cubemapSeamless' ) {
+                defines.push( '#define FLOAT_CUBEMAP_LOD ');
+                defines.push( '#define FLOAT_CUBEMAP_SEAMLESS ');
+            }
+
 
             if ( !this._shaderCache )
                 this._shaderCache = {};
@@ -387,6 +392,25 @@
 
         },
 
+        setCubemapSeamless: function () {
+
+            // set the stateSet of the environment geometry
+            this._environmentStateSet.setAttributeAndModes( this._cubemapFloat.createShader( [ '#define FLOAT_CUBEMAP_LOD',
+                                                                                               '#define FLOAT_CUBEMAP_SEAMLESS'] ) );
+            var texture = this._cubemapPackedFloat.getPackedTexture();
+
+            var stateSet = this._mainSceneNode.getOrCreateStateSet();
+            var w = texture.getWidth();
+
+            stateSet.addUniform( osg.Uniform.createFloat2( [ w, w ], 'uEnvironmentSize' ) );
+            stateSet.addUniform( osg.Uniform.createFloat1( Math.log( w ) / Math.LN2, 'uEnvironmentMaxLod' ) );
+            stateSet.addUniform( osg.Uniform.createInt1( 0, 'uEnvironmentCube' ) );
+
+            stateSet.addUniform( this._environmentTransformUniform );
+            stateSet.setTextureAttributeAndModes( 0, texture );
+
+        },
+
         implementPanoramaRGBE: function () {
 
             var group = new osg.Node();
@@ -456,6 +480,17 @@
         },
 
 
+        testCubemapFloatPacked: function ( offset, offsety ) {
+
+            var y = ( offsety !== undefined ) ? offsety : 0;
+            var group = new osg.MatrixTransform();
+            osg.Matrix.makeTranslate( offset, y, 0, group.getMatrix() );
+
+            group.addChild( this._cubemapPackedFloat.createFloatCubeMapPackedDebugGeometry() );
+            return group;
+        },
+
+
         testPanoramaIrradiance: function ( offset, offsety ) {
 
             var y = ( offsety !== undefined ) ? offsety : 0;
@@ -515,6 +550,8 @@
 
                 group.addChild( this.testCubemap( -60 ) );
                 group.addChild( this.testCubemapFloat( -60, -30 ) );
+                group.addChild( this.testCubemapFloatPacked( -60, -60 ) );
+
                 group.addChild( this.testCubemapIrradiance( -60, 30 ) );
 
                 group.addChild( this.testPanoramaIrradiance( -90, 30 ) );
@@ -544,6 +581,14 @@
 
         run: function ( canvas ) {
 
+            var viewer = this._viewer = new osgViewer.Viewer( canvas );
+            viewer.init();
+
+            var gl = viewer.getState().getGraphicContext();
+            console.log( gl.getExtension( 'OES_texture_float' ) );
+            console.log( gl.getExtension( 'OES_texture_float_linear' ) );
+            console.log( gl.getExtension( 'EXT_shader_texture_lod' ) );
+
             var ready = [];
 
             var environment = 'textures/tmp/';
@@ -553,7 +598,7 @@
             var spherical = environment + 'spherical';
             var cubemapIrradiance = environment + 'cubemap_irradiance_%d.png';
             var cubemap = environment + 'cubemap_%d.png';
-            //var cubemap = environment + 'fixup_%d.png';
+            var cubemapPackedFloat = environment + 'cubemap_float.bin.gz';
 
             this._panoramaRGBE = new EnvironmentPanorama( panorama );
             this._panoramaIrradianceRGBE = new EnvironmentPanorama( panoramaIrradiance );
@@ -561,6 +606,7 @@
             this._cubemap = new EnvironmentCubeMap( cubemap );
             this._cubemapFloat = new EnvironmentCubeMap( cubemap );
             this._spherical = new EnvironmentSphericalHarmonics( spherical );
+            this._cubemapPackedFloat = new EnvironmentCubeMap( cubemapPackedFloat );
 
             ready.push( this.readShaders() );
             ready.push( this._panoramaRGBE.load() );
@@ -569,17 +615,10 @@
             ready.push( this._cubemapIrradiance.load() );
             ready.push( this._cubemap.load() );
             ready.push( this._cubemapFloat.load() );
+            ready.push( this._cubemapPackedFloat.loadCubemapPacked() );
             ready.push( this.createModelMaterialSample() );
 
             Q.all( ready ).then( function () {
-
-                var viewer = this._viewer = new osgViewer.Viewer( canvas );
-                viewer.init();
-
-                var gl = viewer.getState().getGraphicContext();
-                console.log( gl.getExtension( 'OES_texture_float' ) );
-                console.log( gl.getExtension( 'OES_texture_float_linear' ) );
-                console.log( gl.getExtension( 'EXT_shader_texture_lod' ) );
 
                 viewer.setSceneData( this.createScene() );
                 viewer.setupManipulator();
@@ -601,7 +640,7 @@
                 controller = gui.add( this._config, 'nbSamples', [ 4, 8, 16, 32, 64, 128, 256 ] );
                 controller.onChange( this.updateShaderPBR.bind( this ) );
 
-                controller = gui.add( this._config, 'environmentType', [ 'cubemap', 'panorama' ] );
+                controller = gui.add( this._config, 'environmentType', [ 'cubemap', 'cubemapSeamless', 'panorama' ] );
                 controller.onChange( this.updateEnvironment.bind( this ) );
 
             }.bind( this ) );
@@ -656,6 +695,8 @@
 
             if ( this._config.environmentType === 'cubemap' ) {
                 this.setCubemap();
+            } else if (this._config.environmentType === 'cubemapSeamless') {
+                this.setCubemapSeamless();
             } else {
                 this.setPanorama();
             }

@@ -117,8 +117,8 @@ class ProcessEnvironment(object):
         previous_file = self.cubemap_generic
         self.fix_border( previous_file, 0 )
 
-        for i in range( 1, max_level ):
-            size = math.pow( 2 , max_level - i )
+        for i in range( 1, max_level+1 ):
+            size = int( math.pow( 2 , max_level - i ) )
             outout_filename = "/tmp/specular_{}.tif".format( i )
             cmd = "~/dev/envtools/build/envremap -n {} -i cube -o cube {} {}".format(
                 size, previous_file, outout_filename)

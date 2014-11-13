@@ -139,7 +139,105 @@ window.EnvironmentCubeMap = ( function () {
 
             return defer.promise;
 
+        },
+
+        loadCubemapPacked: function () {
+            var defer = Q.defer();
+
+            var xhr = new XMLHttpRequest();
+
+            var error = function() {};
+            var load = function() {
+                var data = xhr.response;
+
+                var maxLevel = 9;
+                var offset = 0;
+                var images = { };
+                for ( var i = 0; i <= maxLevel; i++ ) {
+                    var size = Math.pow(2, maxLevel - i );
+                    var byteSize = size*size*4*3;
+                    console.log('split ' + size );
+
+                    for ( var face = 0; face < 6; face++ ) {
+
+                        // add entry if does not exist
+                        if (!images[osg.Texture.TEXTURE_CUBE_MAP_POSITIVE_X + face])
+                            images[osg.Texture.TEXTURE_CUBE_MAP_POSITIVE_X + face] = [];
+
+                        console.log('args ', offset, byteSize );
+                        var imageData = new Float32Array( data, offset, byteSize/4 );
+                        var image = new osg.Image();
+                        image.setImage( imageData );
+
+                        console.log('packed data size ', size, image.getImage().length );
+
+                        image.setWidth( size );
+                        image.setHeight( size );
+                        images[osg.Texture.TEXTURE_CUBE_MAP_POSITIVE_X + face].push(image);
+                        offset += byteSize;
+                    }
+                }
+
+                this._packedImages = images;
+                this.createFloatCubemapPacked();
+
+                defer.resolve();
+
+            }.bind(this);
+
+            xhr.addEventListener( 'error', error, false );
+            xhr.addEventListener( 'load', function ( event ) {
+                if ( xhr.status !== 200 ) {
+                    error( event );
+                    return;
+                }
+                load.call( event );
+
+            },false);
+
+            xhr.open( 'GET', this._pattern, true );
+            xhr.responseType = 'arraybuffer';
+            xhr.send( null );
+
+            return defer.promise;
+
+        },
+
+        getPackedTexture: function() {
+            return this._textureCubePacked;
+        },
+        createFloatCubemapPacked: function() {
+
+            var texture = new osg.TextureCubeMap();
+            texture.setMinFilter( 'LINEAR_MIPMAP_LINEAR' );
+            texture.setMagFilter( 'LINEAR' );
+            texture.setType('FLOAT');
+            texture.setFlipY(false);
+
+            for ( var j = 0 ; j < 6 ; j++ ) {
+                var f = osg.Texture.TEXTURE_CUBE_MAP_POSITIVE_X + j;
+                texture.setImage( f , this._packedImages[f], 'RGB' );
+            }
+            this._textureCubePacked = texture;
+            return texture;
+        },
+
+        createFloatCubeMapPackedDebugGeometry: function () {
+
+            var scene = new osg.Node();
+
+            var size = 10;
+            var geom = osg.createTexturedSphereGeometry( size, 20, 20 );
+
+            geom.getOrCreateStateSet().setAttributeAndModes( new osg.CullFace( 'DISABLE' ) );
+            geom.getOrCreateStateSet().setTextureAttributeAndModes( 0, this._textureCubePacked );
+            geom.getOrCreateStateSet().setAttributeAndModes( this.createShader( [ '#define FLOAT_CUBEMAP_LOD',
+                                                                                  '#define FLOAT_CUBEMAP_SEAMLESS'] ) );
+
+            scene.addChild( geom );
+            return scene;
         }
+
 
     };
 
