@@ -28,6 +28,7 @@ define( [
         return value;
     };
 
+
     /**
      * Texture encapsulate webgl texture object
      * @class Texture
@@ -363,14 +364,21 @@ define( [
         },
 
         generateMipmap: function ( gl, target ) {
-            if ( this._minFilter === gl.NEAREST_MIPMAP_NEAREST ||
-                this._minFilter === gl.LINEAR_MIPMAP_NEAREST ||
-                this._minFilter === gl.NEAREST_MIPMAP_LINEAR ||
-                this._minFilter === gl.LINEAR_MIPMAP_LINEAR ) {
+
+            if ( this.hasMipmapFilter() ) {
                 gl.generateMipmap( target );
                 this._dirtyMipmap = false;
             }
         },
+
+        // return true if contains a mipmap filter
+        hasMipmapFilter: function() {
+            return ( this._minFilter === Texture.NEAREST_MIPMAP_NEAREST ||
+                     this._minFilter === Texture.LINEAR_MIPMAP_NEAREST ||
+                     this._minFilter === Texture.NEAREST_MIPMAP_LINEAR ||
+                     this._minFilter === Texture.LINEAR_MIPMAP_LINEAR );
+        },
+
         applyTexImage2D: function ( gl ) {
             var args = Array.prototype.slice.call( arguments, 1 );
             MACROUTILS.timeStamp( 'osgjs.metrics:Texture.texImage2d' );

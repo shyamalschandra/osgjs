@@ -46,7 +46,7 @@ define( [
             return this._imageObject instanceof window.Image;
         },
         isTypedArray: function () {
-            return this._imageObject instanceof Uint8Array;
+            return this._imageObject instanceof Uint8Array || this._imageObject instanceof Float32Array;
         },
         setWidth: function ( w ) {
             this._width = w;

@@ -1,18 +1,101 @@
 define( [
     'osg/Utils',
-    'osg/Texture',
     'osg/Image',
-    'osg/Utils'
+    'osg/Notify',
+    'osg/Texture'
 
-], function ( MACROUTILS, Texture, Image ) {
+], function ( MACROUTILS, Image, Notify, Texture ) {
+
+
+    var FaceImage = function () {
+        this._image = undefined;
+        this._format = undefined;
+        this._dirty = true;
+        this._mipmap = [];
+    };
+
+    FaceImage.prototype = {
+
+        useOrCreateImage: function ( img ) {
+
+            var image = img;
+            if ( image instanceof( Image ) === false ) {
+                image = new Image( img );
+            }
+            return image;
+        },
+
+        release: function () {
+            this._mipmap.length = 0;
+            this._image = undefined;
+        },
+
+        getImage: function () {
+            return this._image;
+        },
+
+        isDirty: function () {
+            return this._dirty;
+        },
+
+        setDirty: function ( b ) {
+            this._dirty = b;
+        },
+
+        getFormat: function () {
+            return this._format;
+        },
+
+        getMipmap: function () {
+            return this._mipmap;
+        },
+
+        hasMipmap: function () {
+            return this._mipmap.length > 1;
+        },
+
+        // img can be an image or an array of image if specify the
+        // all mipmap levels
+        setImage: function ( img, imageFormat ) {
+
+            if ( typeof ( imageFormat ) === 'string' ) {
+                imageFormat = Texture[ imageFormat ];
+            }
+
+            if ( imageFormat === undefined ) {
+                imageFormat = Texture.RGBA;
+            }
+
+            if ( Array.isArray( img ) ) {
+                for ( var i = 0; i < img.length; i++ ) {
+                    this._mipmap.push( this.useOrCreateImage( img[ i ] ) );
+                }
+            } else {
+                this._mipmap.push( this.useOrCreateImage( img ) );
+            }
+
+            this._image = this._mipmap[ 0 ];
+            this._format = imageFormat;
+            this._dirty = true;
+        }
+    };
+
+
     /**
      * TextureCubeMap
      * @class TextureCubeMap
      * @inherits Texture
      */
     var TextureCubeMap = function () {
+
         Texture.call( this );
         this._images = {};
+
+        // pre allocated all textures faces slots
+        for ( var i = 0; i < 6; i++ ) {
+            this._images[ Texture.TEXTURE_CUBE_MAP_POSITIVE_X + i ] = new FaceImage();
+        }
+
     };
 
     /** @lends TextureCubeMap.prototype */
@@ -28,33 +111,21 @@ define( [
             t.defaultType = true;
             return t;
         },
+
         setImage: function ( face, img, imageFormat ) {
 
             if ( typeof ( face ) === 'string' ) {
                 face = Texture[ face ];
             }
 
-            if ( this._images[ face ] === undefined ) {
-                this._images[ face ] = {};
-            }
+            this._images[ face ].setImage( img, imageFormat );
 
-            if ( typeof ( imageFormat ) === 'string' ) {
-                imageFormat = Texture[ imageFormat ];
-            }
-            if ( imageFormat === undefined ) {
-                imageFormat = Texture.RGBA;
-            }
+            this.setImageFormat( imageFormat );
+            this.setTextureSize( this._images[ face ].getImage().getWidth(), this._images[ face ].getImage().getHeight() );
 
-            var image = img;
-            if ( image instanceof( Image ) === false ) {
-                image = new Image( img );
-            }
-
-            this._images[ face ].image = image;
-            this._images[ face ].format = imageFormat;
-            this._images[ face ].dirty = true;
             this.dirty();
         },
+
         getImage: function ( face ) {
             return this._images[ face ].image;
         },
@@ -78,35 +149,83 @@ define( [
             return true;
         },
 
+
+        // handle mipmap logic, if images for mipmap are provided or not
+        generateMipmap: function ( gl, target ) {
+
+            if ( !this.hasMipmapFilter() ) return;
+
+            // manual mipmap provided
+            if ( this._images[ Texture.TEXTURE_CUBE_MAP_POSITIVE_X ].hasMipmap() ) {
+
+                for ( var face = 0; face < 6; face++ ) {
+                    var faceImage = this._images[ Texture.TEXTURE_CUBE_MAP_POSITIVE_X + face ];
+                    if ( !faceImage.hasMipmap() ) {
+                        Notify.error( 'mipmap not set correctly for TextureCubemap' );
+                    }
+
+                    var internalFormat = this._internalFormat;
+                    for ( var level = 1; level < faceImage.getMipmap().length; level++ ) {
+                        var size = faceImage.getMipmap()[ level ].getWidth();
+
+                        this.applyTexImage2D( gl, gl.TEXTURE_CUBE_MAP_POSITIVE_X + face, level, internalFormat, size, size, 0, internalFormat, this._type, faceImage.getMipmap()[ level ].getImage() );
+                    }
+                }
+
+            } else {
+
+                // automatic mipmap
+                gl.generateMipmap( target );
+            }
+
+            this._dirtyMipmap = false;
+        },
+
         applyImageTarget: function ( gl, internalFormat, target ) {
 
-            var imgObject = this._images[ target ];
+            var faceImage = this._images[ target ];
 
-            if ( !imgObject )
+            if ( !faceImage.getImage() )
                 return 0;
 
-            if ( !imgObject.image.isReady() ) {
+            if ( !faceImage.getImage().isReady() ) {
                 return 0;
             }
 
-            if ( !imgObject.dirty )
+            if ( !faceImage.isDirty() )
                 return 1;
 
-            var image = imgObject.image;
-            this.setTextureSize( image.getWidth(), image.getHeight() );
+            this.setTextureSize( faceImage.getImage().getWidth(), faceImage.getImage().getHeight() );
 
-            this.applyTexImage2D( gl,
-                target,
-                0,
-                internalFormat,
-                internalFormat,
-                this._type,
-                image.getImage() );
+            faceImage.setDirty( false );
 
-            imgObject.dirty = false;
+            if ( faceImage.getImage().isTypedArray() ) {
+                this.applyTexImage2D( gl,
+                    target,
+                    0,
+                    internalFormat,
+                    this._textureWidth,
+                    this._textureHeight,
+                    0,
+                    internalFormat,
+                    this._type,
+                    faceImage.getImage().getImage() );
+            } else {
+                this.applyTexImage2D( gl,
+                    target,
+                    0,
+                    internalFormat,
+                    internalFormat,
+                    this._type,
+                    faceImage.getImage().getImage() );
+            }
 
-            if ( this._unrefImageDataAfterApply )
-                delete this._images[ target ];
+            // release here only if no mipmap
+            if ( this._unrefImageDataAfterApply &&
+                !( this.hasMipmap() && faceImage.hasMipmap() ) ) {
+
+                faceImage.release();
+            }
 
             return 1;
         },
@@ -160,10 +279,9 @@ define( [
                 this._textureObject.bind( gl );
 
                 var valid;
-                var keys = Object.keys( this._images );
 
                 // no images it's must be a cubemap filled from rtt
-                if ( !keys.length ) {
+                if ( !this._images[ Texture.TEXTURE_CUBE_MAP_POSITIVE_X ].getImage() ) {
 
                     valid = this.initCubemapContent( gl );
 
