@@ -46,11 +46,22 @@ float distortion(vec3 Wn)
     float sinT = sqrt(1.0-Wn.y*Wn.y);
     return sinT;
 }
-
-float computeLOD(const in vec3 Ln, float p, const in int nbSamples, const in float maxLod)
+float computeLODPanorama(const in vec3 Ln, float p, const in int nbSamples, const in float maxLod)
 {
-    return max(0.0, (maxLod-1.5) - 0.5*(log(float(nbSamples)) + log( p * distortion(Ln) ))
-               * INV_LOG2);
+    return max(0.0, (maxLod-1.5) - 0.5*(log(float(nbSamples)) + log( p * distortion(Ln) )) * INV_LOG2);
+}
+
+
+float computeLODCubemap( float p, const in int nbSamples, const in float maxLod)
+{
+    //return max(0.0, (maxLod-1.5) - 0.5*(log(float(nbSamples)) + log( p )) * INV_LOG2);
+
+    // from
+    // 1.0 + 0.5 *log2(512*512/nbSamples) - 0.5 * log2(p)
+    //return max( 0.0, 0.5 * log2((512.0*512.0)/float(nbSamples) ) - 0.5 * log2(p) );
+    //return max( 0.0, 0.5 * 18.0/float(nbSamples) ) - 0.5 * log2(p) );
+
+    return max( 0.0, maxLod - 0.5*(log2(float(nbSamples)) + log2( p )));
 }
 
 vec3 getTexelPanoramaRGBE( const in vec3 dir, const in float lod ) {
@@ -68,11 +79,12 @@ vec3 getReferenceTexelEnvironmentLod( const in vec3 dirLocal, const in float pdf
     vec3 direction = environmentTransform * dirLocal;
 
 #ifdef FLOAT_CUBEMAP_LOD
-    float lod = computeLOD(vec3(0.0), pdf, int(NB_SAMPLES), uEnvironmentMaxLod);
+    float lod = computeLODCubemap( pdf, int(NB_SAMPLES), uEnvironmentMaxLod);
 
+    //return textureCubeLodEXTFixed(uEnvironmentCube, direction, 0.0 ).rgb;
     return textureCubeLodEXTFixed(uEnvironmentCube, direction, lod ).rgb;
 #else
-    float lod = computeLOD(direction, pdf, int(NB_SAMPLES), uEnvironmentMaxLod);
+    float lod = computeLODPanorama(direction, pdf, int(NB_SAMPLES), uEnvironmentMaxLod);
     return getTexelPanoramaRGBE( direction, lod );
 #endif
 }

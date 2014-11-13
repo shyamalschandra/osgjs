@@ -156,7 +156,6 @@ window.EnvironmentCubeMap = ( function () {
                 for ( var i = 0; i <= maxLevel; i++ ) {
                     var size = Math.pow(2, maxLevel - i );
                     var byteSize = size*size*4*3;
-                    console.log('split ' + size );
 
                     for ( var face = 0; face < 6; face++ ) {
 
@@ -164,12 +163,9 @@ window.EnvironmentCubeMap = ( function () {
                         if (!images[osg.Texture.TEXTURE_CUBE_MAP_POSITIVE_X + face])
                             images[osg.Texture.TEXTURE_CUBE_MAP_POSITIVE_X + face] = [];
 
-                        console.log('args ', offset, byteSize );
                         var imageData = new Float32Array( data, offset, byteSize/4 );
                         var image = new osg.Image();
                         image.setImage( imageData );
-
-                        console.log('packed data size ', size, image.getImage().length );
 
                         image.setWidth( size );
                         image.setHeight( size );

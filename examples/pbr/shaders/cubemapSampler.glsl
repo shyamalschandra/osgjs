@@ -23,7 +23,7 @@ vec4 textureCubeLodEXTFixed(const in samplerCube texture, const in vec3 directio
     // (512 - (2.0*MaxLod - lod )) / 512;
 
     vec3 dir = direction;
-    float lod = min( 7.0, lodInput );
+    float lod = min( uEnvironmentMaxLod, lodInput );
 #ifdef FLOAT_CUBEMAP_SEAMLESS
 
     float lod0 = floor( lod );
@@ -37,8 +37,7 @@ vec4 textureCubeLodEXTFixed(const in samplerCube texture, const in vec3 directio
     // to have a scale of 0 for lower mipmap
     // must stop before 2x2 pixel mipamp or
     // need to max(0.5, scale) to avoid scale of 0
-    vec2 scale = vec2(1.0) - exp2(lodx) * invSize;
-
+    vec2 scale = max( vec2(0.5), (vec2(1.0) - exp2(lodx) * invSize ) );
 
     float M = max(max(abs(dir.x), abs(dir.y)), abs(dir.z));
 

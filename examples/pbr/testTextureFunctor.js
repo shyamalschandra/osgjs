@@ -169,6 +169,8 @@
                 defines.push( '#define FLOAT_CUBEMAP_SEAMLESS ');
             }
 
+            defines.push( '#define NO_TANGENT ');
+
 
             if ( !this._shaderCache )
                 this._shaderCache = {};
@@ -306,7 +308,8 @@
 
         getModelTestInstance: function () {
             var mt = new osg.MatrixTransform();
-            mt.addChild( this._modeltest );
+            //mt.addChild( this._modeltest );
+             mt.addChild( osg.createTexturedSphereGeometry( 20 / 2, 30, 30 ) );
             return mt;
         },
 
@@ -686,6 +689,8 @@
                 nbSamples: nbSamples,
                 environmentType: this._config.environmentType
             } );
+
+            uniformHammerslay.dirty();
 
             this._stateSetPBR.setAttributeAndModes( program );
             this._stateSetPBR.addUniform( uniformHammerslay );

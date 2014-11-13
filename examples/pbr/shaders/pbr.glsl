@@ -199,8 +199,8 @@ void computeTangentFrame( const in vec4 tangent, const in vec3 normal,
     // Build local referential
 #ifdef NO_TANGENT
     vec3 upVector = abs(normal.z) < 0.999 ? vec3(0.0,1.0,0.0) : vec3(1.0,0.0,0.0);
-    tangentX = normalize( cross( upVector, normal ) );
-    tangentY = cross( normal, tangentX );
+    tangentx = normalize( cross( upVector, normal ) );
+    tangenty = cross( normal, tangentx );
 
 #else
 
