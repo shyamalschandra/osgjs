@@ -6,6 +6,7 @@ import math
 import OpenImageIO as oiio
 import array
 
+
 def execute_command(cmd, **kwargs):
 
     try:
@@ -28,7 +29,7 @@ def execute_command(cmd, **kwargs):
         return output
 
     except subprocess.CalledProcessError as error:
-        print("error {} executing {}".format( error.returncode, cmd ) )
+        print("error {} executing {}".format(error.returncode, cmd))
         print(error.output)
         sys.exit(1)
         return None
@@ -36,13 +37,12 @@ def execute_command(cmd, **kwargs):
 
 class ProcessEnvironment(object):
 
-    def __init__(self, input_file, output_directory, specular_size=512, irradiance_size=32):
-
+    def __init__(self, input_file, output_directory, **kwargs):
         self.input_file = os.path.abspath(input_file)
         self.output_directory = output_directory
-        self.specular_size = specular_size
-        self.irradiance_size = irradiance_size
-
+        self.specular_size = kwargs.get("specular_size", 512 )
+        self.irradiance_size = kwargs.get("irradiance_size", 32 )
+        self.pattern_filter = kwargs.get("pattern_filter", "rgss" )
 
     def encode_texture(self, input_file, output_directory=None):
 
@@ -57,7 +57,6 @@ class ProcessEnvironment(object):
         cmd = "~/dev/rgbx/build/rgbx -m rgbe {} {}".format(input_file, output)
         output = execute_command(cmd, verbose=False)
 
-
     def extract_cubemap_face_and_encode(self, input, output, index):
 
         output_file = "{}_{}.tif".format(output, index)
@@ -65,14 +64,12 @@ class ProcessEnvironment(object):
         execute_command(cmd)
         self.encode_texture(output_file)
 
-
     def create_cubemap(self, input_cubemap, output_directory):
 
         for cubemap_face in range(0, 6):
             self.extract_cubemap_face_and_encode(input_cubemap, output_directory, cubemap_face)
 
-
-    def envtoirr(self, input):
+    def compute_irradiance(self, input):
 
         tmp = "/tmp/irr.tif"
 
@@ -88,50 +85,58 @@ class ProcessEnvironment(object):
                     f.write(self.sh_coef)
                 break
 
-        panorama_size = self.irradiance_size * 4
+        self.create_cubemap(tmp, os.path.join(self.output_directory, "cubemap_irradiance"))
+
+        # compute the panorama version of irradiance
+        panorama_size = self.irradiance_size * 2
         panorama_irradiance = "/tmp/panorama_irradiance.tif"
 
-        cmd = "~/dev/envtools/build/envremap -n {} -i cube -o rect {} {}".format(
-            panorama_size, tmp, panorama_irradiance)
+        cmd = "~/dev/envtools/build/envremap -n {} -i cube -o rect {} {}".format( panorama_size, tmp, panorama_irradiance)
+        execute_command(cmd)
 
-        self.create_cubemap(tmp, os.path.join(self.output_directory, "cubemap_irradiance"))
         self.encode_texture(panorama_irradiance, self.output_directory)
 
+    def cubemap_fix_border(self, input, level):
+        cmd = "~/dev/envtools/build/fixedge {} {}".format(input, level)
+        execute_command(cmd)
 
-    def fix_border(self, input, level ):
-        cmd = "~/dev/envtools/build/fixedge {} {}".format( input, level )
-        execute_command( cmd )
+    def cubemap_packer(self, pattern, max_level):
+        cmd = "~/dev/envtools/build/packer {} {} {}".format(pattern, max_level, self.output_directory)
+        execute_command(cmd)
 
-    def packer(self, pattern, max_level ):
-        cmd = "~/dev/envtools/build/packer {} {} {}".format( pattern, max_level, self.output_directory)
-        execute_command( cmd )
+        cmd = "gzip -f {}".format(os.path.join(self.output_directory, "*.bin"))
+        execute_command(cmd)
 
-        cmd = "gzip -f {}".format( os.path.join( self.output_directory, "*.bin") )
-        execute_command( cmd )
+    def cubemap_specular(self, input):
 
-
-    def specular(self, input):
-
-        max_level = int(  math.log( self.specular_size ) / math.log(2) )
+        max_level = int(math.log(self.specular_size) / math.log(2))
 
         previous_file = self.cubemap_generic
-        self.fix_border( previous_file, 0 )
+        self.cubemap_fix_border(previous_file, 0)
 
-        for i in range( 1, max_level+1 ):
-            size = int( math.pow( 2 , max_level - i ) )
-            outout_filename = "/tmp/specular_{}.tif".format( i )
-            cmd = "~/dev/envtools/build/envremap -n {} -p box4 -i cube -o cube {} {}".format(
-                size, previous_file, outout_filename)
+        for i in range(1, max_level + 1):
+            size = int(math.pow(2, max_level - i))
+            outout_filename = "/tmp/specular_{}.tif".format(i)
+            cmd = "~/dev/envtools/build/envremap -p {} -n {} -i cube -o cube {} {}".format(self.pattern_filter, size, previous_file, outout_filename)
             previous_file = outout_filename
-            execute_command( cmd )
-            self.fix_border( outout_filename, i )
+            execute_command(cmd)
+            self.cubemap_fix_border(outout_filename, i)
 
-        self.packer( "/tmp/fixup_%d_%d.tif", max_level)
+        self.cubemap_packer("/tmp/fixup_%d_%d.tif", max_level)
+
+
+    def panorama_specular(self, input):
+
+        # compute the panorama from cubemap specular
+        panorama_size = self.specular_size * 2
+        panorama_specular = "/tmp/panorama.tif"
+        cmd = "~/dev/envtools/build/envremap -p {} -n {} -i rect -o rect {} {}".format( self.pattern_filter, panorama_size, input, panorama_specular)
+        execute_command(cmd)
+
+        self.encode_texture(panorama_specular, self.output_directory)
 
     def run(self):
 
-        #self.encode_float()
-        #return
         start = time.time()
 
         if not os.path.exists(self.output_directory):
@@ -139,22 +144,28 @@ class ProcessEnvironment(object):
 
         cubemap_generic = "/tmp/input_cubemap.tif"
 
-        cmd = "iconvert {} {}".format(self.input_file, "/tmp/panorama.tif")
+        original_file = "/tmp/original_panorama.tif"
+        cmd = "iconvert {} {}".format(self.input_file, original_file )
         execute_command(cmd)
 
-        cmd = "~/dev/envtools/build/envremap -o cube -n {} {} {}".format(
-            self.specular_size, "/tmp/panorama.tif", cubemap_generic)
+        cmd = "~/dev/envtools/build/envremap -p {} -o cube -n {} {} {}".format(self.pattern_filter, self.specular_size, original_file, cubemap_generic)
         self.cubemap_generic = cubemap_generic
         execute_command(cmd)
 
         # create cubemap original
-        self.create_cubemap(cubemap_generic, os.path.join(self.output_directory,'cubemap') )
+        # we could remove this later
+        self.create_cubemap(cubemap_generic, os.path.join(self.output_directory, 'cubemap'))
 
-        # generate irradiance
-        self.envtoirr(cubemap_generic)
+        # generate irradiance*PI panorama/cubemap/sph
+        self.compute_irradiance(cubemap_generic)
 
         # generate specular
-        self.specular(cubemap_generic)
+        self.cubemap_specular(cubemap_generic)
+
+        # generate panorama specular
+        self.panorama_specular(original_file)
+
+
 
         print ("processed in {} seconds".format(time.time() - start))
 
@@ -162,8 +173,9 @@ class ProcessEnvironment(object):
 argv = sys.argv
 input_file = argv[1]
 output_directory = argv[2]
+#pattern_filter = argv[3]
 
-process = ProcessEnvironment(input_file, output_directory)
+process = ProcessEnvironment(input_file, output_directory, pattern_filter = "box4")
 process.run()
 
 
