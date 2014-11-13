@@ -120,8 +120,9 @@ class ProcessEnvironment(object):
         for i in range( 1, max_level+1 ):
             size = int( math.pow( 2 , max_level - i ) )
             outout_filename = "/tmp/specular_{}.tif".format( i )
-            cmd = "~/dev/envtools/build/envremap -n {} -i cube -o cube {} {}".format(
+            cmd = "~/dev/envtools/build/envremap -n {} -p box4 -i cube -o cube {} {}".format(
                 size, previous_file, outout_filename)
+            previous_file = outout_filename
             execute_command( cmd )
             self.fix_border( outout_filename, i )
 
