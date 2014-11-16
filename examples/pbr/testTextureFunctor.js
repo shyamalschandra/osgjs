@@ -440,7 +440,7 @@
 
             for ( var i = 0; i < 2; i++) {
 
-                var metal = i / ( nb - 1 );
+                var metal = i;
                 var metalTexture = this.createTextureFromColor( metal, false );
 
                 for ( var j = 0; j < nb; j++ ) {
@@ -449,7 +449,7 @@
                     var sample = this.getModelTestInstance();
 
                     var x = roughness * offset;
-                    var y = metal * offset;
+                    var y = metal * offset * 0.2;
                     osg.Matrix.makeTranslate( x, 0, y, sample.getMatrix() );
 
                     var roughnessTexture = this.createTextureFromColor( roughness, false );
