@@ -207,6 +207,8 @@ window.EnvironmentCubeMap = ( function () {
             var texture = new osg.TextureCubeMap();
             texture.setMinFilter( 'LINEAR_MIPMAP_LINEAR' );
             texture.setMagFilter( 'LINEAR' );
+            // texture.setMinFilter( 'NEAREST_MIPMAP_NEAREST' );
+            // texture.setMagFilter( 'NEAREST' );
             texture.setType('FLOAT');
             texture.setFlipY(false);
 

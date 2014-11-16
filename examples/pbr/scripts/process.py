@@ -175,7 +175,7 @@ input_file = argv[1]
 output_directory = argv[2]
 #pattern_filter = argv[3]
 
-process = ProcessEnvironment(input_file, output_directory, pattern_filter = "box4")
+process = ProcessEnvironment(input_file, output_directory, pattern_filter = "box2")
 process.run()
 
 

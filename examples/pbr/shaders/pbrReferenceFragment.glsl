@@ -61,7 +61,14 @@ float computeLODCubemap( float p, const in int nbSamples, const in float maxLod)
     //return max( 0.0, 0.5 * log2((512.0*512.0)/float(nbSamples) ) - 0.5 * log2(p) );
     //return max( 0.0, 0.5 * 18.0/float(nbSamples) ) - 0.5 * log2(p) );
 
-    return max( 0.0, maxLod - 0.5*(log2(float(nbSamples)) + log2( p )));
+    float ds = 1.0/ ( float(nbSamples) * p );
+    float dp = 1.0 / (512.0*512.0);
+
+    // for test
+    float lod = uLod + 0.5 * log2(ds/dp);
+    return max(0.0, lod );
+    //return computeLODPanorama( vec3(0.0), p, nbSamples, maxLod );
+    return max( 0.0, (maxLod - 1.0) - 0.5*(log2(float(nbSamples)) + log2( p )));
 }
 
 vec3 getTexelPanoramaRGBE( const in vec3 dir, const in float lod ) {

@@ -15,6 +15,20 @@
     var EnvironmentCubeMap = window.EnvironmentCubeMap;
     var EnvironmentSphericalHarmonics = window.EnvironmentSphericalHarmonics;
 
+
+    var PredefinedMaterials = {
+        Silver: [      0.971519 ,    0.959915,     0.915324 ],
+        Aluminium: [   0.913183 ,    0.921494,     0.924524 ],
+        Gold: [        1 ,           0.765557,     0.336057 ],
+        Copper: [      0.955008 ,    0.637427,     0.538163 ],
+        Chromium: [    0.549585 ,    0.556114,     0.554256 ],
+        Nickel: [      0.659777 ,    0.608679,     0.525649 ],
+        Titanium: [    0.541931 ,    0.496791,     0.449419 ],
+        Cobalt: [      0.662124 ,    0.654864,     0.633732 ],
+        Platinum: [    0.672411 ,    0.637331,     0.585456 ]
+    };
+
+
     var linear2Srgb = function ( value, gamma ) {
         if ( !gamma ) gamma = 2.2;
         var result = 0.0;
@@ -38,7 +52,12 @@
             lod: 0.01,
             albedo: '#bdaaeb',
             nbSamples: 8,
-            environmentType: 'cubemap'
+            environmentType: 'cubemapSeamless',
+
+            roughness: 0.5,
+            material: 'Gold'
+
+
         };
 
         this.updateAlbedo();
@@ -47,12 +66,43 @@
         this._albedoTextureUnit = 2;
         this._roughnessTextureUnit = 3;
         this._metalnessTextureUnit = 4;
-
+        this._materialDefines = [];
+        this._shaderDefines = [];
+        this._modelDefines = [];
 
         this._environmentTransformUniform = osg.Uniform.createMatrix4( osg.Matrix.makeIdentity( [] ), 'uEnvironmentTransform' );
+
+
     };
 
     Example.prototype = {
+
+        setPredefineMaterial: function( stateSet, roughness, name ) {
+            var roughnessTexture = this.createTextureFromColor( [ roughness, roughness, roughness, 1.0 ], false);
+            if ( !PredefinedMaterials[ name ] ) {
+                console.log('configuration not gound for material', name );
+            }
+            var specular = this.createTextureFromColor( PredefinedMaterials[ name ], true );
+
+            this.setMaterial( stateSet, this.getTexture0000(), roughnessTexture, specular );
+            this._materialDefines = [ '#define SPECULAR' ];
+        },
+
+        setMaterial: function( stateSet, albedo, roughness, specular) {
+
+            stateSet.setTextureAttributeAndModes( this._albedoTextureUnit, albedo );
+            stateSet.setTextureAttributeAndModes( this._roughnessTextureUnit, roughness );
+            stateSet.setTextureAttributeAndModes( this._metalnessTextureUnit, specular );
+
+            if ( this._stateSetPBR )
+                this.updateShaderPBR();
+        },
+
+        getTexture0000: function () {
+            if ( !this._texture0000 )
+                this._texture0000 = this.createTextureFromColor( [ 0,0,0,1 ] );
+            return this._texture0000;
+        },
 
         getTexture1111: function () {
             if ( !this._texture1111 )
@@ -60,8 +110,22 @@
             return this._texture1111;
         },
 
-        createTextureFromColor: function ( color, srgb, textureOutput ) {
+        createTextureFromColor: function ( colorInput, srgb, textureOutput ) {
             var albedo = new osg.Uint8Array( 4 );
+
+            if ( typeof colorInput === 'number' ) {
+                colorInput = [colorInput];
+            }
+            var color = colorInput.slice(0);
+
+            if ( color.length === 3 )
+                color.push(1.0);
+
+            if ( color.length === 1 ) {
+                color.push(color[0]);
+                color.push(color[0]);
+                color.push(1.0);
+            }
 
             color.forEach( function ( value, index ) {
                 if ( srgb )
@@ -144,6 +208,18 @@
         createShaderPBR: function ( config ) {
 
             var defines = [];
+
+            this._materialDefines.forEach( function( d ) {
+                defines.push( d );
+            });
+
+            this._modelDefines.forEach( function( d ) {
+                defines.push( d );
+            });
+
+            if ( config && config.noTangent === true )
+                defines.push( '#define NO_TANGENT' );
+
             if ( config && config.normalMap === true )
                 defines.push( '#define NORMAL' );
 
@@ -168,8 +244,6 @@
                 defines.push( '#define FLOAT_CUBEMAP_LOD ');
                 defines.push( '#define FLOAT_CUBEMAP_SEAMLESS ');
             }
-
-            defines.push( '#define NO_TANGENT ');
 
 
             if ( !this._shaderCache )
@@ -204,19 +278,6 @@
             stateSet.addUniform( this._environmentTransformUniform );
             stateSet.setTextureAttributeAndModes( 0, texture );
 
-        },
-
-        setupMaterial: function ( stateSet, roughness, metalness ) {
-
-
-            var roughnessTexture = this._roughnessTexture = this.createTextureFromColor( [ roughness, roughness, roughness, 1.0 ], false // , this._roughnessTexture
-            );
-            var metalnessTexture = this._metalnessTexture = this.createTextureFromColor( [ metalness, metalness, metalness, 1.0 ], false //, this._metalnessTexture
-            );
-
-            stateSet.setTextureAttributeAndModes( this._albedoTextureUnit, this._albedoTexture );
-            stateSet.setTextureAttributeAndModes( this._roughnessTextureUnit, roughnessTexture );
-            stateSet.setTextureAttributeAndModes( this._metalnessTextureUnit, metalnessTexture );
         },
 
         createEnvironmentNode: function () {
@@ -308,41 +369,154 @@
 
         getModelTestInstance: function () {
             var mt = new osg.MatrixTransform();
+
             //mt.addChild( this._modeltest );
-             mt.addChild( osg.createTexturedSphereGeometry( 20 / 2, 30, 30 ) );
+
+            mt.addChild( osg.createTexturedSphereGeometry( 20 / 2, 30, 30 ) );
+
             return mt;
         },
 
+        updateRowModelsSpecularMetal: function() {
+            var specularTexture = this._specularMetalTexture= this.createTextureFromColor( PredefinedMaterials[this._config.material], false, this._specularMetalTexture );
+            return specularTexture;
+        },
 
-        createSampleModel: function ( roughness, metal ) {
+        createRowModelsSpecularMetal: function( nb, offset ) {
 
-            var sample = this.getModelTestInstance();
+            var albedo = this.getTexture0000();
 
-            var x = roughness * 80;
-            var y = metal * 80;
-            osg.Matrix.makeTranslate( x, 0, y, sample.getMatrix() );
+            var specularTexture = this.updateRowModelsSpecularMetal();
 
-            this.setupMaterial( sample.getOrCreateStateSet(), roughness, metal );
+            var group = new osg.MatrixTransform();
 
-            return sample;
+            for ( var j = 0; j < nb; j++ ) {
+                var roughness = j / ( nb - 1 );
+
+                var sample = this.getModelTestInstance();
+                var x = roughness * offset;
+                osg.Matrix.makeTranslate( x, 0, 0, sample.getMatrix() );
+
+                var roughnessTexture = this.createTextureFromColor( roughness, false );
+
+                this.setMaterial( sample.getOrCreateStateSet(), albedo, roughnessTexture, specularTexture );
+                group.addChild( sample );
+            }
+            return group;
+        },
+
+        updateRowModelsMetalic: function() {
+            var roughnessTexture = this._roughnessMetalTexture = this.createTextureFromColor( this._config.roughness, false, this._roughnessMetalTexture );
+            return roughnessTexture;
+        },
+
+        createRowModelsMetalic: function( nb, offset ) {
+
+            var albedo = this._albedoTexture;
+            var roughnessTexture = this.updateRowModelsMetalic();
+
+            var group = new osg.MatrixTransform();
+
+            for ( var j = 0; j < nb; j++ ) {
+                var metal = j / ( nb - 1 );
+
+                var sample = this.getModelTestInstance();
+                var x = metal * offset;
+                osg.Matrix.makeTranslate( x, 0, 0, sample.getMatrix() );
+
+                var metalTexture = this.createTextureFromColor( metal, false );
+
+                this.setMaterial( sample.getOrCreateStateSet(), albedo, roughnessTexture , metalTexture );
+                group.addChild( sample );
+            }
+            return group;
         },
 
 
-        createSampleModels: function () {
-            var group = new osg.Node();
-            var nb = 2;
-            var nbRough = 5;
-            for ( var i = 0; i < nb; i++ ) {
-                for ( var j = 0; j < nbRough; j++ ) {
-                    group.addChild( this.createSampleModel( j / ( nbRough - 1 ), i / ( nb - 1 ) ) );
+        createRowModelsRoughness: function( nb, offset ) {
+
+            var group = new osg.MatrixTransform();
+            var albedo = this._albedoTexture;
+
+            for ( var i = 0; i < 2; i++) {
+
+                var metal = i / ( nb - 1 );
+                var metalTexture = this.createTextureFromColor( metal, false );
+
+                for ( var j = 0; j < nb; j++ ) {
+                    var roughness = j / ( nb - 1 );
+
+                    var sample = this.getModelTestInstance();
+
+                    var x = roughness * offset;
+                    var y = metal * offset;
+                    osg.Matrix.makeTranslate( x, 0, y, sample.getMatrix() );
+
+                    var roughnessTexture = this.createTextureFromColor( roughness, false );
+
+                    this.setMaterial( sample.getOrCreateStateSet(), albedo, roughnessTexture , metalTexture );
+
+                    group.addChild( sample );
                 }
             }
 
-            this._stateSetPBR = group.getOrCreateStateSet();
+            return group;
+        },
+
+        createSampleModels: function () {
+
+            var nb = 8;
+            var offset = 8*20;
+            this._shaders = [];
+
+            var group = new osg.Node();
+
+            var stateSet;
+            var config;
+
+            var rowRoughness = this.createRowModelsRoughness( nb, offset );
+            stateSet = rowRoughness.getOrCreateStateSet();
+            config = {
+                stateSet: stateSet,
+                config: {
+                    noTangent: true
+                }
+            };
+            this._shaders.push( config );
+            group.addChild( rowRoughness );
+            osg.Matrix.makeTranslate( 0,0,0, rowRoughness.getMatrix());
+
+            var rowMetalic = this.createRowModelsMetalic( nb, offset );
+            stateSet = rowMetalic.getOrCreateStateSet();
+            config = {
+                stateSet: stateSet,
+                config: {
+                    noTangent: true
+                }
+            };
+            this._shaders.push( config );
+            group.addChild( rowMetalic );
+            osg.Matrix.makeTranslate( 0,40,0, rowMetalic.getMatrix());
+
+            var rowSpecular = this.createRowModelsSpecularMetal( nb, offset );
+            stateSet = rowSpecular.getOrCreateStateSet();
+            config = {
+                stateSet: stateSet,
+                config: {
+                    specularMap: true,
+                    noTangent: true
+                }
+            };
+            this._shaders.push( config );
+            group.addChild( rowSpecular );
+            osg.Matrix.makeTranslate( 0,80,0, rowSpecular.getMatrix());
+
+
             this.updateShaderPBR();
 
             return group;
-        },
+        }
+,
 
         createSampleScene: function () {
 
@@ -519,7 +693,7 @@
         createScene: function () {
 
             var root = new osg.Node();
-            root.addChild( osg.createAxisGeometry( 50 ) );
+            //root.addChild( osg.createAxisGeometry( 50 ) );
 
             var group = new osg.MatrixTransform();
             root.addChild( group );
@@ -548,17 +722,17 @@
 
                 this.updateEnvironment();
 
+                var offsetX = -60;
+                group.addChild( this.testSphericalHarmonics( offsetX -30, 30 ) );
 
-                group.addChild( this.testSphericalHarmonics( -30, 30 ) );
+                group.addChild( this.testCubemap( offsetX -60 ) );
+                group.addChild( this.testCubemapFloat( offsetX -60, -30 ) );
+                group.addChild( this.testCubemapFloatPacked( offsetX -60, -60 ) );
 
-                group.addChild( this.testCubemap( -60 ) );
-                group.addChild( this.testCubemapFloat( -60, -30 ) );
-                group.addChild( this.testCubemapFloatPacked( -60, -60 ) );
+                group.addChild( this.testCubemapIrradiance( offsetX -60, 30 ) );
 
-                group.addChild( this.testCubemapIrradiance( -60, 30 ) );
-
-                group.addChild( this.testPanoramaIrradiance( -90, 30 ) );
-                group.addChild( this.testPanorama( -90 ) );
+                group.addChild( this.testPanoramaIrradiance( offsetX -90, 30 ) );
+                group.addChild( this.testPanorama(  offsetX -90 ) );
 
 
 
@@ -629,6 +803,7 @@
 
                 viewer.run();
 
+                osg.Matrix.makePerspective( 30, canvas.width/canvas.height ,0.1, 1000, viewer.getCamera().getProjectionMatrix() );
 
                 var gui = new window.dat.GUI();
                 var controller = gui.add( this._config, 'lod', 0.0, 15.01 ).step( 0.1 );
@@ -637,14 +812,23 @@
                     this._lod.dirty();
                 }.bind( this ) );
 
-                controller = gui.addColor( this._config, 'albedo' );
-                controller.onChange( this.updateAlbedo.bind( this ) );
-
                 controller = gui.add( this._config, 'nbSamples', [ 4, 8, 16, 32, 64, 128, 256 ] );
-                controller.onChange( this.updateShaderPBR.bind( this ) );
+                var updateShaderCallback = this.updateShaderPBR.bind( this );
+                controller.onChange( updateShaderCallback );
 
                 controller = gui.add( this._config, 'environmentType', [ 'cubemap', 'cubemapSeamless', 'panorama' ] );
                 controller.onChange( this.updateEnvironment.bind( this ) );
+
+                controller = gui.add( this._config, 'material', Object.keys(PredefinedMaterials) );
+                controller.onChange( this.updateRowModelsSpecularMetal.bind( this )  );
+
+                controller = gui.add( this._config, 'roughness', 0, 1.0 );
+                controller.onChange( this.updateRowModelsMetalic.bind( this ) );
+
+                controller = gui.addColor( this._config, 'albedo' );
+                controller.onChange( this.updateAlbedo.bind( this ) );
+
+
 
             }.bind( this ) );
 
@@ -684,16 +868,25 @@
                 this._uniformHammersleySequence[ nbSamples ] = uniformHammersley;
             }
             var uniformHammerslay = this._uniformHammersleySequence[ nbSamples ];
-
-            var program = this.createShaderPBR( {
-                nbSamples: nbSamples,
-                environmentType: this._config.environmentType
-            } );
-
             uniformHammerslay.dirty();
 
-            this._stateSetPBR.setAttributeAndModes( program );
-            this._stateSetPBR.addUniform( uniformHammerslay );
+
+            this._shaders.forEach( function( config ) {
+
+                var stateSet = config.stateSet;
+
+                var shaderConfig = osg.objectMix( {
+                    nbSamples: nbSamples,
+                    environmentType: this._config.environmentType
+                }, config.config );
+
+                var program = this.createShaderPBR( shaderConfig );
+
+                stateSet.setAttributeAndModes( program );
+                stateSet.addUniform( uniformHammerslay );
+
+            }.bind( this ) );
+
         },
 
         updateEnvironment: function () {
