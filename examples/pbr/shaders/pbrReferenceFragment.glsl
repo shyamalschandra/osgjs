@@ -176,5 +176,5 @@ void main(void) {
 
     vec4 result = vec4( computeIBL( tangent, normal, -eye, albedo, roughness, specular ), 1.0);
 
-    gl_FragColor = result;
+    gl_FragColor = linearTosRGB(result, DefaultGamma );
 }

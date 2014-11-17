@@ -11,6 +11,7 @@ varying vec2 osg_FragTexCoord0;
 varying vec3 osg_FragVertex;
 
 #pragma include "cubemapSampler.glsl"
+#pragma include "colorSpace.glsl"
 
 mat3 getEnvironmentTransfrom( mat4 transform ) {
     vec3 x = vec3(transform[0][0], transform[1][0], transform[2][0]);
@@ -34,5 +35,5 @@ void main() {
 #endif
 #endif
     //color = textureCube(uEnvironment, direction ).rgb;
-    gl_FragColor = vec4( color, 1.0);
+    gl_FragColor = vec4( linearTosRGB(color, DefaultGamma ), 1.0);
 }

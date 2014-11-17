@@ -13,6 +13,7 @@ varying vec3 osg_FragVertex;
 varying vec3 osg_FragWorldVertex;
 
 #pragma include "math.glsl"
+#pragma include "colorSpace.glsl"
 #pragma include "panoramaSampler.glsl"
 
 // environment rgbe lod inline
@@ -60,5 +61,5 @@ void main() {
 #else
     vec3 color = test0( direction );
 #endif
-    gl_FragColor = vec4( color, 1.0);
+    gl_FragColor = vec4( linearTosRGB(color, DefaultGamma ), 1.0);
 }
